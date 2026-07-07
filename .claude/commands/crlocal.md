@@ -32,7 +32,7 @@ CodeRabbit local catches things our own reading misses — missing error paths, 
    - **Hard ceiling: 4 fix-commits** on the branch → stop and escalate to the user even if unmet.
 
 6. **Report a round summary** each round:
-   ```
+   ```text
    CR local round N — <count> findings
    | File:line | Class | Verdict | Why |
    Applied: N   Skipped: N   Rounds: X/min M   this-round apply-worthy: yes/no
