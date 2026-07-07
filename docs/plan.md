@@ -1,6 +1,6 @@
 ---
 status: read me first each session
-updated: 2026-07-07
+updated: 2026-07-08
 ---
 
 # Plan — First Android App (learning CRM)
@@ -10,11 +10,12 @@ Learn app development end-to-end by building a light CRM in Flutter, backed by a
 trimmed self-hosted Supabase on homebase. Learning is the point; the CRM is
 disposable. Built emergently — thin slices, one at a time.
 
-## Current status (2026-07-07)
+## Current status (2026-07-08)
 - ✅ Environment: Flutter 3.44.5 installed; Web + Linux desktop targets ready.
-- ✅ Decisions made — stack, method, backend (see `docs/decisions.md`).
+- ✅ Decisions made — stack, method, backend, CodeRabbit workflow (see `docs/decisions.md`, 7 decisions).
 - ✅ Foundation docs laid: this file, `CLAUDE.md`, `decisions.md`, `database.md`, `HANDOVER.md`.
-- ⬜ No app code yet. No backend stood up yet.
+- ✅ On GitHub: **okpilot/first-android-app** (public); push gate live (`/crlocal`, `/fullpush`, `/wrapup`).
+- ⬜ No app code yet. No backend stood up yet. No CI yet.
 
 ## Roadmap (each step is a thin, visible slice)
 1. **Walking skeleton (local only):** one screen listing a few hard-coded contacts, running in Chrome. No backend. — *next*

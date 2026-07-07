@@ -1,4 +1,4 @@
-> Cross-session work tracker. Update in place. Last updated: 2026-07-07.
+> Cross-session work tracker. Update in place. Last updated: 2026-07-08.
 
 # Handover
 
@@ -15,6 +15,7 @@ design preference) to start Slice 1 — the walking skeleton.**
 - ✅ `git init` + initial commit `f51a849` (branch `main`); `.gitignore` protects `.env`/secrets.
 - ✅ Pushed to GitHub: **github.com/okpilot/first-android-app** (public).
 - ✅ Adopted CodeRabbit workflow (PR #1, squash-merged `5eed675`): `.coderabbit.yaml`, `/crlocal` + `/fullpush` commands, branch-per-slice push gate. Proven end-to-end — cr-local 2 rounds clean + cloud CodeRabbit 0 findings.
+- ✅ Added `/wrapup` end-of-session command (`69a6a4e`); ran it to close this session.
 
 ## Next
 - **Slice 1:** walking skeleton — a contact list in Chrome, local/hard-coded data, no backend.
