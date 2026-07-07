@@ -53,11 +53,17 @@ project: First Android App (learning CRM)
 **Decided:** Adopt, scaled to this project: (a) `.coderabbit.yaml` (lean, Dart + SQL path_instructions, no secrets); (b) `.claude/commands/crlocal.md` — run `coderabbit review --base main --type committed`, triage apply/skip/defer reading source, min 2 rounds (3 for SQL/security), stop when ≥min and last round clean, ceiling 4 fix-commits; (c) `.claude/commands/fullpush.md` — analyze + test + build + crlocal + explicit push approval; (d) **branch per slice**, `main` stays green. CI/CD (GitHub Actions) added with Slice 1.
 **Principle:** cr-local before every push; the cloud bot on the PR is the authoritative gate. Earn heavier ceremony (multi-agent pipeline, e2e, scanners) as the project grows.
 
+## Decision 8: Styling = stock Material 3 for now; theming deferred (2026-07-08)
+**Context:** Coming from the TS/React world, the user styles with shadcn/ui. Flutter needs no such component library — Material 3 is built into the framework, and a "theme" is a `ThemeData` object (shadcn's CSS-variable block ≈ `ThemeData`; `ColorScheme.fromSeed(seedColor:)` turns one seed color into a full accessible light+dark palette).
+**Decided:** Slice 1 (and until a slice actually calls for styling) uses **stock Material 3** — `ThemeData(useMaterial3: true, colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo))`. No component library, no custom theme. References bookmarked for the first styling slice (see IDEAS/NOTES): Material Theme Builder, `flex_color_scheme`, and `shadcn_ui`/`forui` if we ever want the flat shadcn aesthetic.
+**Principle:** Good-looking defaults for free; earn a custom theme emergently, when a slice needs it.
+
 ---
 
 ## OPEN QUESTIONS
 - [x] Backend hosting: **self-host trimmed on homebase** (vs Supabase cloud). Settled 2026-07-07; revisit only if homebase load becomes a problem.
-- [ ] First walking-skeleton slice: which single CRM entity to start with (likely `contacts`)? — decide when we start building.
+- [x] First walking-skeleton slice entity: **`contacts`** (name, dob, email, phone, company, remarks). Settled 2026-07-08 — Slice 1.
 
 ## IDEAS / NOTES
 - The `okpilot/selfhost` repo on homebase is where the backend stack (a new `stacks/` dir + a Caddy route) will live, committed like the others.
+- **Styling / theming (for the first styling slice — not yet):** Flutter needs no shadcn-style component library — Material 3 is built in. Default plan: stock Material 3 + `ColorScheme.fromSeed(seedColor: …)` (one seed → full light+dark palette). References to reach for when we theme: **Material Theme Builder** (https://material-foundation.github.io/material-theme-builder/ — visual editor, exports `ThemeData`); **`flex_color_scheme`** pub package (dozens of polished pre-made themes); **`shadcn_ui`** / **`forui`** packages if we ever want the specific flat shadcn aesthetic. Decide emergently when a slice calls for it.
