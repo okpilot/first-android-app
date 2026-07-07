@@ -29,6 +29,7 @@ Skips are allowed but **must be stated, never silent**.
   CodeRabbit local review — `.claude/commands/crlocal.md`), then **ask for explicit push approval**.
 - CodeRabbit is installed org-wide, so the cloud bot also reviews the PR on push — that's the authoritative gate; `/crlocal` is the cheaper pre-push preview.
 - **CI/CD** (GitHub Actions: analyze + test + build) is added *with Slice 1*, when there's a Flutter project to run against.
+- **At end of session, run `/wrapup`** (`.claude/commands/wrapup.md`) — sync docs, dispose of every open finding, leave `main` clean.
 
 ## NEVER DO
 - **NEVER** build a large feature from a vague ask — propose the next thinnest slice and confirm first.
