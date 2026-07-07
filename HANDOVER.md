@@ -13,6 +13,8 @@ design preference) to start Slice 1 — the walking skeleton.**
 - ✅ Laid foundation docs: `CLAUDE.md`, `docs/plan.md`, `docs/decisions.md`, `docs/database.md`, `HANDOVER.md`.
 - ✅ QA'd the foundation (files present, no secrets, cross-refs + facts consistent).
 - ✅ `git init` + initial commit `f51a849` (branch `main`); `.gitignore` protects `.env`/secrets.
+- ✅ Pushed to GitHub: **github.com/okpilot/first-android-app** (public).
+- ✅ Adopted CodeRabbit workflow (PR #1, squash-merged `5eed675`): `.coderabbit.yaml`, `/crlocal` + `/fullpush` commands, branch-per-slice push gate. Proven end-to-end — cr-local 2 rounds clean + cloud CodeRabbit 0 findings.
 
 ## Next
 - **Slice 1:** walking skeleton — a contact list in Chrome, local/hard-coded data, no backend.
@@ -20,4 +22,4 @@ design preference) to start Slice 1 — the walking skeleton.**
 ## Loose ends
 - ⏸️ Backend not stood up yet (deferred — first slices are local). When needed: new `stacks/` dir + Caddy route in `okpilot/selfhost`.
 - ⏸️ Android SDK not installed (deferred until we target phones).
-- ⏸️ Not pushed yet — repo is local only. Push to Forgejo/GitHub on the user's go-ahead (no remote added yet).
+- ⏸️ CI/CD (GitHub Actions: analyze + test + build) not set up yet — lands **with Slice 1**, when there's a Flutter project to run against.
