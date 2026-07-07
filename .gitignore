@@ -1,0 +1,20 @@
+# Secrets / environment — NEVER commit these
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# OS & editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+*.swp
+
+# Flutter / Dart build artifacts (populated once app code exists)
+.dart_tool/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
