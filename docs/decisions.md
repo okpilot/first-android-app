@@ -48,6 +48,11 @@ project: First Android App (learning CRM)
 **Decided:** Adopt LMS Plus conventions, but only after two independent audit rounds verified them. Corrections: it is NOT "everything is RPC" (RPC for multi-table/immutable/sensitive; direct RLS access otherwise); pagination is LIMIT/OFFSET (default 10), not keyset; hard DELETEs exist only as annotated exceptions; secrets were leaked in its settings (anti-pattern to avoid). Scale the tooling down — principles, not the full 10-agent ceremony.
 **Principle:** Inherit *verified* principles, not idealized ones; earn ceremony as the project grows.
 
+## Decision 7: Adopt CodeRabbit + a scaled cr-local/fullpush push gate (2026-07-07)
+**Context:** CodeRabbit is installed org-wide on `okpilot` (so it reviews every repo's PRs), and the `coderabbit` CLI is installed + Pro. The user requires cr-local before every push, per their LMS Plus `/fullpush` gate.
+**Decided:** Adopt, scaled to this project: (a) `.coderabbit.yaml` (lean, Dart + SQL path_instructions, no secrets); (b) `.claude/commands/crlocal.md` — run `coderabbit review --base main --type committed`, triage apply/skip/defer reading source, min 2 rounds (3 for SQL/security), stop when ≥min and last round clean, ceiling 4 fix-commits; (c) `.claude/commands/fullpush.md` — analyze + test + build + crlocal + explicit push approval; (d) **branch per slice**, `main` stays green. CI/CD (GitHub Actions) added with Slice 1.
+**Principle:** cr-local before every push; the cloud bot on the PR is the authoritative gate. Earn heavier ceremony (multi-agent pipeline, e2e, scanners) as the project grows.
+
 ---
 
 ## OPEN QUESTIONS

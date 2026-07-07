@@ -1,0 +1,34 @@
+# CodeRabbit config — https://docs.coderabbit.ai/reference/configuration
+# Learning CRM (Flutter + trimmed self-hosted Supabase). Kept lean on purpose;
+# grow path_instructions as conventions in docs/database.md start to bite.
+language: en-US
+
+reviews:
+  profile: chill                 # learning project — helpful, not nitpicky
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: true
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+  path_instructions:
+    - path: "**/*.dart"
+      instructions: >
+        Flutter/Dart. Prefer const constructors; keep widgets small and free of
+        business logic; push 'use'-heavy logic into plain Dart classes. Flag
+        unhandled async/futures, missing error paths, and use of raw Postgres
+        credentials on the client (must go through PostgREST/GoTrue under RLS).
+    - path: "**/*.sql"
+      instructions: >
+        Postgres migrations (Supabase). Enforce docs/database.md: enable RLS in the
+        SAME migration as CREATE TABLE; soft-delete via deleted_at (no hard DELETE
+        except explicitly-annotated exceptions); SECURITY DEFINER functions must
+        SET search_path = public and check auth.uid(); use idempotent upserts
+        (ON CONFLICT); migrations are forward-only.
+
+chat:
+  auto_reply: true

@@ -22,6 +22,14 @@ Emergent, slice by slice. For each change:
 
 Skips are allowed but **must be stated, never silent**.
 
+## Branching & the push gate
+- **Branch per slice** — never build on `main`. `main` stays green.
+- **Before every push, run the `/fullpush` gate** (`.claude/commands/fullpush.md`):
+  `flutter analyze` + `flutter test` + `flutter build web`, then **`/crlocal`** (mandatory
+  CodeRabbit local review — `.claude/commands/crlocal.md`), then **ask for explicit push approval**.
+- CodeRabbit is installed org-wide, so the cloud bot also reviews the PR on push — that's the authoritative gate; `/crlocal` is the cheaper pre-push preview.
+- **CI/CD** (GitHub Actions: analyze + test + build) is added *with Slice 1*, when there's a Flutter project to run against.
+
 ## NEVER DO
 - **NEVER** build a large feature from a vague ask — propose the next thinnest slice and confirm first.
 - **NEVER** commit or push without the user's explicit go-ahead.
