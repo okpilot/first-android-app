@@ -12,10 +12,11 @@ disposable. Built emergently — thin slices, one at a time.
 
 ## Current status (2026-07-08)
 - ✅ Environment: Flutter 3.44.5 installed; Web + Linux desktop targets ready.
-- ✅ Decisions made — stack, method, backend, CodeRabbit workflow (see `docs/decisions.md`, 7 decisions).
+- ✅ Decisions made — stack, method, backend, CodeRabbit workflow, styling (see `docs/decisions.md`, 8 decisions).
 - ✅ Foundation docs laid: this file, `CLAUDE.md`, `decisions.md`, `database.md`, `HANDOVER.md`.
 - ✅ On GitHub: **okpilot/first-android-app** (public); push gate live (`/crlocal`, `/fullpush`, `/wrapup`).
-- ⬜ No app code yet. No backend stood up yet. No CI yet.
+- 🔨 **Slice 1 built + gate-passed on branch `slice-1-walking-skeleton`, NOT pushed** (parked; awaiting push approval). CI authored (`ci.yml`).
+- ⬜ Backend not stood up yet.
 
 ## Roadmap (each step is a thin, visible slice)
 1. **Walking skeleton (local only):** one screen listing a few hard-coded contacts, running in Chrome. No backend. — *next*

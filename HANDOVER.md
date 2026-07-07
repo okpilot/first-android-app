@@ -2,25 +2,33 @@
 
 # Handover
 
-**Status: Foundation laid. No app code yet. Awaiting the user's go-ahead (and any
-design preference) to start Slice 1 — the walking skeleton.**
+**Status: Slice 1 (walking skeleton) BUILT and gate-passed locally, committed on branch
+`slice-1-walking-skeleton` — NOT pushed. Parked mid-slice. Resume = push + PR + merge.**
 
-## Done this run (2026-07-07)
-- ✅ Installed Flutter 3.44.5; Web + Linux desktop targets green.
-- ✅ Homebase housekeeping: removed Mealie + Mealie-MCP stacks (freed ~300 MB), cleaned Caddy/Homepage refs, committed + pushed to `okpilot/selfhost`.
-- ✅ Studied + verified LMS Plus conventions (two independent audit rounds).
-- ✅ Decided stack / method / backend (see `docs/decisions.md`).
-- ✅ Laid foundation docs: `CLAUDE.md`, `docs/plan.md`, `docs/decisions.md`, `docs/database.md`, `HANDOVER.md`.
-- ✅ QA'd the foundation (files present, no secrets, cross-refs + facts consistent).
-- ✅ `git init` + initial commit `f51a849` (branch `main`); `.gitignore` protects `.env`/secrets.
-- ✅ Pushed to GitHub: **github.com/okpilot/first-android-app** (public).
-- ✅ Adopted CodeRabbit workflow (PR #1, squash-merged `5eed675`): `.coderabbit.yaml`, `/crlocal` + `/fullpush` commands, branch-per-slice push gate. Proven end-to-end — cr-local 2 rounds clean + cloud CodeRabbit 0 findings.
-- ✅ Added `/wrapup` end-of-session command (`69a6a4e`); ran it to close this session.
+## Resume here (next session)
+1. `git switch slice-1-walking-skeleton` (2 commits: `7bdaec0` app, `052c1ce` CI fix).
+2. Local gate already green: `flutter analyze` clean · `flutter test` passes · `flutter build web` ok · `/crlocal` 2 rounds, last clean (no findings).
+3. **Get push approval**, then push branch + open PR to `main` → let cloud CodeRabbit review → merge after approval.
+4. Then run `/wrapup` to sync docs + mark Slice 1 done on `main`.
+5. **Then: shape it together** — user finds the current UI primitive (by design, it's the skeleton). Next slice is their pick: layout/theme polish, master→detail, or add-a-contact. Ask before building.
 
-## Next
-- **Slice 1:** walking skeleton — a contact list in Chrome, local/hard-coded data, no backend.
+## Done this run (2026-07-08)
+- ✅ Confirmed styling approach: stock Material 3 + `ColorScheme.fromSeed` now; theming deferred (Decision 8; references bookmarked in `decisions.md` IDEAS/NOTES).
+- ✅ Planned Slice 1 (plan mode) + ran 2 adversarial critics (Flutter-toolchain + workflow/scope); folded fixes into the plan.
+- ✅ Built Slice 1 on branch `slice-1-walking-skeleton`:
+  - `~/flutter/bin/flutter create --project-name first_android_app --platforms=web,linux .`
+  - `lib/main.dart`: `Contact` (6 fields) + `ContactsScreen` + `ContactCard`; 4 hard-coded contacts.
+  - `test/widget_test.dart`: smoke test (app bar + cards render).
+  - `.github/workflows/ci.yml`: analyze + test + build web on Flutter 3.44.5 (`persist-credentials: false`).
+  - `.gitignore`: added Flutter artifact rules (secret rules kept). `pubspec.lock` + `.metadata` committed.
+- ✅ Verified web build renders (served `build/web` locally; Chrome extension not connected, so no in-tool screenshot).
+
+## Done previous run (2026-07-07)
+- ✅ Flutter 3.44.5 installed; homebase Mealie removed; LMS Plus conventions verified; foundation docs laid; pushed to **github.com/okpilot/first-android-app**; CodeRabbit workflow adopted (PR #1 merged); `/wrapup` added.
 
 ## Loose ends
+- ⏸️ Slice 1 branch unpushed (intentional — parked; awaiting push approval).
+- ⏸️ CI (`ci.yml`) authored but never run — its first real run is on the PR push, not the local gate.
 - ⏸️ Backend not stood up yet (deferred — first slices are local). When needed: new `stacks/` dir + Caddy route in `okpilot/selfhost`.
 - ⏸️ Android SDK not installed (deferred until we target phones).
-- ⏸️ CI/CD (GitHub Actions: analyze + test + build) not set up yet — lands **with Slice 1**, when there's a Flutter project to run against.
+- ⚠️ `flutter build linux` from this path may choke on the spaces in the absolute path (CMake/ninja) — out of scope now (web-only gate); flag when we first target Linux desktop.
