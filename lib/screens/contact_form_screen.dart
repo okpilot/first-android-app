@@ -82,6 +82,7 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
       final saved = _isEditing
           ? await widget.repository.update(draft)
           : await widget.repository.create(draft);
+      if (!mounted) return;
       navigator.pop(saved);
     } catch (_) {
       if (!mounted) return;

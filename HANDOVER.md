@@ -2,11 +2,11 @@
 
 # Handover
 
-**Status: Contacts — the first REAL vertical slice — is BUILT and RUNNING END-TO-END on
-Android (Flutter → supabase_flutter → local Postgres/PostgREST under RLS). Design principle
-docs adopted. Android SDK installed from scratch. ALL work is LOCAL & UNPUSHED, on branch
-`slice-1-walking-skeleton` (now used as the continuous dev line). Nothing on GitHub since
-Decision 7.**
+**Status: Contacts slice DONE and PUSHED. Branch `feature/contacts-crm` → PR #2 into
+`main` (https://github.com/okpilot/first-android-app/pull/2) — `/fullpush` green,
+`/crlocal` converged (4 rounds), **cloud CodeRabbit + CI PASS**. Full CRUD, bespoke mono
+theme, running on Android/web/Linux, backend deployed to homebase (tailnet). Resume =
+merge PR #2, then next slice (auth + DB hardening).**
 
 ## How to bring the dev env back up (next session)
 1. **Backend:** `cd backend && docker compose up -d` (data persists; `down -v` to re-seed).
@@ -29,8 +29,9 @@ Decision 7.**
 - 🐛 Bugs found & fixed: `setState`-returns-Future (caught by tests); `publishableKey` vs legacy anon JWT; **debug manifest clobbered Flutter's `INTERNET` permission** (the "Operation not permitted" fetch failures); `.order()` defaulted to desc.
 
 ## Loose ends / deferred
-- ⏸️ **Everything unpushed** (user: "do not push, nothing"). When ready: split the local dev line into proper per-slice branches/PRs, run `/fullpush` + `/crlocal`, then push.
-- ⏸️ **Ledger divergence:** `main` = Decision 7; this branch = Decisions 8–12. Reconcile at push time (fold onto main, or PR the branch) to keep the append-only ledger linear.
+- 🔀 **Merge PR #2** to bring `main` current (clean fast-forward, both checks green). Then delete the branch.
+- 🎨 **Theme (Decision 13) + git hooks (Decision 15) DONE.** Hooks: `.githooks/` — run `scripts/setup-hooks.sh` after a fresh clone to activate (`core.hooksPath`).
+- 🔒 **DB security hardening — DEFERRED to a GitHub issue** (cloud CR + local CR): (a) `soft_delete_contact` needs an `auth.uid()` ownership check; (b) `revoke execute … from public` before granting the RPC; (c) column-level write grants so anon can't write `created_at/updated_at/deleted_at`. All pair naturally with the **auth (GoTrue)** slice. New forward-only migrations + re-run `deploy-homebase.sh`.
 - ✅ **homebase deploy DONE** (Decision 14): `selfhost/stacks/firstapp-crm/` running, API at `https://homebase.tail7ab4bc.ts.net:8452` (tailnet-only, Tailscale TLS), started empty. Schema applied via `backend/deploy-homebase.sh` (migrator over the tailnet; source of truth = `backend/migrations/`). App config: gitignored `dev-defines.homebase.json`.
   - ⚠️ **selfhost commit `ff5513f` is UNPUSHED** — `git push` from a non-interactive SSH couldn't auth to GitHub. Finish with: `ssh king@homebase 'cd ~/selfhost && git push origin main'` from your terminal.
   - To run the app against homebase: the **emulator can't reach the tailnet**; use the real **S23+ with the Tailscale app** (`flutter build apk --dart-define-from-file=dev-defines.homebase.json` → `adb install`). Local dev still uses `dev-defines.android.json` (10.0.2.2 / adb reverse).
@@ -38,6 +39,13 @@ Decision 7.**
 - ✅ Bespoke mono/Linear-Attio **theme** DONE (Decision 13, `lib/theme.dart`, light+dark, one 3-weight type scale). **adaptive/two-pane** wide layout still a candidate next slice.
 - ⚠️ `flutter build linux` may still choke on the spaces in the absolute path (CMake/ninja) — untested; flag if we target Linux desktop.
 - 🧹 Stray background `flutter run -d web-server` processes may linger from debugging (failed to bind :8080); harmless, `pkill -f "flutter run"` to clear.
+
+## Done this run (2026-07-08, session 3)
+- ✅ **Bespoke mono/Linear-Attio theme** (D13) + unified 3-weight type scale after a typography QA (`lib/theme.dart`, `lib/util/format.dart`).
+- ✅ **S23+ emulator profile** (`galaxy_s23plus` AVD, 1080×2340).
+- ✅ **Backend deployed to homebase** (D14) — `selfhost/stacks/firstapp-crm/` + `backend/deploy-homebase.sh`.
+- ✅ **Mechanical git hooks** (D15) — `.githooks/` (format/analyze, conventional commits, secret scan).
+- ✅ **Push & consolidate**: renamed branch, `/fullpush`, `/crlocal` (4 rounds → 16 fixed, 1 deferred), opened **PR #2**; disposed cloud CR's 8 findings (4 fixed, 3 → hardening issue, 1 skipped false-positive).
 
 ## Done previous runs
 - 2026-07-08 (s1): styling = stock M3 (Decision 8); planned + built the walking skeleton (parked).

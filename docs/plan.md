@@ -11,20 +11,17 @@ trimmed self-hosted Supabase on homebase. Learning is the point; the CRM is
 disposable. Built emergently — thin slices, one at a time.
 
 ## Current status (2026-07-08)
-- ✅ Environment: Flutter 3.44.5; Web + Linux + **Android** targets all ready now.
-- ✅ Decisions made — 12 (see `docs/decisions.md`): stack, method, backend, CodeRabbit, styling, design-principles adoption, local dev backend, Android SDK, Contacts slice.
-- ✅ Design principles adopted (Decision 9) — `docs/design-principles.md` + two encyclopedias in `docs/`.
-- ✅ **Local dev backend running** (`backend/`): Postgres + PostgREST + Caddy gateway; `contacts` table + RLS + soft-delete RPC + seed. Verified via curl.
-- ✅ **Android SDK installed** (portable, home dir); Pixel emulator working.
-- ✅ **Contacts feature built & running end-to-end on Android** (list/detail/add/edit/soft-delete against the real backend). Local gate green (analyze + 5 tests + web build).
-- 🔨 All work is **local, unpushed** on branch `slice-1-walking-skeleton` (used as the continuous dev line). Nothing on GitHub since Decision 7.
-- ⬜ homebase deploy deferred (Decision 10). Auth (GoTrue) deferred. Bespoke theme deferred.
+- ✅ Environment: Flutter 3.44.5; Web + Linux + **Android** targets all ready (SDK installed, Pixel + S23+ emulators).
+- ✅ Decisions made — **15** (see `docs/decisions.md`): + design-principles adoption, local backend, Android SDK, Contacts slice, bespoke theme, homebase deploy, git hooks.
+- ✅ **Contacts — first real vertical slice**: full CRUD (list/detail/add-edit/soft-delete) with states, injectable repo (hermetic tests), **bespoke mono/Linear-Attio theme** (Decision 13). Runs on Android/web/Linux.
+- ✅ **Backend**: trimmed Supabase (Postgres + PostgREST + Caddy). Local dev **and deployed to homebase** (`https://homebase.tail7ab4bc.ts.net:8452`, tailnet-only HTTPS, Decision 14). Schema source of truth = `backend/migrations/`; applied to homebase via `backend/deploy-homebase.sh`.
+- ✅ **Mechanical git hooks** (`.githooks/`, Decision 15): pre-commit format+analyze, commit-msg, pre-push secret scan.
+- ✅ **Pushed & in review**: branch `feature/contacts-crm` → **PR #2** into `main`. `/fullpush` green; `/crlocal` converged (4 rounds); cloud CodeRabbit + CI **pass**.
 
 ## Roadmap (each step is a thin, visible slice)
-1. ~~Walking skeleton~~ ✅ (parked) → superseded by the real Contacts slice.
-2. ✅ **Contacts, for real** — full CRUD UI + trimmed backend (Postgres/PostgREST/RLS), running on Android.
-3. **Next candidates:** bespoke mono/Linear-Attio theme · adaptive/two-pane layout for wide screens · search/filter on the list · deploy backend to homebase (public HTTPS) · auth (GoTrue) when a slice needs per-user data.
+1. ~~Walking skeleton~~ ✅ → superseded by the real Contacts slice.
+2. ✅ **Contacts, for real** — CRUD UI + trimmed backend, themed, on Android; deployed to homebase.
+3. **Next candidates:** DB security hardening (issue — RPC `auth.uid()`, revoke PUBLIC execute, column-level write grants) · **auth (GoTrue)** logins + owner-based RLS · search/filter on the list · adaptive/two-pane layout for wide screens · run on the physical S23+.
 
 ## Next slice
-Open — pick from the candidates above. Everything is local & unpushed; when ready to
-push, reorganize the local dev line into proper per-slice branches/PRs and run the gate.
+Open — likely **auth (GoTrue) + DB hardening** together (the deferred security work naturally pairs), or a smaller UI slice (search/adaptive layout). Merge PR #2 first to bring `main` current.

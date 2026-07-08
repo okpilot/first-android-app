@@ -77,6 +77,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     final navigator = Navigator.of(context);
     try {
       await widget.repository.softDelete(_contact.id);
+      if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(content: Text('${_contact.name} deleted')),
       );

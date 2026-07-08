@@ -16,7 +16,7 @@ project: First Android App (learning CRM)
 
 ## Stance (what changed after the critics: we under-adopt on purpose)
 1. **References, not a gate.** The push gate stays exactly what Decision 7 defined —
-   `analyze` + `test` + `build` + CodeRabbit. Checklist review is **advisory guidance at
+   `analyze` + `test` + `build` + `/crlocal` + explicit push approval + CodeRabbit. Checklist review is **advisory guidance at
    UI slices**, never a blocker. It informs the slice; it doesn't fail it.
 2. **Proportional application.** Don't run ~60 checklist items against every diff. When a
    slice touches UI, name the *relevant* checklist groups (see the map below), review those,
