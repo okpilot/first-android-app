@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Layer 1 — pre-commit (BLOCKING): fast code-quality gate.
+# Flutter equivalent of LMS Plus's biome + check-types. Formatting + static analysis.
+set -euo pipefail
+FLUTTER="${FLUTTER_BIN:-$HOME/flutter/bin/flutter}"
+DART="${DART_BIN:-$HOME/flutter/bin/dart}"
+
+# dart format check — only on staged Dart files (no auto-write; fail if unformatted).
+mapfile -t dart_files < <(git diff --cached --name-only --diff-filter=ACM -- '*.dart')
+if [ ${#dart_files[@]} -gt 0 ]; then
+  echo "[pre-commit] dart format check (${#dart_files[@]} file(s))…"
+  if ! "$DART" format --output=none --set-exit-if-changed "${dart_files[@]}" >/dev/null 2>&1; then
+    echo "✗ Unformatted Dart. Run:  dart format ${dart_files[*]}" >&2
+    exit 1
+  fi
+fi
+
+# flutter analyze — whole project (like their no-glob check-types).
+echo "[pre-commit] flutter analyze…"
+if ! "$FLUTTER" analyze >/tmp/precommit-analyze.log 2>&1; then
+  tail -25 /tmp/precommit-analyze.log >&2
+  echo "✗ flutter analyze failed — fix before committing." >&2
+  exit 1
+fi
+echo "[pre-commit] ok"

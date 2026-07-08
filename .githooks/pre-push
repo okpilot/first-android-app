@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Layer 3 — pre-push (BLOCKING): security gate / final defense.
+# Same spirit as LMS Plus's pre-push security-auditor: stop secrets leaving the machine.
+set -euo pipefail
+z=0000000000000000000000000000000000000000
+
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+  [ "$local_sha" = "$z" ] && continue          # branch deletion
+  if [ "$remote_sha" = "$z" ]; then
+    range="$local_sha"                          # new branch: scan its commits
+  else
+    range="${remote_sha}..${local_sha}"
+  fi
+
+  # 1) never push env / dev-defines files (belt-and-suspenders over .gitignore)
+  if git diff --name-only "$range" 2>/dev/null | grep -Eq '(^|/)\.env$|(^|/)dev-defines.*\.json$'; then
+    echo "✗ Refusing to push: a .env / dev-defines file is in the outgoing commits." >&2
+    exit 1
+  fi
+  # 2) private keys or JWTs in added lines
+  if git diff "$range" 2>/dev/null | grep -E '^\+' \
+       | grep -Eq 'BEGIN [A-Z ]*PRIVATE KEY|eyJ[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]+'; then
+    echo "✗ Refusing to push: possible secret (private key / JWT) in the outgoing diff." >&2
+    echo "  Review with: git diff ${range}   — push manually if it's a false positive." >&2
+    exit 1
+  fi
+done
+exit 0
