@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/contacts_repository.dart';
 import '../models/contact.dart';
 import '../util/format.dart';
+import '../widgets/empty_state.dart';
 import 'contact_detail_screen.dart';
 import 'contact_form_screen.dart';
 
@@ -172,38 +173,15 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    // Scrollable so pull-to-refresh still works on the empty screen.
-    return ListView(
-      children: [
-        SizedBox(height: MediaQuery.sizeOf(context).height * 0.18),
-        Icon(
-          Icons.contacts_outlined,
-          size: 64,
-          color: theme.colorScheme.outline,
-        ),
-        const SizedBox(height: 16),
-        Center(
-          child: Text('No contacts yet', style: theme.textTheme.titleMedium),
-        ),
-        const SizedBox(height: 8),
-        Center(
-          child: Text(
-            'Add your first contact to get started.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
-        Center(
-          child: FilledButton.icon(
-            onPressed: onAdd,
-            icon: const Icon(Icons.add),
-            label: const Text('New contact'),
-          ),
-        ),
-      ],
+    return EmptyState(
+      icon: Icons.contacts_outlined,
+      title: 'No contacts yet',
+      message: 'Add your first contact to get started.',
+      action: FilledButton.icon(
+        onPressed: onAdd,
+        icon: const Icon(Icons.add),
+        label: const Text('New contact'),
+      ),
     );
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'data/contacts_repository.dart';
-import 'screens/contacts_list_screen.dart';
+import 'screens/home_shell.dart';
 import 'theme.dart';
 
 /// Root widget. Takes the repository by injection so `main` can wire the real
@@ -15,12 +15,12 @@ class ContactsApp extends StatelessWidget {
   Widget build(BuildContext context) {
     // Bespoke flat/tight/monochrome theme (Linear/Attio) — see lib/theme.dart.
     return MaterialApp(
-      title: 'Contacts',
+      title: 'CRM',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
-      home: ContactsListScreen(repository: repository),
+      home: HomeShell(repository: repository),
     );
   }
 }
