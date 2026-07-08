@@ -35,6 +35,11 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
+  # Client SDK for the trimmed self-hosted Supabase backend (Decision 5). Talks to
+  # PostgREST/GoTrue under RLS — never raw Postgres. Config via --dart-define (see
+  # dev-defines.json / backend/README.md).
+  supabase_flutter: ^2.8.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -1,0 +1,8 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Flutter needs INTERNET in debug for hot reload / the VM service; the app also
+         needs it to reach the backend. (Keep this — it's what Flutter generates.) -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Dev only: the emulator talks to the local backend over plain HTTP (10.0.2.2 /
+         127.0.0.1 via adb reverse). Debug-only overlay, so release builds are unaffected. -->
+    <application android:usesCleartextTraffic="true" />
+</manifest>

@@ -1,0 +1,53 @@
+# Trimmed, self-hosted Supabase — LOCAL DEV shape (Decision 5 / Decision 10).
+# Postgres + PostgREST + a Caddy gateway that exposes the Supabase-style /rest/v1
+# path so `supabase_flutter` talks to it unchanged. GoTrue (auth) is deferred to the
+# first auth slice (database.md "Not now"). On homebase this same shape slots into
+# okpilot/selfhost behind the existing Caddy.
+name: firstapp-backend-dev
+
+services:
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      AUTHENTICATOR_PASSWORD: ${AUTHENTICATOR_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./init/init.sh:/docker-entrypoint-initdb.d/init.sh:ro
+      - ./migrations:/migrations:ro
+      - ./seed.sql:/seed/seed.sql:ro
+    ports:
+      - "127.0.0.1:5433:5432"   # localhost-only, for psql poking during dev
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  rest:
+    image: postgrest/postgrest:v12.2.3
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${AUTHENTICATOR_PASSWORD}@db:5432/${POSTGRES_DB}
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+
+  gateway:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - rest
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+    ports:
+      - "127.0.0.1:8000:8000"   # the Supabase URL the Flutter app points at
+
+volumes:
+  db-data:

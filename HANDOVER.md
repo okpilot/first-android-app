@@ -2,33 +2,41 @@
 
 # Handover
 
-**Status: Slice 1 (walking skeleton) BUILT and gate-passed locally, committed on branch
-`slice-1-walking-skeleton` — NOT pushed. Parked mid-slice. Resume = push + PR + merge.**
+**Status: Contacts — the first REAL vertical slice — is BUILT and RUNNING END-TO-END on
+Android (Flutter → supabase_flutter → local Postgres/PostgREST under RLS). Design principle
+docs adopted. Android SDK installed from scratch. ALL work is LOCAL & UNPUSHED, on branch
+`slice-1-walking-skeleton` (now used as the continuous dev line). Nothing on GitHub since
+Decision 7.**
 
-## Resume here (next session)
-1. `git switch slice-1-walking-skeleton` (2 commits: `7bdaec0` app, `052c1ce` CI fix).
-2. Local gate already green: `flutter analyze` clean · `flutter test` passes · `flutter build web` ok · `/crlocal` 2 rounds, last clean (no findings).
-3. **Get push approval**, then push branch + open PR to `main` → let cloud CodeRabbit review → merge after approval.
-4. Then run `/wrapup` to sync docs + mark Slice 1 done on `main`.
-5. **Then: shape it together** — user finds the current UI primitive (by design, it's the skeleton). Next slice is their pick: layout/theme polish, master→detail, or add-a-contact. Ask before building.
+## How to bring the dev env back up (next session)
+1. **Backend:** `cd backend && docker compose up -d` (data persists; `down -v` to re-seed).
+   Health: `curl -s -H "apikey: $(grep SUPABASE_ANON_KEY .env|cut -d= -f2)" -H "Authorization: Bearer $(grep SUPABASE_ANON_KEY .env|cut -d= -f2)" http://127.0.0.1:8000/rest/v1/contacts?select=name`
+   (If `backend/.env` / `dev-defines*.json` are missing, run `bash backend/gen-env.sh`.)
+2. **Android env (not persisted in PATH):** `source ~/.android-env` in each shell. Then:
+   - Emulator (windowed): `DISPLAY=:0 $ANDROID_HOME/emulator/emulator -avd pixel_api35 -gpu swiftshader_indirect &`
+   - `adb reverse tcp:8000 tcp:8000` (device→host tunnel; re-set after every emulator restart)
+   - Run: `~/flutter/bin/flutter build apk --debug --dart-define-from-file=dev-defines.android.json && adb install -r build/app/outputs/flutter-apk/app-debug.apk && adb shell am start -n com.example.first_android_app/.MainActivity`
+   - (`flutter run` can't attach its VM service inside this emulator — build+install+`am start` is the reliable path.)
+3. **Web:** `~/flutter/bin/flutter run -d chrome --dart-define-from-file=dev-defines.json`
+   (config now uses `127.0.0.1`, not `localhost`, to dodge the IPv6 `::1` issue.)
 
-## Done this run (2026-07-08)
-- ✅ Confirmed styling approach: stock Material 3 + `ColorScheme.fromSeed` now; theming deferred (Decision 8; references bookmarked in `decisions.md` IDEAS/NOTES).
-- ✅ Planned Slice 1 (plan mode) + ran 2 adversarial critics (Flutter-toolchain + workflow/scope); folded fixes into the plan.
-- ✅ Built Slice 1 on branch `slice-1-walking-skeleton`:
-  - `~/flutter/bin/flutter create --project-name first_android_app --platforms=web,linux .`
-  - `lib/main.dart`: `Contact` (6 fields) + `ContactsScreen` + `ContactCard`; 4 hard-coded contacts.
-  - `test/widget_test.dart`: smoke test (app bar + cards render).
-  - `.github/workflows/ci.yml`: analyze + test + build web on Flutter 3.44.5 (`persist-credentials: false`).
-  - `.gitignore`: added Flutter artifact rules (secret rules kept). `pubspec.lock` + `.metadata` committed.
-- ✅ Verified web build renders (served `build/web` locally; Chrome extension not connected, so no in-tool screenshot).
+## Done this run (2026-07-08, session 2)
+- ✅ **Adopted UI/UX principle docs** — lighter than first planned (2 critics said over-adopted): moved both encyclopedias into `docs/`, bound only the thin wrapper `docs/design-principles.md`; advisory-not-a-gate. Decision 9. Committed `f431822`.
+- ✅ **Local dev backend** (`backend/`): Postgres + PostgREST + Caddy gateway (Supabase-shaped), `contacts` table + RLS + `soft_delete_contact` RPC + `updated_at` trigger + seed. All CRUD verified via curl. Decision 10.
+- ✅ **Android SDK installed** portably (no sudo): JDK 17 `~/jdks`, SDK `~/Android/Sdk`, env `~/.android-env`; `android/` platform added; Pixel AVD `pixel_api35`. Decision 11.
+- ✅ **Contacts feature** (Decision 12): injectable repository (`SupabaseContactsRepository` + fake for tests), list/detail/add-edit screens, loading/empty/error states, guarded soft-delete, date picker. Stock M3 (bespoke theme deferred).
+- ✅ Runs end-to-end on the Android emulator (verified via `adb screencap` — 4 contacts load from Postgres). Local gate green (analyze + 5 tests + web build).
+- 🐛 Bugs found & fixed: `setState`-returns-Future (caught by tests); `publishableKey` vs legacy anon JWT; **debug manifest clobbered Flutter's `INTERNET` permission** (the "Operation not permitted" fetch failures); `.order()` defaulted to desc.
 
-## Done previous run (2026-07-07)
-- ✅ Flutter 3.44.5 installed; homebase Mealie removed; LMS Plus conventions verified; foundation docs laid; pushed to **github.com/okpilot/first-android-app**; CodeRabbit workflow adopted (PR #1 merged); `/wrapup` added.
+## Loose ends / deferred
+- ⏸️ **Everything unpushed** (user: "do not push, nothing"). When ready: split the local dev line into proper per-slice branches/PRs, run `/fullpush` + `/crlocal`, then push.
+- ⏸️ **Ledger divergence:** `main` = Decision 7; this branch = Decisions 8–12. Reconcile at push time (fold onto main, or PR the branch) to keep the append-only ledger linear.
+- ⏸️ **homebase deploy deferred** (Decision 10) — homebase was unreachable (SSH timeout). To run on a physical phone, either bind the local backend to the LAN IP, or deploy to homebase (public HTTPS).
+- ⏸️ **Auth (GoTrue) deferred** to the first per-user slice; RLS policies are anon-permissive for now (tighten to owner-based then).
+- ⏸️ Bespoke mono/Linear-Attio **theme** + **adaptive/two-pane** wide layout — candidate next slices.
+- ⚠️ `flutter build linux` may still choke on the spaces in the absolute path (CMake/ninja) — untested; flag if we target Linux desktop.
+- 🧹 Stray background `flutter run -d web-server` processes may linger from debugging (failed to bind :8080); harmless, `pkill -f "flutter run"` to clear.
 
-## Loose ends
-- ⏸️ Slice 1 branch unpushed (intentional — parked; awaiting push approval).
-- ⏸️ CI (`ci.yml`) authored but never run — its first real run is on the PR push, not the local gate.
-- ⏸️ Backend not stood up yet (deferred — first slices are local). When needed: new `stacks/` dir + Caddy route in `okpilot/selfhost`.
-- ⏸️ Android SDK not installed (deferred until we target phones).
-- ⚠️ `flutter build linux` from this path may choke on the spaces in the absolute path (CMake/ninja) — out of scope now (web-only gate); flag when we first target Linux desktop.
+## Done previous runs
+- 2026-07-08 (s1): styling = stock M3 (Decision 8); planned + built the walking skeleton (parked).
+- 2026-07-07: Flutter installed; LMS Plus conventions verified; foundation docs; pushed to github.com/okpilot/first-android-app; CodeRabbit adopted (PR #1); `/wrapup` added.
