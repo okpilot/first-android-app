@@ -1,14 +1,24 @@
 #!/usr/bin/env bash
-# Writes backend/.env (gitignored) with dev secrets + an anon JWT that matches
-# JWT_SECRET, and mirrors the anon key into ../dev-defines.json for the Flutter client.
-# Safe to re-run. Requires python3.
+# Writes backend/.env (gitignored) with GENERATED dev secrets + an anon JWT that
+# matches JWT_SECRET, and mirrors the anon key into ../dev-defines.json for the
+# Flutter client. Requires python3 + openssl.
+#
+# Secrets are never hard-coded here. First run generates them; re-running reuses the
+# existing .env (so a running stack keeps working). To rotate: delete backend/.env,
+# run `docker compose down -v`, then re-run this.
 set -euo pipefail
 cd "$(dirname "$0")"
 
-POSTGRES_DB="postgres"
-POSTGRES_PASSWORD="postgres-dev-password"
-AUTHENTICATOR_PASSWORD="authenticator-dev-pass"
-JWT_SECRET="super-secret-jwt-token-with-at-least-32-characters-long"
+if [ -f .env ]; then
+  echo "backend/.env exists — reusing it."
+  set -a; . ./.env; set +a
+else
+  new_env=1
+  POSTGRES_PASSWORD="$(openssl rand -hex 24)"
+  AUTHENTICATOR_PASSWORD="$(openssl rand -hex 24)"
+  JWT_SECRET="$(openssl rand -hex 32)"
+fi
+: "${POSTGRES_DB:=postgres}"
 
 ANON_KEY="$(python3 - "$JWT_SECRET" <<'PY'
 import sys, hmac, hashlib, base64, json
@@ -22,13 +32,16 @@ print((signing + b'.' + sig).decode())
 PY
 )"
 
-cat > .env <<EOF
+if [ -n "${new_env:-}" ]; then
+  umask 077
+  cat > .env <<EOF
 POSTGRES_DB=${POSTGRES_DB}
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 AUTHENTICATOR_PASSWORD=${AUTHENTICATOR_PASSWORD}
 JWT_SECRET=${JWT_SECRET}
 SUPABASE_ANON_KEY=${ANON_KEY}
 EOF
+fi
 
 cat > ../dev-defines.json <<EOF
 {
@@ -37,5 +50,5 @@ cat > ../dev-defines.json <<EOF
 }
 EOF
 
-echo "wrote backend/.env and dev-defines.json"
+echo "backend/.env ready; wrote dev-defines.json"
 echo "anon key: ${ANON_KEY}"

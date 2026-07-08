@@ -60,12 +60,14 @@ project: First Android App (learning CRM)
 **N/A for Flutter** (skip, don't chase): OKLCH ramps, `srcset`, `clamp()`/container queries,
 `cubic-bezier` literals (use `Curves.*`), CSS specificity.
 
-## Where the docs conflict with Material 3 — M3 wins (per Decision 8)
-- **Dark mode ≠ `#121212`.** That's Material **2**. M3 signals elevation with **surface
-  tone**, not a fixed dark-gray + shadow. Use `ColorScheme` surface roles, not the doc's hex.
-- **Body ≠ hard 16px.** M3 `bodyMedium` is 14sp and that's fine for dense/secondary text at
-  4.5:1. Bump size only for genuinely long-form reading text. Don't force 16 everywhere.
-- Elevation is **tonal**, not shadow-stacked, under `useMaterial3: true`.
+## Where the docs conflict with Material 3 — follow the project theme (Decision 13)
+The shipped baseline is the **bespoke flat/monochrome theme in `lib/theme.dart`** (Decision 13),
+which *supersedes* the "stock M3 for now" of Decision 8. Reconcile against that:
+- **Dark mode ≠ `#121212`.** That's Material **2**. Our theme uses `ColorScheme` surface roles
+  (and `surfaceTint: transparent` for a flat look) — not the doc's fixed dark-gray + shadow.
+- **Body ≠ hard 16px.** Our type scale sets body values at 16 and secondary/labels at 14 — use
+  the roles in `theme.dart`, don't force 16 everywhere.
+- Elevation is **flat/tonal**, not shadow-stacked (`useMaterial3: true` + transparent surfaceTint).
 
 ## Multi-platform is a standing constraint (Android + web + Linux desktop)
 Per Decisions 1 & 5, one Flutter codebase ships to all three. So at the **first list/detail
@@ -79,7 +81,7 @@ slice**, design responsive + adaptive with real teeth:
   (`Shortcuts`/`Actions`), visible focus, a sensible **Linux minimum window size**.
 - **Material-everywhere carve-out.** The UI doc says "honor native platform conventions
   (iOS HIG vs Material)." We resolve that by standardizing on **Material across Android +
-  web + Linux** — one design language (Decision 8), not GTK/Cupertino per platform. Revisit
+  web + Linux** — one design language (Decisions 8 & 13), not GTK/Cupertino per platform. Revisit
   only if/when we add iOS.
 
 ## Not now (YAGNI)
