@@ -1,0 +1,37 @@
+# Dev gateway. Mirrors the homebase shape: give PostgREST the Supabase /rest/v1 path
+# so `supabase_flutter` works unmodified, and add permissive CORS so the Flutter *web*
+# target (a different localhost origin) can call it. On homebase this role is played by
+# the existing Caddy with a real hostname + TLS instead.
+{
+	admin off
+	auto_https off
+}
+
+:8000 {
+	# CORS preflight
+	@preflight method OPTIONS
+	handle @preflight {
+		header Access-Control-Allow-Origin "*"
+		header Access-Control-Allow-Methods "GET, POST, PATCH, DELETE, OPTIONS"
+		header Access-Control-Allow-Headers "authorization, apikey, content-type, prefer, x-client-info, x-supabase-api-version, accept-profile, content-profile, range"
+		header Access-Control-Max-Age "3600"
+		respond 204
+	}
+
+	# PostgREST under the Supabase data path
+	handle_path /rest/v1/* {
+		header Access-Control-Allow-Origin "*"
+		header Access-Control-Expose-Headers "content-range, content-location"
+		reverse_proxy rest:3000
+	}
+
+	handle /health {
+		respond "ok" 200
+	}
+
+	# /auth/v1/* is reserved for GoTrue (deferred to the auth slice)
+
+	handle {
+		respond "First App dev gateway" 200
+	}
+}

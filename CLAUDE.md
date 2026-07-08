@@ -28,6 +28,7 @@ Skips are allowed but **must be stated, never silent**.
   `flutter analyze` + `flutter test` + `flutter build web`, then **`/crlocal`** (mandatory
   CodeRabbit local review — `.claude/commands/crlocal.md`), then **ask for explicit push approval**.
 - CodeRabbit is installed org-wide, so the cloud bot also reviews the PR on push — that's the authoritative gate; `/crlocal` is the cheaper pre-push preview.
+- **Mechanical git hooks** (`.githooks/`, activate with `scripts/setup-hooks.sh`; modeled on LMS Plus's lefthook, no Node): **pre-commit** = `dart format` check + `flutter analyze` (blocking); **commit-msg** = Conventional Commits (blocking); **pre-push** = secret scan (blocks `.env`/`dev-defines`/keys/JWTs). These are the deterministic tier; `/crlocal` + review stay in `/fullpush`. Grow them only as a miss recurs (≥2×).
 - **CI/CD** (GitHub Actions: analyze + test + build) is added *with Slice 1*, when there's a Flutter project to run against.
 - **At end of session, run `/wrapup`** (`.claude/commands/wrapup.md`) — sync docs, dispose of every open finding, leave `main` clean.
 
@@ -42,6 +43,7 @@ Skips are allowed but **must be stated, never silent**.
 - `docs/plan.md` — read first each session: goal, status, next slice.
 - `docs/decisions.md` — the append-only decision ledger.
 - `docs/database.md` — DB conventions (apply as slices need them).
+- `docs/design-principles.md` — how we apply the UI/UX principles (light wrapper; advisory, not a gate). Its two source-verified encyclopedias (`docs/UI-Principles-*.md`, `docs/UX-Principles-*.md`) are on-demand references — reach for their Build Checklists **only at UI slices**, not every session.
 - `HANDOVER.md` — where we left off.
 
 ## Environment

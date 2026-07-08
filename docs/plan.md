@@ -11,21 +11,17 @@ trimmed self-hosted Supabase on homebase. Learning is the point; the CRM is
 disposable. Built emergently — thin slices, one at a time.
 
 ## Current status (2026-07-08)
-- ✅ Environment: Flutter 3.44.5 installed; Web + Linux desktop targets ready.
-- ✅ Decisions made — stack, method, backend, CodeRabbit workflow (see `docs/decisions.md`, 7 decisions).
-- ✅ Foundation docs laid: this file, `CLAUDE.md`, `decisions.md`, `database.md`, `HANDOVER.md`.
-- ✅ On GitHub: **okpilot/first-android-app** (public); push gate live (`/crlocal`, `/fullpush`, `/wrapup`).
-- ⬜ No app code yet. No backend stood up yet. No CI yet.
+- ✅ Environment: Flutter 3.44.5; Web + Linux + **Android** targets all ready (SDK installed, Pixel + S23+ emulators).
+- ✅ Decisions made — **15** (see `docs/decisions.md`): + design-principles adoption, local backend, Android SDK, Contacts slice, bespoke theme, homebase deploy, git hooks.
+- ✅ **Contacts — first real vertical slice**: full CRUD (list/detail/add-edit/soft-delete) with states, injectable repo (hermetic tests), **bespoke mono/Linear-Attio theme** (Decision 13). Runs on Android/web/Linux.
+- ✅ **Backend**: trimmed Supabase (Postgres + PostgREST + Caddy). Local dev **and deployed to homebase** (`https://homebase.tail7ab4bc.ts.net:8452`, tailnet-only HTTPS, Decision 14). Schema source of truth = `backend/migrations/`; applied to homebase via `backend/deploy-homebase.sh`.
+- ✅ **Mechanical git hooks** (`.githooks/`, Decision 15): pre-commit format+analyze, commit-msg, pre-push secret scan.
+- ✅ **Pushed & in review**: branch `feature/contacts-crm` → **PR #2** into `main`. `/fullpush` green; `/crlocal` converged (4 rounds); cloud CodeRabbit + CI **pass**.
 
 ## Roadmap (each step is a thin, visible slice)
-1. **Walking skeleton (local only):** one screen listing a few hard-coded contacts, running in Chrome. No backend. — *next*
-2. Add "create contact" (in-memory) — learn Flutter state.
-3. Persist locally — learn storage.
-4. Stand up the trimmed backend on homebase; one `contacts` table + first migration.
-5. Wire the app to the backend (read, then write) — the client↔backend split.
-6. Add auth (GoTrue) when a slice needs per-user data.
-7. Build the Android version (install SDK) when ready for phones.
+1. ~~Walking skeleton~~ ✅ → superseded by the real Contacts slice.
+2. ✅ **Contacts, for real** — CRUD UI + trimmed backend, themed, on Android; deployed to homebase.
+3. **Next candidates:** DB security hardening (issue — RPC `auth.uid()`, revoke PUBLIC execute, column-level write grants) · **auth (GoTrue)** logins + owner-based RLS · search/filter on the list · adaptive/two-pane layout for wide screens · run on the physical S23+.
 
 ## Next slice
-Step 1 — walking skeleton in the browser. Awaiting the user's go-ahead and any
-design preference (what a "contact" shows, how the list looks).
+Open — likely **auth (GoTrue) + DB hardening** together (the deferred security work naturally pairs), or a smaller UI slice (search/adaptive layout). Merge PR #2 first to bring `main` current.

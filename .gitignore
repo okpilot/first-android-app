@@ -13,8 +13,21 @@ Thumbs.db
 *.iml
 *.swp
 
-# Flutter / Dart build artifacts (populated once app code exists)
+# Flutter / Dart build artifacts
 .dart_tool/
 build/
 .flutter-plugins
 .flutter-plugins-dependencies
+/coverage/
+migrate_working_dir/
+.pub-cache/
+.pub/
+**/doc/api/
+app.*.symbols
+app.*.map.json
+**/ios/Flutter/.last_build_id
+# Keep committed: pubspec.lock, .metadata
+
+# Local dev backend secrets & Flutter dart-defines (never commit)
+backend/.env
+dev-defines*.json
