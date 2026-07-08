@@ -51,4 +51,4 @@ cat > ../dev-defines.json <<EOF
 EOF
 
 echo "backend/.env ready; wrote dev-defines.json"
-echo "anon key: ${ANON_KEY}"
+echo "anon key written to backend/.env and dev-defines.json"
