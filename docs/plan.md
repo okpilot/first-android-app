@@ -16,7 +16,7 @@ disposable. Built emergently — thin slices, one at a time.
 - ✅ **Contacts — first real vertical slice**: full CRUD (list/detail/add-edit/soft-delete) with states, injectable repo (hermetic tests), **bespoke mono/Linear-Attio theme** (Decision 13). Runs on Android/web/Linux.
 - ✅ **Backend**: trimmed Supabase (Postgres + PostgREST + Caddy). Local dev **and deployed to homebase** (`https://homebase.tail7ab4bc.ts.net:8452`, tailnet-only HTTPS, Decision 14). Schema source of truth = `backend/migrations/`; applied to homebase via `backend/deploy-homebase.sh`.
 - ✅ **Mechanical git hooks** (`.githooks/`, Decision 15): pre-commit format+analyze, commit-msg, pre-push secret scan.
-- ✅ **Pushed & in review**: branch `feature/contacts-crm` → **PR #2** into `main`. `/fullpush` green; `/crlocal` converged (4 rounds); cloud CodeRabbit + CI **pass**.
+- ✅ **Merged**: **PR #2** squash-merged into `main` (commit `fa4fc45`, 2026-07-08). `/fullpush` green; `/crlocal` converged; cloud CodeRabbit + CI passed. Branch deleted (local + remote).
 
 ## Roadmap (each step is a thin, visible slice)
 1. ~~Walking skeleton~~ ✅ → superseded by the real Contacts slice.
@@ -24,4 +24,4 @@ disposable. Built emergently — thin slices, one at a time.
 3. **Next candidates:** DB security hardening (issue — RPC `auth.uid()`, revoke PUBLIC execute, column-level write grants) · **auth (GoTrue)** logins + owner-based RLS · search/filter on the list · adaptive/two-pane layout for wide screens · run on the physical S23+.
 
 ## Next slice
-Open — likely **auth (GoTrue) + DB hardening** together (the deferred security work naturally pairs), or a smaller UI slice (search/adaptive layout). Merge PR #2 first to bring `main` current.
+Open — likely **auth (GoTrue) + DB hardening** together (the deferred security work naturally pairs — tracked in **issue #3**), or a smaller UI slice (search/adaptive layout). `main` is current; start a fresh branch off it.
