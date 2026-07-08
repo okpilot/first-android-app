@@ -22,15 +22,15 @@ class _CalendarScreenState extends State<CalendarScreen>
   static const _tabs = ['Month', '3-day', 'Day', 'Agenda'];
 
   late final TabController _tab;
-  late DateTime _focused; // anchor for the current view (month / span / day)
-  late DateTime _selected; // the day selected in the Month grid
+  // The focused day is the single source of truth: it drives the month grid, the
+  // selected-day highlight/panel, and the Day/3-day timeline anchor — so a day
+  // picked in Month carries into the other views instead of desyncing.
+  late DateTime _focused;
 
   @override
   void initState() {
     super.initState();
-    final today = dayOnly(widget.initialDate ?? DateTime.now());
-    _focused = today;
-    _selected = today;
+    _focused = dayOnly(widget.initialDate ?? DateTime.now());
     _tab = TabController(length: _tabs.length, vsync: this);
     // Rebuild so the AppBar period label tracks the active tab.
     _tab.addListener(() {
@@ -73,11 +73,7 @@ class _CalendarScreenState extends State<CalendarScreen>
   }
 
   void _goToday() {
-    setState(() {
-      final today = dayOnly(DateTime.now());
-      _focused = today;
-      _selected = today;
-    });
+    setState(() => _focused = dayOnly(DateTime.now()));
   }
 
   @override
@@ -125,8 +121,8 @@ class _CalendarScreenState extends State<CalendarScreen>
         children: [
           _MonthView(
             month: _focused,
-            selected: _selected,
-            onSelect: (d) => setState(() => _selected = d),
+            selected: _focused,
+            onSelect: (d) => setState(() => _focused = d),
           ),
           _TimelineView(start: _focused, dayCount: 3),
           _TimelineView(start: _focused, dayCount: 1),
@@ -362,116 +358,123 @@ class _TimelineViewState extends State<_TimelineView> {
           const Divider(height: 1),
         ],
         Expanded(
-          child: Stack(
-            children: [
-              SingleChildScrollView(
-                controller: _scroll,
-                child: SizedBox(
-                  height: 24 * _rowHeight,
-                  child: Stack(
-                    children: [
-                      // hour hairlines + gutter labels (shared coordinate space)
-                      for (var h = 1; h < 24; h++) ...[
-                        Positioned(
-                          top: h * _rowHeight,
-                          left: _gutter,
-                          right: 0,
-                          child: Divider(height: 1, color: theme.dividerColor),
-                        ),
-                        Positioned(
-                          top: h * _rowHeight - 7,
-                          left: 0,
-                          width: _gutter - 8,
-                          child: Text(
-                            '${h.toString().padLeft(2, '0')}:00',
-                            textAlign: TextAlign.right,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontSize: 11,
-                              color: theme.colorScheme.onSurfaceVariant,
+          // Use the timeline's own width (not the window's) so the column
+          // dividers stay correct behind the NavigationRail on wide screens.
+          child: LayoutBuilder(
+            builder: (context, constraints) => Stack(
+              children: [
+                SingleChildScrollView(
+                  controller: _scroll,
+                  child: SizedBox(
+                    height: 24 * _rowHeight,
+                    child: Stack(
+                      children: [
+                        // hour hairlines + gutter labels (shared coordinate space)
+                        for (var h = 1; h < 24; h++) ...[
+                          Positioned(
+                            top: h * _rowHeight,
+                            left: _gutter,
+                            right: 0,
+                            child: Divider(
+                              height: 1,
+                              color: theme.dividerColor,
                             ),
                           ),
-                        ),
-                      ],
-                      // column dividers
-                      for (var c = 1; c < days.length; c++)
-                        Positioned(
-                          top: 0,
-                          bottom: 0,
-                          left:
-                              _gutter +
-                              (MediaQuery.sizeOf(context).width - _gutter) /
-                                  days.length *
-                                  c,
-                          child: VerticalDivider(
-                            width: 1,
-                            color: theme.dividerColor,
+                          Positioned(
+                            top: h * _rowHeight - 7,
+                            left: 0,
+                            width: _gutter - 8,
+                            child: Text(
+                              '${h.toString().padLeft(2, '0')}:00',
+                              textAlign: TextAlign.right,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontSize: 11,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
                           ),
-                        ),
-                      // static now-line (ink, weight not colour) when today is shown
-                      if (showNow) ...[
-                        Positioned(
-                          top: nowTop - 0.75,
-                          left: _gutter,
-                          right: 0,
-                          child: Container(
-                            height: 1.5,
-                            color: theme.colorScheme.primary,
+                        ],
+                        // column dividers
+                        for (var c = 1; c < days.length; c++)
+                          Positioned(
+                            top: 0,
+                            bottom: 0,
+                            left:
+                                _gutter +
+                                (constraints.maxWidth - _gutter) /
+                                    days.length *
+                                    c,
+                            child: VerticalDivider(
+                              width: 1,
+                              color: theme.dividerColor,
+                            ),
                           ),
-                        ),
-                        Positioned(
-                          top: nowTop - 4,
-                          left: _gutter - 4,
-                          child: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
+                        // static now-line (ink, weight not colour) when today is shown
+                        if (showNow) ...[
+                          Positioned(
+                            top: nowTop - 0.75,
+                            left: _gutter,
+                            right: 0,
+                            child: Container(
+                              height: 1.5,
                               color: theme.colorScheme.primary,
                             ),
                           ),
-                        ),
+                          Positioned(
+                            top: nowTop - 4,
+                            left: _gutter - 4,
+                            child: Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
-              ),
-              // A compact, contained chip so an empty timeline reads as
-              // intentional — a solid background keeps it off the hour lines.
-              IgnorePointer(
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surface,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: theme.colorScheme.outlineVariant,
+                // A compact, contained chip so an empty timeline reads as
+                // intentional — a solid background keeps it off the hour lines.
+                IgnorePointer(
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
                       ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.event_available_outlined,
-                          size: 18,
-                          color: theme.colorScheme.onSurfaceVariant,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surface,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: theme.colorScheme.outlineVariant,
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'No events yet',
-                          style: theme.textTheme.bodyMedium?.copyWith(
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.event_available_outlined,
+                            size: 18,
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 8),
+                          Text(
+                            'No events yet',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],
