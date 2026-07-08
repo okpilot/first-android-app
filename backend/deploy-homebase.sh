@@ -35,7 +35,9 @@ for f in migrations/*.sql; do
     continue
   fi
   echo "  apply  ${name}"
-  { echo "begin;"; cat "$f"; \
+  # The trailing `echo` guarantees a newline after the migration body, so a file
+  # that ends in a `--` comment can't swallow the ledger insert onto its line.
+  { echo "begin;"; cat "$f"; echo; \
     echo "insert into public._migrations(name) values ('${name}'); commit;"; } \
     | psql_remote -q
   applied=$((applied + 1))

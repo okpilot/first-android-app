@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/contacts_repository.dart';
 import '../models/contact.dart';
+import '../util/format.dart';
 import 'contact_form_screen.dart';
 
 /// Read view for one contact, with edit and (soft) delete. Pops `true` when the
@@ -81,6 +82,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       );
       navigator.pop(true);
     } catch (_) {
+      if (!mounted) return;
       setState(() => _deleting = false);
       messenger.showSnackBar(
         const SnackBar(content: Text("Couldn't delete — please try again")),
@@ -96,7 +98,11 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       // Feed the "something changed" signal back to the list on any back-out.
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) Navigator.of(context).pop(_dirty);
+        if (didPop) return;
+        // Defer the pop out of the PopScope callback to avoid re-entering the
+        // navigator (which can trip _debugLocked) during system/app-bar back.
+        final navigator = Navigator.of(context);
+        Future.microtask(() => navigator.pop(_dirty));
       },
       child: Scaffold(
         appBar: AppBar(
@@ -119,7 +125,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                   backgroundColor: theme.colorScheme.secondaryContainer,
                   foregroundColor: theme.colorScheme.onSecondaryContainer,
                   child: Text(
-                    _initials(c.name),
+                    initialsOf(c.name),
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
@@ -135,11 +141,23 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
               ],
             ),
             const SizedBox(height: 24),
-            _Field(icon: Icons.cake_outlined, label: 'Date of birth', value: _formatDob(c.dob)),
+            _Field(
+              icon: Icons.cake_outlined,
+              label: 'Date of birth',
+              value: c.dob == null ? null : ymd(c.dob!),
+            ),
             _Field(icon: Icons.email_outlined, label: 'Email', value: c.email),
             _Field(icon: Icons.phone_outlined, label: 'Phone', value: c.phone),
-            _Field(icon: Icons.business_outlined, label: 'Company', value: c.company),
-            _Field(icon: Icons.notes_outlined, label: 'Remarks', value: c.remarks),
+            _Field(
+              icon: Icons.business_outlined,
+              label: 'Company',
+              value: c.company,
+            ),
+            _Field(
+              icon: Icons.notes_outlined,
+              label: 'Remarks',
+              value: c.remarks,
+            ),
             const SizedBox(height: 24),
             OutlinedButton.icon(
               onPressed: _deleting ? null : _confirmDelete,
@@ -163,18 +181,6 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       ),
     );
   }
-
-  static String _initials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
-    if (parts.isEmpty) return '?';
-    return parts.take(2).map((p) => p[0].toUpperCase()).join();
-  }
-
-  static String? _formatDob(DateTime? d) => d == null
-      ? null
-      : '${d.year.toString().padLeft(4, '0')}-'
-          '${d.month.toString().padLeft(2, '0')}-'
-          '${d.day.toString().padLeft(2, '0')}';
 }
 
 /// One labelled field. Renders nothing when the value is empty (no blank rows).
@@ -200,9 +206,12 @@ class _Field extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label,
-                    style: theme.textTheme.labelMedium
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                Text(
+                  label,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
                 const SizedBox(height: 2),
                 Text(value!, style: theme.textTheme.bodyLarge),
               ],

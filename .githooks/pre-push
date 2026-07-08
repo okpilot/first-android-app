@@ -7,7 +7,9 @@ z=0000000000000000000000000000000000000000
 while read -r _local_ref local_sha _remote_ref remote_sha; do
   [ "$local_sha" = "$z" ] && continue          # branch deletion
   if [ "$remote_sha" = "$z" ]; then
-    range="$local_sha"                          # new branch: scan its commits
+    # New branch: the remote has nothing yet, so scan ALL pushed content by
+    # diffing against the empty tree (a bare `git diff $local_sha` would be empty).
+    range="$(git hash-object -t tree /dev/null)..${local_sha}"
   else
     range="${remote_sha}..${local_sha}"
   fi

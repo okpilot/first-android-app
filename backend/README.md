@@ -32,7 +32,7 @@ curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
 ```
 
 ## Layout
-```
+```text
 docker-compose.yml   db + rest + gateway
 gen-env.sh           writes .env + dev-defines.json (dev secrets, gitignored)
 .env.example         template (safe to commit)

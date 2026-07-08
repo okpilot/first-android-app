@@ -28,46 +28,46 @@ class AppTheme {
   static const _neutralChipD = Color(0xFF26282D);
 
   static ThemeData get light => _build(
-        brightness: Brightness.light,
-        ink: _inkL,
-        inkSoft: _inkSoftL,
-        base: _baseL,
-        outline: _outlineL,
-        divider: _dividerL,
-        chip: _neutralChipL,
-        surfaceContainers: const [
-          Colors.white,
-          Color(0xFFF7F8FA),
-          Color(0xFFF3F4F7),
-          Color(0xFFEEEFF3),
-          Color(0xFFE9EAEF),
-        ],
-        error: const Color(0xFFBA1A1A),
-        onError: Colors.white,
-        errorContainer: const Color(0xFFFFDAD6),
-        onErrorContainer: const Color(0xFF410002),
-      );
+    brightness: Brightness.light,
+    ink: _inkL,
+    inkSoft: _inkSoftL,
+    base: _baseL,
+    outline: _outlineL,
+    divider: _dividerL,
+    chip: _neutralChipL,
+    surfaceContainers: const [
+      Colors.white,
+      Color(0xFFF7F8FA),
+      Color(0xFFF3F4F7),
+      Color(0xFFEEEFF3),
+      Color(0xFFE9EAEF),
+    ],
+    error: const Color(0xFFBA1A1A),
+    onError: Colors.white,
+    errorContainer: const Color(0xFFFFDAD6),
+    onErrorContainer: const Color(0xFF410002),
+  );
 
   static ThemeData get dark => _build(
-        brightness: Brightness.dark,
-        ink: _inkD,
-        inkSoft: _inkSoftD,
-        base: _baseD,
-        outline: _outlineD,
-        divider: _dividerD,
-        chip: _neutralChipD,
-        surfaceContainers: const [
-          Color(0xFF0E0F12),
-          Color(0xFF161718),
-          Color(0xFF1A1B1F),
-          Color(0xFF212327),
-          Color(0xFF2A2C31),
-        ],
-        error: const Color(0xFFFFB4AB),
-        onError: const Color(0xFF690005),
-        errorContainer: const Color(0xFF93000A),
-        onErrorContainer: const Color(0xFFFFDAD6),
-      );
+    brightness: Brightness.dark,
+    ink: _inkD,
+    inkSoft: _inkSoftD,
+    base: _baseD,
+    outline: _outlineD,
+    divider: _dividerD,
+    chip: _neutralChipD,
+    surfaceContainers: const [
+      Color(0xFF0E0F12),
+      Color(0xFF161718),
+      Color(0xFF1A1B1F),
+      Color(0xFF212327),
+      Color(0xFF2A2C31),
+    ],
+    error: const Color(0xFFFFB4AB),
+    onError: const Color(0xFF690005),
+    errorContainer: const Color(0xFF93000A),
+    onErrorContainer: const Color(0xFFFFDAD6),
+  );
 
   static ThemeData _build({
     required Brightness brightness,
@@ -120,10 +120,11 @@ class AppTheme {
       surfaceTint: Colors.transparent, // kill M3 tonal elevation → truly flat
     );
 
-    final baseText = (brightness == Brightness.light
-            ? Typography.blackMountainView
-            : Typography.whiteMountainView)
-        .apply(bodyColor: ink, displayColor: ink);
+    final baseText =
+        (brightness == Brightness.light
+                ? Typography.blackMountainView
+                : Typography.whiteMountainView)
+            .apply(bodyColor: ink, displayColor: ink);
 
     // ONE explicit type scale (single source of truth). Roboto, exactly three
     // weights so hierarchy comes from size + weight, never accident:
@@ -133,33 +134,69 @@ class AppTheme {
     final textTheme = baseText.copyWith(
       // detail screen name
       headlineSmall: baseText.headlineSmall?.copyWith(
-          fontSize: 24, height: 1.25, fontWeight: FontWeight.w600, letterSpacing: -0.4, color: ink),
+        fontSize: 24,
+        height: 1.25,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.4,
+        color: ink,
+      ),
       // app bar / screen titles
       titleLarge: baseText.titleLarge?.copyWith(
-          fontSize: 20, height: 1.3, fontWeight: FontWeight.w600, letterSpacing: -0.3, color: ink),
+        fontSize: 20,
+        height: 1.3,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.3,
+        color: ink,
+      ),
       // section / empty-state headings
       titleMedium: baseText.titleMedium?.copyWith(
-          fontSize: 16, height: 1.4, fontWeight: FontWeight.w600, letterSpacing: -0.1, color: ink),
+        fontSize: 16,
+        height: 1.4,
+        fontWeight: FontWeight.w600,
+        letterSpacing: -0.1,
+        color: ink,
+      ),
       // body values + text-field input (same style → identical across screens)
       bodyLarge: baseText.bodyLarge?.copyWith(
-          fontSize: 16, height: 1.45, fontWeight: FontWeight.w400, letterSpacing: 0, color: ink),
+        fontSize: 16,
+        height: 1.45,
+        fontWeight: FontWeight.w400,
+        letterSpacing: 0,
+        color: ink,
+      ),
       // secondary / subtitle / meta
       bodyMedium: baseText.bodyMedium?.copyWith(
-          fontSize: 14, height: 1.4, fontWeight: FontWeight.w400, letterSpacing: 0.1, color: inkSoft),
+        fontSize: 14,
+        height: 1.4,
+        fontWeight: FontWeight.w400,
+        letterSpacing: 0.1,
+        color: inkSoft,
+      ),
       // buttons
       labelLarge: baseText.labelLarge?.copyWith(
-          fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0, color: ink),
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0,
+        color: ink,
+      ),
       // field labels (detail rows + form floating labels use THIS, identically)
       labelMedium: baseText.labelMedium?.copyWith(
-          fontSize: 12.5, fontWeight: FontWeight.w500, letterSpacing: 0.2, color: inkSoft),
+        fontSize: 12.5,
+        fontWeight: FontWeight.w500,
+        letterSpacing: 0.2,
+        color: inkSoft,
+      ),
     );
 
-    OutlineInputBorder fieldBorder(Color c, [double w = 1]) => OutlineInputBorder(
+    OutlineInputBorder fieldBorder(Color c, [double w = 1]) =>
+        OutlineInputBorder(
           borderRadius: BorderRadius.circular(_fieldRadius),
           borderSide: BorderSide(color: c, width: w),
         );
 
-    final shape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(_radius));
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(_radius),
+    );
 
     return ThemeData(
       useMaterial3: true,
@@ -188,9 +225,12 @@ class AppTheme {
       ),
       listTileTheme: ListTileThemeData(
         iconColor: scheme.onSurfaceVariant,
-        titleTextStyle: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
-        subtitleTextStyle:
-            textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+        titleTextStyle: textTheme.bodyLarge?.copyWith(
+          fontWeight: FontWeight.w600,
+        ),
+        subtitleTextStyle: textTheme.bodyMedium?.copyWith(
+          color: scheme.onSurfaceVariant,
+        ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
@@ -198,7 +238,8 @@ class AppTheme {
           foregroundColor: scheme.onPrimary,
           elevation: 0,
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(_fieldRadius)),
+            borderRadius: BorderRadius.circular(_fieldRadius),
+          ),
           textStyle: textTheme.labelLarge,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         ),
@@ -208,7 +249,8 @@ class AppTheme {
           foregroundColor: scheme.onSurface,
           side: BorderSide(color: scheme.outline),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(_fieldRadius)),
+            borderRadius: BorderRadius.circular(_fieldRadius),
+          ),
           textStyle: textTheme.labelLarge,
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
         ),
@@ -226,7 +268,9 @@ class AppTheme {
         focusElevation: 0,
         hoverElevation: 1,
         highlightElevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_radius)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(_radius),
+        ),
         extendedTextStyle: textTheme.labelLarge,
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -238,7 +282,9 @@ class AppTheme {
         focusedErrorBorder: fieldBorder(scheme.error, 1.5),
         // resting label = body size (sits on the input line); floated label uses the
         // SAME field-label style as the detail screen's row labels.
-        labelStyle: textTheme.bodyLarge?.copyWith(color: scheme.onSurfaceVariant),
+        labelStyle: textTheme.bodyLarge?.copyWith(
+          color: scheme.onSurfaceVariant,
+        ),
         floatingLabelStyle: textTheme.labelMedium,
         prefixIconColor: scheme.onSurfaceVariant,
       ),
@@ -247,7 +293,8 @@ class AppTheme {
         contentTextStyle: TextStyle(color: scheme.onInverseSurface),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(_fieldRadius)),
+          borderRadius: BorderRadius.circular(_fieldRadius),
+        ),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: scheme.surface,

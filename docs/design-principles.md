@@ -31,6 +31,7 @@ project: First Android App (learning CRM)
      live spec when a slice's correctness actually depends on a number.
 
 ## Slice-type → which checklist groups to pull
+
 | Slice touches… | UI groups (Part 10) | UX groups (Part 8) |
 |---|---|---|
 | A list / table view | hierarchy, layout, components, icons | hierarchy&gestalt, nav&IA, perf, a11y |
@@ -40,6 +41,7 @@ project: First Android App (learning CRM)
 | Theming / tokens | color, system&consistency | (a11y contrast only) |
 
 ## Web cue → Flutter translation (the docs are stack-agnostic; we're Flutter)
+
 | Doc's build cue | Flutter equivalent |
 |---|---|
 | `max-width: 66ch` measure | `ConstrainedBox(maxWidth: ~640)` on long text; usually N/A for lists/forms |

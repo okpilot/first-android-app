@@ -2,15 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../data/contacts_repository.dart';
 import '../models/contact.dart';
+import '../util/format.dart';
 
 /// Add (when [existing] is null) or edit a contact. Pops the saved [Contact] on
 /// success, or nothing on cancel.
 class ContactFormScreen extends StatefulWidget {
-  const ContactFormScreen({
-    super.key,
-    required this.repository,
-    this.existing,
-  });
+  const ContactFormScreen({super.key, required this.repository, this.existing});
 
   final ContactsRepository repository;
   final Contact? existing;
@@ -87,6 +84,7 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
           : await widget.repository.create(draft);
       navigator.pop(saved);
     } catch (_) {
+      if (!mounted) return;
       setState(() => _saving = false);
       messenger.showSnackBar(
         const SnackBar(content: Text("Couldn't save — please try again")),
@@ -127,7 +125,11 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
                     (v == null || v.trim().isEmpty) ? 'Name is required' : null,
               ),
               const SizedBox(height: 16),
-              _DobField(value: _dob, onPick: _pickDob, onClear: () => setState(() => _dob = null)),
+              _DobField(
+                value: _dob,
+                onPick: _pickDob,
+                onClear: () => setState(() => _dob = null),
+              ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _email,
@@ -208,11 +210,7 @@ class _DobField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final text = value == null
-        ? null
-        : '${value!.year.toString().padLeft(4, '0')}-'
-            '${value!.month.toString().padLeft(2, '0')}-'
-            '${value!.day.toString().padLeft(2, '0')}';
+    final text = value == null ? null : ymd(value!);
     return InkWell(
       onTap: onPick,
       child: InputDecorator(
@@ -233,10 +231,10 @@ class _DobField extends StatelessWidget {
           // Same body style as the other input fields, so the date value doesn't
           // render at a different size/weight than Email/Phone/etc.
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: value == null
-                    ? Theme.of(context).colorScheme.onSurfaceVariant
-                    : null,
-              ),
+            color: value == null
+                ? Theme.of(context).colorScheme.onSurfaceVariant
+                : null,
+          ),
         ),
       ),
     );

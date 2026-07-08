@@ -2,8 +2,10 @@
 /// `dev-defines.json` and `backend/README.md`). Never hard-code secrets here.
 class AppConfig {
   /// Base URL of the trimmed-Supabase gateway. Defaults to the local dev stack.
-  static const supabaseUrl =
-      String.fromEnvironment('SUPABASE_URL', defaultValue: 'http://localhost:8000');
+  static const supabaseUrl = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: 'http://localhost:8000',
+  );
 
   /// Public anon key (a JWT). No safe default — pass it via
   /// `--dart-define-from-file=dev-defines.json`.

@@ -23,15 +23,20 @@ class SupabaseContactsRepository implements ContactsRepository {
 
   @override
   Future<List<Contact>> fetchAll() async {
-    final rows =
-        await _client.from(_table).select().order('name', ascending: true);
+    final rows = await _client
+        .from(_table)
+        .select()
+        .order('name', ascending: true);
     return rows.map(Contact.fromJson).toList();
   }
 
   @override
   Future<Contact> create(Contact draft) async {
-    final row =
-        await _client.from(_table).insert(draft.toWrite()).select().single();
+    final row = await _client
+        .from(_table)
+        .insert(draft.toWrite())
+        .select()
+        .single();
     return Contact.fromJson(row);
   }
 

@@ -24,17 +24,25 @@ void main() {
     expect(c.company, 'Engine Co');
   });
 
-  test('toWrite trims, normalizes empty strings to null, and omits server fields', () {
-    const c = Contact(id: 'x', name: '  Ada  ', email: '   ', company: 'Engine Co');
-    final w = c.toWrite();
+  test(
+    'toWrite trims, normalizes empty strings to null, and omits server fields',
+    () {
+      const c = Contact(
+        id: 'x',
+        name: '  Ada  ',
+        email: '   ',
+        company: 'Engine Co',
+      );
+      final w = c.toWrite();
 
-    expect(w['name'], 'Ada');
-    expect(w['email'], isNull);
-    expect(w['company'], 'Engine Co');
-    expect(w['dob'], isNull);
-    expect(w.containsKey('id'), isFalse);
-    expect(w.containsKey('created_at'), isFalse);
-  });
+      expect(w['name'], 'Ada');
+      expect(w['email'], isNull);
+      expect(w['company'], 'Engine Co');
+      expect(w['dob'], isNull);
+      expect(w.containsKey('id'), isFalse);
+      expect(w.containsKey('created_at'), isFalse);
+    },
+  );
 
   test('toWrite formats a date as yyyy-MM-dd', () {
     final c = Contact(id: 'x', name: 'Ada', dob: DateTime(1815, 12, 10));

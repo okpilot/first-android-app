@@ -24,7 +24,11 @@ void main() {
     await tester.pumpWidget(
       ContactsApp(
         repository: _FakeRepo(const [
-          Contact(id: '1', name: 'Ada Lovelace', company: 'Analytical Engine Co.'),
+          Contact(
+            id: '1',
+            name: 'Ada Lovelace',
+            company: 'Analytical Engine Co.',
+          ),
           Contact(id: '2', name: 'Alan Turing'),
         ]),
       ),
@@ -36,7 +40,9 @@ void main() {
     expect(find.text('Alan Turing'), findsOneWidget);
   });
 
-  testWidgets('shows the empty state when there are no contacts', (tester) async {
+  testWidgets('shows the empty state when there are no contacts', (
+    tester,
+  ) async {
     await tester.pumpWidget(ContactsApp(repository: _FakeRepo(const [])));
     await tester.pumpAndSettle();
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/contacts_repository.dart';
 import '../models/contact.dart';
+import '../util/format.dart';
 import 'contact_detail_screen.dart';
 import 'contact_form_screen.dart';
 
@@ -18,6 +19,9 @@ class ContactsListScreen extends StatefulWidget {
 
 class _ContactsListScreenState extends State<ContactsListScreen> {
   late Future<List<Contact>> _future;
+  // Last successful data — kept so a refresh/reload shows the current list instead
+  // of flashing back to a full-screen spinner while the new fetch is in flight.
+  List<Contact>? _lastData;
 
   @override
   void initState() {
@@ -25,10 +29,17 @@ class _ContactsListScreenState extends State<ContactsListScreen> {
     _load();
   }
 
-  void _load() {
+  /// Reload. Async so `RefreshIndicator` keeps spinning until the fetch resolves.
+  Future<void> _load() async {
+    final future = widget.repository.fetchAll();
     setState(() {
-      _future = widget.repository.fetchAll();
+      _future = future;
     });
+    try {
+      _lastData = await future;
+    } catch (_) {
+      // The error is surfaced by the FutureBuilder's error branch.
+    }
   }
 
   Future<void> _openForm({Contact? existing}) async {
@@ -40,7 +51,7 @@ class _ContactsListScreenState extends State<ContactsListScreen> {
         ),
       ),
     );
-    if (saved != null) _load();
+    if (saved != null && mounted) _load();
   }
 
   Future<void> _openDetail(Contact contact) async {
@@ -52,7 +63,7 @@ class _ContactsListScreenState extends State<ContactsListScreen> {
         ),
       ),
     );
-    if (changed == true) _load();
+    if (changed == true && mounted) _load();
   }
 
   @override
@@ -65,12 +76,20 @@ class _ContactsListScreenState extends State<ContactsListScreen> {
         label: const Text('New contact'),
       ),
       body: RefreshIndicator(
-        onRefresh: () async => _load(),
+        onRefresh: _load,
         child: FutureBuilder<List<Contact>>(
           future: _future,
           builder: (context, snapshot) {
             switch (snapshot.connectionState) {
               case ConnectionState.waiting:
+                // Keep showing the current list while refreshing; only show a
+                // full-screen spinner on the very first load.
+                if (_lastData != null) {
+                  return _ContactsList(
+                    contacts: _lastData!,
+                    onTap: _openDetail,
+                  );
+                }
                 return const Center(child: CircularProgressIndicator());
               default:
                 if (snapshot.hasError) {
@@ -81,10 +100,7 @@ class _ContactsListScreenState extends State<ContactsListScreen> {
                 if (contacts.isEmpty) {
                   return _EmptyState(onAdd: () => _openForm());
                 }
-                return _ContactsList(
-                  contacts: contacts,
-                  onTap: _openDetail,
-                );
+                return _ContactsList(contacts: contacts, onTap: _openDetail);
             }
           },
         ),
@@ -109,9 +125,10 @@ class _ContactsList extends StatelessWidget {
       separatorBuilder: (_, _) => const Divider(height: 1, indent: 72),
       itemBuilder: (context, index) {
         final c = contacts[index];
-        final subtitle = [c.company, c.email]
-            .where((s) => s != null && s.isNotEmpty)
-            .join(' · ');
+        final subtitle = [
+          c.company,
+          c.email,
+        ].where((s) => s != null && s.isNotEmpty).join(' · ');
         return ListTile(
           leading: _InitialsAvatar(name: c.name),
           title: Text(c.name),
@@ -129,13 +146,6 @@ class _InitialsAvatar extends StatelessWidget {
 
   final String name;
 
-  String get _initials {
-    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
-    if (parts.isEmpty) return '?';
-    final letters = parts.take(2).map((p) => p[0].toUpperCase()).join();
-    return letters;
-  }
-
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -143,7 +153,7 @@ class _InitialsAvatar extends StatelessWidget {
       backgroundColor: scheme.secondaryContainer,
       foregroundColor: scheme.onSecondaryContainer,
       child: Text(
-        _initials,
+        initialsOf(name),
         style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w600,
@@ -167,8 +177,11 @@ class _EmptyState extends StatelessWidget {
     return ListView(
       children: [
         SizedBox(height: MediaQuery.sizeOf(context).height * 0.18),
-        Icon(Icons.contacts_outlined,
-            size: 64, color: theme.colorScheme.outline),
+        Icon(
+          Icons.contacts_outlined,
+          size: 64,
+          color: theme.colorScheme.outline,
+        ),
         const SizedBox(height: 16),
         Center(
           child: Text('No contacts yet', style: theme.textTheme.titleMedium),
@@ -177,8 +190,9 @@ class _EmptyState extends StatelessWidget {
         Center(
           child: Text(
             'Add your first contact to get started.',
-            style: theme.textTheme.bodyMedium
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
         const SizedBox(height: 24),
@@ -206,12 +220,17 @@ class _ErrorState extends StatelessWidget {
     return ListView(
       children: [
         SizedBox(height: MediaQuery.sizeOf(context).height * 0.16),
-        Icon(Icons.cloud_off_outlined,
-            size: 64, color: theme.colorScheme.error),
+        Icon(
+          Icons.cloud_off_outlined,
+          size: 64,
+          color: theme.colorScheme.error,
+        ),
         const SizedBox(height: 16),
         Center(
-          child: Text("Couldn't load contacts",
-              style: theme.textTheme.titleMedium),
+          child: Text(
+            "Couldn't load contacts",
+            style: theme.textTheme.titleMedium,
+          ),
         ),
         const SizedBox(height: 8),
         Padding(
@@ -219,8 +238,9 @@ class _ErrorState extends StatelessWidget {
           child: Text(
             'Check that the backend is running, then try again.',
             textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
         const SizedBox(height: 24),
