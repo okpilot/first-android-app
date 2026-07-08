@@ -83,6 +83,11 @@ project: First Android App (learning CRM)
 **Decided:** A single bespoke `ThemeData` in `lib/theme.dart` translating the prototype tokens — near-black ink as the *only* accent, `surfaceTint` transparent (kills M3 tonal elevation → truly flat), small radii (10/8px), hairline dividers, `VisualDensity.compact`, neutral-gray avatars, ink-filled buttons. **Both light and dark** first-class (`ThemeMode.system`). After a typography QA (fonts/weights were drifting because `TextField`/`CircleAvatar`/`InputDecoration` used their own defaults), consolidated to **one documented type scale, exactly three weights**: w600 titles/names/buttons · w500 field labels · w400 values/body — referenced everywhere instead of ad-hoc `copyWith`.
 **Principle:** One theme file, one type scale — hierarchy from deliberate size+weight, never accident. Supersedes the "stock M3 for now" half of Decision 8.
 
+## Decision 14: Backend deployed to homebase — tailnet-only; schema stays in the app repo (2026-07-08)
+**Context:** Time to make the backend real. Chosen: deploy to homebase (Decision 10 revisited). Also settled the ongoing workflow so schema doesn't get duplicated across repos.
+**Decided:** Deployed the trimmed stack to homebase as `okpilot/selfhost/stacks/firstapp-crm/` — **infra only** (Postgres 16 + PostgREST + Caddy gateway + PostgREST roles), fronted by the main Caddy at **`https://homebase.tail7ab4bc.ts.net:8452`** with a Tailscale TLS cert. **Tailnet-only** (the S23+ reaches it with the Tailscale app; no public internet exposure while there's no auth). Real secrets generated on the server into a gitignored `.env`; **started empty** (no seed). **The schema is NOT in selfhost** — `backend/migrations/` in *this* repo is the single source of truth, applied to any environment (local docker, homebase) by **`backend/deploy-homebase.sh`**, a forward-only migrator over the tailnet that tracks applied files in `public._migrations`. So a future change = new migration + UI here → test locally → run the migrator against homebase; selfhost is touched once and rarely again. App points at homebase via gitignored `dev-defines.homebase.json`.
+**Principle:** Infra and schema are different things — the server is a dumb host (selfhost), the schema lives with the app and is applied to environments. No copy-paste between repos.
+
 ---
 
 ## OPEN QUESTIONS

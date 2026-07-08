@@ -31,7 +31,9 @@ Decision 7.**
 ## Loose ends / deferred
 - ⏸️ **Everything unpushed** (user: "do not push, nothing"). When ready: split the local dev line into proper per-slice branches/PRs, run `/fullpush` + `/crlocal`, then push.
 - ⏸️ **Ledger divergence:** `main` = Decision 7; this branch = Decisions 8–12. Reconcile at push time (fold onto main, or PR the branch) to keep the append-only ledger linear.
-- ⏸️ **homebase deploy deferred** (Decision 10) — homebase was unreachable (SSH timeout). To run on a physical phone, either bind the local backend to the LAN IP, or deploy to homebase (public HTTPS).
+- ✅ **homebase deploy DONE** (Decision 14): `selfhost/stacks/firstapp-crm/` running, API at `https://homebase.tail7ab4bc.ts.net:8452` (tailnet-only, Tailscale TLS), started empty. Schema applied via `backend/deploy-homebase.sh` (migrator over the tailnet; source of truth = `backend/migrations/`). App config: gitignored `dev-defines.homebase.json`.
+  - ⚠️ **selfhost commit `ff5513f` is UNPUSHED** — `git push` from a non-interactive SSH couldn't auth to GitHub. Finish with: `ssh king@homebase 'cd ~/selfhost && git push origin main'` from your terminal.
+  - To run the app against homebase: the **emulator can't reach the tailnet**; use the real **S23+ with the Tailscale app** (`flutter build apk --dart-define-from-file=dev-defines.homebase.json` → `adb install`). Local dev still uses `dev-defines.android.json` (10.0.2.2 / adb reverse).
 - ⏸️ **Auth (GoTrue) deferred** to the first per-user slice; RLS policies are anon-permissive for now (tighten to owner-based then).
 - ✅ Bespoke mono/Linear-Attio **theme** DONE (Decision 13, `lib/theme.dart`, light+dark, one 3-weight type scale). **adaptive/two-pane** wide layout still a candidate next slice.
 - ⚠️ `flutter build linux` may still choke on the spaces in the absolute path (CMake/ninja) — untested; flag if we target Linux desktop.
