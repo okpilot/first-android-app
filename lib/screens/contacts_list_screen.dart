@@ -142,7 +142,15 @@ class _InitialsAvatar extends StatelessWidget {
     return CircleAvatar(
       backgroundColor: scheme.secondaryContainer,
       foregroundColor: scheme.onSecondaryContainer,
-      child: Text(_initials),
+      child: Text(
+        _initials,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.2,
+          color: scheme.onSecondaryContainer,
+        ),
+      ),
     );
   }
 }

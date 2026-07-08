@@ -118,8 +118,15 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                   radius: 28,
                   backgroundColor: theme.colorScheme.secondaryContainer,
                   foregroundColor: theme.colorScheme.onSecondaryContainer,
-                  child: Text(_initials(c.name),
-                      style: theme.textTheme.titleLarge),
+                  child: Text(
+                    _initials(c.name),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.2,
+                      color: theme.colorScheme.onSecondaryContainer,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(

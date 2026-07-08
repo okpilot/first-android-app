@@ -230,9 +230,13 @@ class _DobField extends StatelessWidget {
         ),
         child: Text(
           text ?? 'Not set',
-          style: value == null
-              ? TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)
-              : null,
+          // Same body style as the other input fields, so the date value doesn't
+          // render at a different size/weight than Email/Phone/etc.
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: value == null
+                    ? Theme.of(context).colorScheme.onSurfaceVariant
+                    : null,
+              ),
         ),
       ),
     );

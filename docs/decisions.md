@@ -78,6 +78,11 @@ project: First Android App (learning CRM)
 **Decided:** A proper slice: `contacts` table (6 fields + standard/soft-delete columns) → PostgREST under RLS → `supabase_flutter` → an **injectable repository** (so widget tests use a fake, keeping CI hermetic) → list / detail / add-edit screens with **loading/empty/error states**, guarded soft-delete, date picker. Styling stays **stock Material 3** (Decision 8) — a bespoke mono/Linear-Attio theme is its own later slice. Applied the newly-adopted design principles (Decision 9) proportionally: hierarchy, 8-pt spacing, designed states, labels-not-placeholders, ≥48px targets.
 **Principle:** Thin but *whole* — one feature, all the way down (UI → logic → data → backend), states and tests included.
 
+## Decision 13: Bespoke monochrome theme (Linear/Attio) + one type scale (2026-07-08)
+**Context:** With the Contacts feature working, stock Material 3 (indigo, tonal, rounded) looked "completely wrong" against the flat/tight/monochrome direction we'd converged on in the prototype (direction D + mono palette). This is the "theming slice" Decision 8 anticipated.
+**Decided:** A single bespoke `ThemeData` in `lib/theme.dart` translating the prototype tokens — near-black ink as the *only* accent, `surfaceTint` transparent (kills M3 tonal elevation → truly flat), small radii (10/8px), hairline dividers, `VisualDensity.compact`, neutral-gray avatars, ink-filled buttons. **Both light and dark** first-class (`ThemeMode.system`). After a typography QA (fonts/weights were drifting because `TextField`/`CircleAvatar`/`InputDecoration` used their own defaults), consolidated to **one documented type scale, exactly three weights**: w600 titles/names/buttons · w500 field labels · w400 values/body — referenced everywhere instead of ad-hoc `copyWith`.
+**Principle:** One theme file, one type scale — hierarchy from deliberate size+weight, never accident. Supersedes the "stock M3 for now" half of Decision 8.
+
 ---
 
 ## OPEN QUESTIONS

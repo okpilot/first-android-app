@@ -33,7 +33,7 @@ Decision 7.**
 - ⏸️ **Ledger divergence:** `main` = Decision 7; this branch = Decisions 8–12. Reconcile at push time (fold onto main, or PR the branch) to keep the append-only ledger linear.
 - ⏸️ **homebase deploy deferred** (Decision 10) — homebase was unreachable (SSH timeout). To run on a physical phone, either bind the local backend to the LAN IP, or deploy to homebase (public HTTPS).
 - ⏸️ **Auth (GoTrue) deferred** to the first per-user slice; RLS policies are anon-permissive for now (tighten to owner-based then).
-- ⏸️ Bespoke mono/Linear-Attio **theme** + **adaptive/two-pane** wide layout — candidate next slices.
+- ✅ Bespoke mono/Linear-Attio **theme** DONE (Decision 13, `lib/theme.dart`, light+dark, one 3-weight type scale). **adaptive/two-pane** wide layout still a candidate next slice.
 - ⚠️ `flutter build linux` may still choke on the spaces in the absolute path (CMake/ninja) — untested; flag if we target Linux desktop.
 - 🧹 Stray background `flutter run -d web-server` processes may linger from debugging (failed to bind :8080); harmless, `pkill -f "flutter run"` to clear.
 
