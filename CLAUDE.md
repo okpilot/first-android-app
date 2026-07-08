@@ -42,6 +42,7 @@ Skips are allowed but **must be stated, never silent**.
 - `docs/plan.md` — read first each session: goal, status, next slice.
 - `docs/decisions.md` — the append-only decision ledger.
 - `docs/database.md` — DB conventions (apply as slices need them).
+- `docs/design-principles.md` — how we apply the UI/UX principles (light wrapper; advisory, not a gate). Its two source-verified encyclopedias (`docs/UI-Principles-*.md`, `docs/UX-Principles-*.md`) are on-demand references — reach for their Build Checklists **only at UI slices**, not every session.
 - `HANDOVER.md` — where we left off.
 
 ## Environment
