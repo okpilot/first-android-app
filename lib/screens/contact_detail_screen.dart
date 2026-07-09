@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/contacts_repository.dart';
 import '../models/contact.dart';
 import '../util/format.dart';
+import '../widgets/initials_avatar.dart';
 import 'contact_form_screen.dart';
 
 /// Read view for one contact, with edit and (soft) delete. Pops `true` when the
@@ -121,20 +122,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  radius: 28,
-                  backgroundColor: theme.colorScheme.secondaryContainer,
-                  foregroundColor: theme.colorScheme.onSecondaryContainer,
-                  child: Text(
-                    initialsOf(c.name),
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.2,
-                      color: theme.colorScheme.onSecondaryContainer,
-                    ),
-                  ),
-                ),
+                InitialsAvatar(name: c.name, radius: 28),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Text(c.name, style: theme.textTheme.headlineSmall),

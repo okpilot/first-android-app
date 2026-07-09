@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 
 import 'data/contacts_repository.dart';
+import 'data/events_repository.dart';
 import 'screens/home_shell.dart';
 import 'theme.dart';
 
-/// Root widget. Takes the repository by injection so `main` can wire the real
-/// Supabase-backed one and tests can pass a fake.
+/// Root widget. Takes the repositories by injection so `main` can wire the real
+/// Supabase-backed ones and tests can pass fakes.
 class ContactsApp extends StatelessWidget {
-  const ContactsApp({super.key, required this.repository});
+  const ContactsApp({
+    super.key,
+    required this.repository,
+    required this.eventsRepository,
+  });
 
   final ContactsRepository repository;
+  final EventsRepository eventsRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +26,10 @@ class ContactsApp extends StatelessWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
-      home: HomeShell(repository: repository),
+      home: HomeShell(
+        repository: repository,
+        eventsRepository: eventsRepository,
+      ),
     );
   }
 }

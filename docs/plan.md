@@ -12,7 +12,8 @@ disposable. Built emergently — thin slices, one at a time.
 
 ## Current status (2026-07-09)
 - ✅ Environment: Flutter 3.44.5; Web + Linux + **Android** targets all ready (SDK installed, Pixel + S23+ emulators).
-- ✅ Decisions made — **15** (see `docs/decisions.md`): + design-principles adoption, local backend, Android SDK, Contacts slice, bespoke theme, homebase deploy, git hooks.
+- ✅ Decisions made — **18** (see `docs/decisions.md`): + design-principles adoption, local backend, Android SDK, Contacts slice, bespoke theme, homebase deploy, git hooks, calendar shell, /replycoderabbit, **calendar events**.
+- 🔨 **Calendar events + attendees — BUILT on `feat/calendar-events` (not yet pushed/merged).** `events` + `event_attendees` tables (3 migrations) + `create/update/soft_delete_event` RPCs; `Event` model + `EventsRepository`; event form (all-day toggle, 24h time pickers, attendee picker) + detail; the four calendar views wired to real data (blocks with lane-splitting, all-day band, month dots + panel, agenda). analyze clean · **31 tests** · web build · **visual QA on the emulator (light+dark) done**. Decision 18. Next: `/fullpush` + `/crlocal` → PR.
 - ✅ **Contacts — first real vertical slice**: full CRUD (list/detail/add-edit/soft-delete) with states, injectable repo (hermetic tests), **bespoke mono/Linear-Attio theme** (Decision 13). Runs on Android/web/Linux.
 - ✅ **Backend**: trimmed Supabase (Postgres + PostgREST + Caddy). Local dev **and deployed to homebase** (`https://homebase.tail7ab4bc.ts.net:8452`, tailnet-only HTTPS, Decision 14). Schema source of truth = `backend/migrations/`; applied to homebase via `backend/deploy-homebase.sh`.
 - ✅ **Mechanical git hooks** (`.githooks/`, Decision 15): pre-commit format+analyze, commit-msg, pre-push secret scan.
@@ -26,4 +27,4 @@ disposable. Built emergently — thin slices, one at a time.
 4. **Next candidates:** DB security hardening (issue #3 — RPC `auth.uid()`, revoke PUBLIC execute, column-level write grants) · **auth (GoTrue)** logins + owner-based RLS · search/filter on the list · run on the physical S23+ · full 7-column week (wide-screen adaptive).
 
 ## Next slice
-**Calendar — events.** After the shell merges: `events` table + migration + RLS + `soft_delete_event` RPC, an `Event` model, `EventsRepository` (+ fake for hermetic tests), and real events wired into all four views (the timelines finally get blocks; Month gets a designed selected-day panel; Agenda groups by day). Then the deferred **auth (GoTrue) + DB hardening** pairing (issue #3).
+**Push the calendar-events slice** (`feat/calendar-events`): `/fullpush` gate + `/crlocal` (≥3 rounds — SQL/security) → open PR → cloud CodeRabbit → `/replycoderabbit` → merge. Then the deferred **auth (GoTrue) + DB hardening** pairing (issue #3), which also adds the `auth.uid()` ownership checks to the event RPCs. Later candidates: overnight/`timestamptz` events, side-by-side overlap packing, full 7-column week, range-fetch, search/filter.

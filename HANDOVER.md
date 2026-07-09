@@ -2,16 +2,20 @@
 
 # Handover
 
-**Status: Calendar shell DONE and MERGED. PR #4 squash-merged into `main` (`7dd0995`,
-2026-07-09); branch deleted (local + remote); `main` clean and synced. Chrome only —
-adaptive nav shell (Contacts · Calendar, Bar↔Rail) + `CalendarScreen` with four views
-(Month · 3-day · Day · Agenda), Monday-start, mono-themed; verified on Android emulator +
-web (rail/bar) in light + dark. No events yet. Also merged this session: PR #5
-(`/replycoderabbit` command + wired into `/wrapup`, `4e210e2`). **No open PRs; `main` green
-and synced.** Resume = the Calendar *events* slice off a fresh branch (see "Next slice" in
-plan.md).**
+**Status: Calendar EVENTS + attendees BUILT on branch `feat/calendar-events` — NOT yet
+committed/pushed.** Full slice down to the DB: `events` + `event_attendees` (3 migrations) +
+`create/update/soft_delete_event` SECURITY DEFINER RPCs; `Event` model + `EventsRepository`
+(+ fakes); event form (all-day toggle, **24h** time pickers, searchable attendee picker) +
+detail; the four calendar views wired to real data (timeline blocks with lane-splitting +
+all-day band, month dots + selected-day panel, agenda grouped by day). New theme tokens
+(`EventBlockStyle`, mono `switchTheme` + `timePickerTheme`), shared `InitialsAvatar`.
+**analyze clean · 31 tests green · web build OK · SQL curl-verified · visual QA on the Pixel
+emulator in light + dark across every screen.** Decision 18. **Resume = commit, then run
+`/fullpush` + `/crlocal` (≥3 rounds, SQL/security) → open PR → cloud CodeRabbit →
+`/replycoderabbit`.** Working tree has all the slice's changes uncommitted.
 
-_(Previous: Contacts slice merged as PR #2 → `fa4fc45`, 2026-07-08.)_
+_(Previous: Calendar shell merged PR #4 → `7dd0995`; `/replycoderabbit` PR #5 → `4e210e2`;
+Contacts PR #2 → `fa4fc45`.)_
 
 ## How to bring the dev env back up (next session)
 1. **Backend:** `cd backend && docker compose up -d` (data persists; `down -v` to re-seed).
@@ -64,6 +68,17 @@ _(Previous: Contacts slice merged as PR #2 → `fa4fc45`, 2026-07-08.)_
 - ✅ **`/fullpush` + `/crlocal`** (2 rounds → 2 correctness fixes: Month↔timeline `_focused` sync, timeline width via `LayoutBuilder`).
 - ✅ **PR #4 opened**; CI `build` green + cloud CodeRabbit reviewed → **1 minor finding fixed** (hide period nav on Agenda). Awaiting merge.
 - ⏭️ **Deferred (stated):** full 7-column week (wide-screen adaptive), Drawer ≥1200 dp, keyboard grid traversal, now-line visual confirm (hidden behind empty chip until events).
+
+## Done this run (2026-07-09, session 6) — Calendar events + attendees
+- ✅ **Prototyped** the events flow in a throwaway artifact; confirmed field set (title · all-day · date · start/end · location · attendees · notes) and two entry points (FAB + tap-empty-slot) with the user.
+- ✅ **Plan through 3 adversarial critics** (scope/YAGNI · correctness · design/UX) before build; fixes folded in — cross-midnight CHECK limitation documented, `contacts` embed is to-one (+ null-skip), cached fetch future, corrected owner-RLS-bypass rationale, event-block **border** token, stacked-avatar rings, count-aware Semantics, mono switch/time-picker themes.
+- ✅ **Backend** (`backend/migrations/2026070912*`): `events` + `event_attendees` + 3 RPCs; RLS SELECT-only for anon (writes via definer RPCs). **curl-verified** create/update/soft-delete, the embed shape, and every CHECK guard (overnight rejected = documented single-day limitation). Seed events added (dev-only, relative to `current_date`).
+- ✅ **Dart**: `Event` model (int-minutes, pure), `EventsRepository` (+ Supabase impl), shared `InitialsAvatar`, `EventFormScreen` / `AttendeePickerScreen` / `EventDetailScreen`, and a full **data-driven rewrite of `CalendarScreen`** (lane-packed timeline blocks, all-day band, month dots + panel, agenda). Wired `EventsRepository` through `main`→`app`→`home_shell`.
+- ✅ **Time picker forced to 24-hour** (no AM/PM) per user request.
+- ✅ **Bugs found & fixed during QA:** `setState(() => …)` arrow returned a Future (crashed init); `Positioned` wrapped in `IgnorePointer` (parent-data assert when today in span); `borderRadius` + non-uniform border (event block + all-day pill) → uniform border + flush rail.
+- ✅ analyze clean · **31 tests** (added `event_test`, `event_form_screen_test`, event-driven calendar tests) · web build · **emulator visual QA light+dark**.
+- ⏭️ **Not yet done:** commit + `/fullpush` + `/crlocal` + PR + cloud CR. Working tree uncommitted on `feat/calendar-events`.
+- 📝 Note: `dev-defines.json` still points at `localhost:8000` (IPv6 `::1` fails on web); the emulator path (`dev-defines.android.json`, `127.0.0.1` + `adb reverse`) is the working one.
 
 ## Done previous runs
 - 2026-07-08 (s1): styling = stock M3 (Decision 8); planned + built the walking skeleton (parked).

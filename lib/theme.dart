@@ -359,6 +359,93 @@ class AppTheme {
         dividerColor: divider,
         overlayColor: WidgetStateProperty.all(Colors.transparent),
       ),
+      // All-day toggle: mono + flat — ink track when on, base thumb, hairline outline.
+      // (Default M3 Switch is a tonal pill; treat it like every other component here.)
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected)
+              ? scheme.onPrimary
+              : scheme.outline,
+        ),
+        trackColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected)
+              ? scheme.primary
+              : scheme.surfaceContainerHighest,
+        ),
+        trackOutlineColor: WidgetStateProperty.all(scheme.outline),
+        trackOutlineWidth: WidgetStateProperty.all(1),
+      ),
+      // showTimePicker is new surface: its dial/fields default to tonal fills. Keep it
+      // mono — ink hand, neutral-chip selection, flat surface.
+      timePickerTheme: TimePickerThemeData(
+        backgroundColor: scheme.surface,
+        hourMinuteColor: WidgetStateColor.resolveWith(
+          (s) => s.contains(WidgetState.selected)
+              ? scheme.primaryContainer
+              : scheme.surfaceContainerHighest,
+        ),
+        hourMinuteTextColor: scheme.onSurface,
+        dialBackgroundColor: scheme.surfaceContainerHighest,
+        dialHandColor: scheme.primary,
+        dialTextColor: WidgetStateColor.resolveWith(
+          (s) => s.contains(WidgetState.selected)
+              ? scheme.onPrimary
+              : scheme.onSurface,
+        ),
+        dayPeriodColor: WidgetStateColor.resolveWith(
+          (s) => s.contains(WidgetState.selected)
+              ? scheme.primaryContainer
+              : Colors.transparent,
+        ),
+        dayPeriodTextColor: scheme.onSurface,
+        dayPeriodBorderSide: BorderSide(color: scheme.outline),
+        entryModeIconColor: scheme.onSurfaceVariant,
+        shape: shape,
+      ),
+      // The one "raised object" the flat theme has: a calendar event block. Centralized
+      // so the timeline doesn't scatter guessed surfaceContainer levels — border-defined
+      // (not fill-alone) so it reads in light AND dark.
+      extensions: [
+        EventBlockStyle(
+          fill: scheme.surfaceContainerHigh,
+          border: scheme.outlineVariant,
+          rail: scheme.primary,
+        ),
+      ],
+    );
+  }
+}
+
+/// Visual tokens for a calendar event block (timeline). A hairline [border] + [fill]
+/// makes it read as a solid object on the flat canvas (fill-delta alone fails the squint
+/// test in light); the ink [rail] is the left accent.
+@immutable
+class EventBlockStyle extends ThemeExtension<EventBlockStyle> {
+  const EventBlockStyle({
+    required this.fill,
+    required this.border,
+    required this.rail,
+  });
+
+  final Color fill;
+  final Color border;
+  final Color rail;
+
+  @override
+  EventBlockStyle copyWith({Color? fill, Color? border, Color? rail}) =>
+      EventBlockStyle(
+        fill: fill ?? this.fill,
+        border: border ?? this.border,
+        rail: rail ?? this.rail,
+      );
+
+  @override
+  EventBlockStyle lerp(EventBlockStyle? other, double t) {
+    if (other == null) return this;
+    return EventBlockStyle(
+      fill: Color.lerp(fill, other.fill, t)!,
+      border: Color.lerp(border, other.border, t)!,
+      rail: Color.lerp(rail, other.rail, t)!,
     );
   }
 }
