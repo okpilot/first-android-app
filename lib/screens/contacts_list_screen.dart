@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../data/contacts_repository.dart';
 import '../models/contact.dart';
-import '../util/format.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/initials_avatar.dart';
 import 'contact_detail_screen.dart';
 import 'contact_form_screen.dart';
 
@@ -131,37 +131,13 @@ class _ContactsList extends StatelessWidget {
           c.email,
         ].where((s) => s != null && s.isNotEmpty).join(' · ');
         return ListTile(
-          leading: _InitialsAvatar(name: c.name),
+          leading: InitialsAvatar(name: c.name),
           title: Text(c.name),
           subtitle: subtitle.isEmpty ? null : Text(subtitle),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => onTap(c),
         );
       },
-    );
-  }
-}
-
-class _InitialsAvatar extends StatelessWidget {
-  const _InitialsAvatar({required this.name});
-
-  final String name;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return CircleAvatar(
-      backgroundColor: scheme.secondaryContainer,
-      foregroundColor: scheme.onSecondaryContainer,
-      child: Text(
-        initialsOf(name),
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.2,
-          color: scheme.onSecondaryContainer,
-        ),
-      ),
     );
   }
 }

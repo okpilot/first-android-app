@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/contacts_repository.dart';
+import '../data/events_repository.dart';
 import 'calendar_screen.dart';
 import 'contacts_list_screen.dart';
 
@@ -12,9 +13,14 @@ import 'contacts_list_screen.dart';
 /// Both screens live in an `IndexedStack` so switching tabs preserves each one's
 /// state (Contacts keeps its fetched list rather than refetching).
 class HomeShell extends StatefulWidget {
-  const HomeShell({super.key, required this.repository});
+  const HomeShell({
+    super.key,
+    required this.repository,
+    required this.eventsRepository,
+  });
 
   final ContactsRepository repository;
+  final EventsRepository eventsRepository;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -44,7 +50,10 @@ class _HomeShellState extends State<HomeShell> {
       index: _index,
       children: [
         ContactsListScreen(repository: widget.repository),
-        const CalendarScreen(),
+        CalendarScreen(
+          eventsRepository: widget.eventsRepository,
+          contactsRepository: widget.repository,
+        ),
       ],
     );
 

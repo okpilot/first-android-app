@@ -2,16 +2,27 @@
 
 # Handover
 
-**Status: Calendar shell DONE and MERGED. PR #4 squash-merged into `main` (`7dd0995`,
-2026-07-09); branch deleted (local + remote); `main` clean and synced. Chrome only —
-adaptive nav shell (Contacts · Calendar, Bar↔Rail) + `CalendarScreen` with four views
-(Month · 3-day · Day · Agenda), Monday-start, mono-themed; verified on Android emulator +
-web (rail/bar) in light + dark. No events yet. Also merged this session: PR #5
-(`/replycoderabbit` command + wired into `/wrapup`, `4e210e2`). **No open PRs; `main` green
-and synced.** Resume = the Calendar *events* slice off a fresh branch (see "Next slice" in
-plan.md).**
+**Status: Calendar EVENTS + attendees — PR #8 OPEN, awaiting cloud CodeRabbit + merge.**
+Branch `feat/calendar-events` (3 commits: feature + 2 CR-fix) pushed; `main` untouched/clean.
+Full slice down to the DB: `events` + `event_attendees` (3 migrations) +
+`create/update/soft_delete_event` SECURITY DEFINER RPCs; `Event` model + `EventsRepository`
+(+ fakes); event form (all-day toggle, **24h** time pickers, searchable attendee picker) +
+detail; the four calendar views wired to real data (timeline blocks with lane-splitting +
+bounded all-day band, month dots + selected-day panel, agenda grouped by day). New theme
+tokens (`EventBlockStyle`, mono `switchTheme` + `timePickerTheme`), shared `InitialsAvatar`.
+**`/fullpush` green (analyze · 31 tests · web build · migrations clean on a fresh DB) ·
+`/crlocal` converged (4 rounds, 6 fixed, 1 skipped) · SQL curl-verified · visual QA on the
+Pixel emulator in light + dark · CI build PASSED on the PR.** Decision 18.
 
-_(Previous: Contacts slice merged as PR #2 → `fa4fc45`, 2026-07-08.)_
+**RESUME = run `/replycoderabbit` once the cloud CodeRabbit review posts (still in progress at
+session end), dispose its findings, then merge PR #8. After merge: `./backend/deploy-homebase.sh`
+to apply the 3 event migrations to homebase; delete the merged branch.** Then: agent fleet (#6).
+
+_Follow-up issues filed this session: **#6** (LMS-Plus-style agent fleet, Flutter-adapted) ·
+**#7** (Tailscale-joined GitHub Action to auto-deploy migrations to homebase)._
+
+_(Previous: Calendar shell merged PR #4 → `7dd0995`; `/replycoderabbit` PR #5 → `4e210e2`;
+Contacts PR #2 → `fa4fc45`.)_
 
 ## How to bring the dev env back up (next session)
 1. **Backend:** `cd backend && docker compose up -d` (data persists; `down -v` to re-seed).
@@ -64,6 +75,18 @@ _(Previous: Contacts slice merged as PR #2 → `fa4fc45`, 2026-07-08.)_
 - ✅ **`/fullpush` + `/crlocal`** (2 rounds → 2 correctness fixes: Month↔timeline `_focused` sync, timeline width via `LayoutBuilder`).
 - ✅ **PR #4 opened**; CI `build` green + cloud CodeRabbit reviewed → **1 minor finding fixed** (hide period nav on Agenda). Awaiting merge.
 - ⏭️ **Deferred (stated):** full 7-column week (wide-screen adaptive), Drawer ≥1200 dp, keyboard grid traversal, now-line visual confirm (hidden behind empty chip until events).
+
+## Done this run (2026-07-09, session 6) — Calendar events + attendees
+- ✅ **Prototyped** the events flow in a throwaway artifact; confirmed field set (title · all-day · date · start/end · location · attendees · notes) and two entry points (FAB + tap-empty-slot) with the user.
+- ✅ **Plan through 3 adversarial critics** (scope/YAGNI · correctness · design/UX) before build; fixes folded in — cross-midnight CHECK limitation documented, `contacts` embed is to-one (+ null-skip), cached fetch future, corrected owner-RLS-bypass rationale, event-block **border** token, stacked-avatar rings, count-aware Semantics, mono switch/time-picker themes.
+- ✅ **Backend** (`backend/migrations/2026070912*`): `events` + `event_attendees` + 3 RPCs; RLS SELECT-only for anon (writes via definer RPCs). **curl-verified** create/update/soft-delete, the embed shape, and every CHECK guard (overnight rejected = documented single-day limitation). Seed events added (dev-only, relative to `current_date`).
+- ✅ **Dart**: `Event` model (int-minutes, pure), `EventsRepository` (+ Supabase impl), shared `InitialsAvatar`, `EventFormScreen` / `AttendeePickerScreen` / `EventDetailScreen`, and a full **data-driven rewrite of `CalendarScreen`** (lane-packed timeline blocks, all-day band, month dots + panel, agenda). Wired `EventsRepository` through `main`→`app`→`home_shell`.
+- ✅ **Time picker forced to 24-hour** (no AM/PM) per user request.
+- ✅ **Bugs found & fixed during QA:** `setState(() => …)` arrow returned a Future (crashed init); `Positioned` wrapped in `IgnorePointer` (parent-data assert when today in span); `borderRadius` + non-uniform border (event block + all-day pill) → uniform border + flush rail.
+- ✅ analyze clean · **31 tests** (added `event_test`, `event_form_screen_test`, event-driven calendar tests) · web build · **emulator visual QA light+dark**.
+- ✅ **`/fullpush` + `/crlocal`** (4 rounds → 6 fixed incl. a critical `update_event` no-op + a major RLS gap on `event_attendees`; 1 skipped = false-positive `int.clamp` typing). Committed + **pushed → PR #8**; CI build green; cloud CR review in progress at session end.
+- ✅ **Filed follow-up issues #6 (agent fleet) + #7 (Tailscale db-deploy action)** — user wants both tracked; build after this PR.
+- 📝 Notes: `dev-defines.json` still points at `localhost:8000` (IPv6 `::1` fails on **web**; emulator path uses `dev-defines.android.json` + `adb reverse` + `127.0.0.1`). Emulator `hw.keyboard` was flipped to `yes` so the physical keyboard types into fields.
 
 ## Done previous runs
 - 2026-07-08 (s1): styling = stock M3 (Decision 8); planned + built the walking skeleton (parked).

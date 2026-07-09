@@ -1,0 +1,102 @@
+import '../util/format.dart';
+import 'contact.dart';
+
+/// A calendar event — mirrors the `public.events` table plus its attendees (the
+/// `event_attendees` → `contacts` embed). Pure Dart (no Flutter import, like [Contact])
+/// so it unit-tests without a widget tree.
+///
+/// Times are minutes-from-midnight ([startMin]/[endMin], null iff [allDay]) rather than
+/// a Flutter `TimeOfDay`: it keeps the model widget-free and matches the timeline's own
+/// pixel math (`startMin / 60 * rowHeight`). Screens bridge to `TimeOfDay` only at the
+/// picker boundary. Single-day events only — see the backend migration.
+class Event {
+  final String id;
+  final String title;
+
+  /// Date-only (local midnight); the event's calendar day.
+  final DateTime date;
+  final bool allDay;
+
+  /// Minutes from midnight. Both null when [allDay]; both set otherwise.
+  final int? startMin;
+  final int? endMin;
+
+  final String? location;
+  final String? notes;
+
+  /// The assigned contacts. Only id/name/company are populated from the embed.
+  final List<Contact> attendees;
+
+  const Event({
+    required this.id,
+    required this.title,
+    required this.date,
+    required this.allDay,
+    this.startMin,
+    this.endMin,
+    this.location,
+    this.notes,
+    this.attendees = const [],
+  });
+
+  /// A not-yet-persisted event. Empty id — the DB assigns the real one.
+  const Event.draft({
+    required this.title,
+    required this.date,
+    required this.allDay,
+    this.startMin,
+    this.endMin,
+    this.location,
+    this.notes,
+    this.attendees = const [],
+  }) : id = '';
+
+  factory Event.fromJson(Map<String, dynamic> json) {
+    // event_attendees is a to-many array; each row's `contacts` is a to-ONE object (or
+    // null when that contact was soft-deleted and hidden by RLS — skip those).
+    final attendees = <Contact>[];
+    for (final row in (json['event_attendees'] as List? ?? const [])) {
+      final c = (row as Map<String, dynamic>)['contacts'];
+      if (c is Map<String, dynamic>) attendees.add(Contact.fromJson(c));
+    }
+    final allDay = (json['all_day'] as bool?) ?? false;
+    return Event(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      date: DateTime.parse(
+        json['event_date'] as String,
+      ), // 'yyyy-MM-dd' → local midnight
+      allDay: allDay,
+      startMin: allDay ? null : _minutesOf(json['start_time']),
+      endMin: allDay ? null : _minutesOf(json['end_time']),
+      location: json['location'] as String?,
+      notes: json['notes'] as String?,
+      attendees: attendees,
+    );
+  }
+
+  /// Named params for the `create_event` / `update_event` RPCs. Times as `"HH:MM"`
+  /// strings; the server trims text and maps empty → NULL. (`update` adds `p_id`.)
+  Map<String, dynamic> toRpcParams() => {
+    'p_title': title.trim(),
+    'p_event_date': ymd(date),
+    'p_all_day': allDay,
+    'p_start_time': allDay || startMin == null ? null : hhmm(startMin!),
+    'p_end_time': allDay || endMin == null ? null : hhmm(endMin!),
+    'p_location': location,
+    'p_notes': notes,
+    'p_attendees': [for (final c in attendees) c.id],
+  };
+
+  /// Order within a single day: all-day events first, then by start time. Null-safe.
+  static int compareForDay(Event a, Event b) {
+    if (a.allDay != b.allDay) return a.allDay ? -1 : 1;
+    return (a.startMin ?? 0).compareTo(b.startMin ?? 0);
+  }
+
+  static int? _minutesOf(Object? v) {
+    if (v is! String || v.isEmpty) return null;
+    final parts = v.split(':'); // accepts "HH:MM" and "HH:MM:SS"
+    return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+  }
+}

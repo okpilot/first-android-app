@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app.dart';
 import 'config.dart';
 import 'data/contacts_repository.dart';
+import 'data/events_repository.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,9 +16,11 @@ Future<void> main() async {
       // ignore: deprecated_member_use
       anonKey: AppConfig.supabaseAnonKey,
     );
+    final client = Supabase.instance.client;
     runApp(
       ContactsApp(
-        repository: SupabaseContactsRepository(Supabase.instance.client),
+        repository: SupabaseContactsRepository(client),
+        eventsRepository: SupabaseEventsRepository(client),
       ),
     );
   } catch (error) {
