@@ -2,17 +2,24 @@
 
 # Handover
 
-**Status: Calendar EVENTS + attendees BUILT on branch `feat/calendar-events` — NOT yet
-committed/pushed.** Full slice down to the DB: `events` + `event_attendees` (3 migrations) +
+**Status: Calendar EVENTS + attendees — PR #8 OPEN, awaiting cloud CodeRabbit + merge.**
+Branch `feat/calendar-events` (3 commits: feature + 2 CR-fix) pushed; `main` untouched/clean.
+Full slice down to the DB: `events` + `event_attendees` (3 migrations) +
 `create/update/soft_delete_event` SECURITY DEFINER RPCs; `Event` model + `EventsRepository`
 (+ fakes); event form (all-day toggle, **24h** time pickers, searchable attendee picker) +
 detail; the four calendar views wired to real data (timeline blocks with lane-splitting +
-all-day band, month dots + selected-day panel, agenda grouped by day). New theme tokens
-(`EventBlockStyle`, mono `switchTheme` + `timePickerTheme`), shared `InitialsAvatar`.
-**analyze clean · 31 tests green · web build OK · SQL curl-verified · visual QA on the Pixel
-emulator in light + dark across every screen.** Decision 18. **Resume = commit, then run
-`/fullpush` + `/crlocal` (≥3 rounds, SQL/security) → open PR → cloud CodeRabbit →
-`/replycoderabbit`.** Working tree has all the slice's changes uncommitted.
+bounded all-day band, month dots + selected-day panel, agenda grouped by day). New theme
+tokens (`EventBlockStyle`, mono `switchTheme` + `timePickerTheme`), shared `InitialsAvatar`.
+**`/fullpush` green (analyze · 31 tests · web build · migrations clean on a fresh DB) ·
+`/crlocal` converged (4 rounds, 6 fixed, 1 skipped) · SQL curl-verified · visual QA on the
+Pixel emulator in light + dark · CI build PASSED on the PR.** Decision 18.
+
+**RESUME = run `/replycoderabbit` once the cloud CodeRabbit review posts (still in progress at
+session end), dispose its findings, then merge PR #8. After merge: `./backend/deploy-homebase.sh`
+to apply the 3 event migrations to homebase; delete the merged branch.** Then: agent fleet (#6).
+
+_Follow-up issues filed this session: **#6** (LMS-Plus-style agent fleet, Flutter-adapted) ·
+**#7** (Tailscale-joined GitHub Action to auto-deploy migrations to homebase)._
 
 _(Previous: Calendar shell merged PR #4 → `7dd0995`; `/replycoderabbit` PR #5 → `4e210e2`;
 Contacts PR #2 → `fa4fc45`.)_
@@ -77,8 +84,9 @@ Contacts PR #2 → `fa4fc45`.)_
 - ✅ **Time picker forced to 24-hour** (no AM/PM) per user request.
 - ✅ **Bugs found & fixed during QA:** `setState(() => …)` arrow returned a Future (crashed init); `Positioned` wrapped in `IgnorePointer` (parent-data assert when today in span); `borderRadius` + non-uniform border (event block + all-day pill) → uniform border + flush rail.
 - ✅ analyze clean · **31 tests** (added `event_test`, `event_form_screen_test`, event-driven calendar tests) · web build · **emulator visual QA light+dark**.
-- ⏭️ **Not yet done:** commit + `/fullpush` + `/crlocal` + PR + cloud CR. Working tree uncommitted on `feat/calendar-events`.
-- 📝 Note: `dev-defines.json` still points at `localhost:8000` (IPv6 `::1` fails on web); the emulator path (`dev-defines.android.json`, `127.0.0.1` + `adb reverse`) is the working one.
+- ✅ **`/fullpush` + `/crlocal`** (4 rounds → 6 fixed incl. a critical `update_event` no-op + a major RLS gap on `event_attendees`; 1 skipped = false-positive `int.clamp` typing). Committed + **pushed → PR #8**; CI build green; cloud CR review in progress at session end.
+- ✅ **Filed follow-up issues #6 (agent fleet) + #7 (Tailscale db-deploy action)** — user wants both tracked; build after this PR.
+- 📝 Notes: `dev-defines.json` still points at `localhost:8000` (IPv6 `::1` fails on **web**; emulator path uses `dev-defines.android.json` + `adb reverse` + `127.0.0.1`). Emulator `hw.keyboard` was flipped to `yes` so the physical keyboard types into fields.
 
 ## Done previous runs
 - 2026-07-08 (s1): styling = stock M3 (Decision 8); planned + built the walking skeleton (parked).
