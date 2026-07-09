@@ -29,7 +29,12 @@ SQL
 applied=0
 for f in migrations/*.sql; do
   name="$(basename "$f")"
-  exists="$(psql_remote -tAq -c "select 1 from public._migrations where name='${name}'")"
+  # NB: query via STDIN, not `psql -c "…"`. Passing `-c` with a space-containing
+  # query through ssh → docker exec → psql gets word-split by the remote shell
+  # (the local quotes are already consumed), so the check silently returned empty
+  # and every migration was re-applied. Piping over stdin survives all three hops.
+  exists="$(printf "select 1 from public._migrations where name='%s';" "$name" \
+            | psql_remote -tAq)"
   if [ "$exists" = "1" ]; then
     echo "  skip   ${name}"
     continue
