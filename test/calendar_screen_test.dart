@@ -35,6 +35,17 @@ class _FakeEventsRepo implements EventsRepository {
   Future<void> softDelete(String id) async {}
 }
 
+class _FailingEventsRepo implements EventsRepository {
+  @override
+  Future<List<Event>> fetchAll() async => throw Exception('network error');
+  @override
+  Future<Event> create(Event draft) async => draft;
+  @override
+  Future<Event> update(Event event) async => event;
+  @override
+  Future<void> softDelete(String id) async {}
+}
+
 Widget _wrap(Widget child) => MaterialApp(theme: AppTheme.light, home: child);
 
 Widget _calendar({
@@ -150,6 +161,24 @@ void main() {
 
     expect(find.widgetWithText(AppBar, 'New event'), findsOneWidget);
     expect(find.widgetWithText(TextFormField, 'Title'), findsOneWidget);
+  });
+
+  testWidgets('shows the error state when the initial load fails', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        CalendarScreen(
+          initialDate: DateTime(2026, 7, 8),
+          eventsRepository: _FailingEventsRepo(),
+          contactsRepository: _FakeContactsRepo(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text("Couldn't load events"), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Retry'), findsOneWidget);
   });
 
   testWidgets('navigates from Contacts to Calendar via the shell', (

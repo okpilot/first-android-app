@@ -88,7 +88,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
       lastDate: DateTime(2100),
       helpText: 'Event date',
     );
-    if (picked != null) setState(() => _date = dayOnly(picked));
+    if (picked != null && mounted) setState(() => _date = dayOnly(picked));
   }
 
   Future<void> _pickTime({required bool isStart}) async {
@@ -102,7 +102,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
         child: child!,
       ),
     );
-    if (picked == null) return;
+    if (picked == null || !mounted) return;
     setState(() {
       if (isStart) {
         _start = picked;
@@ -126,7 +126,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
         ),
       ),
     );
-    if (result != null) setState(() => _attendees = result);
+    if (result != null && mounted) setState(() => _attendees = result);
   }
 
   Future<void> _save() async {
