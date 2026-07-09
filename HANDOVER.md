@@ -6,9 +6,10 @@
 2026-07-09); branch deleted (local + remote); `main` clean and synced. Chrome only —
 adaptive nav shell (Contacts · Calendar, Bar↔Rail) + `CalendarScreen` with four views
 (Month · 3-day · Day · Agenda), Monday-start, mono-themed; verified on Android emulator +
-web (rail/bar) in light + dark. No events yet. Resume = the Calendar *events* slice off a
-fresh branch (see "Next slice" in plan.md). Open: PR #5 (`/replycoderabbit` tooling,
-docs-only) awaiting merge.**
+web (rail/bar) in light + dark. No events yet. Also merged this session: PR #5
+(`/replycoderabbit` command + wired into `/wrapup`, `4e210e2`). **No open PRs; `main` green
+and synced.** Resume = the Calendar *events* slice off a fresh branch (see "Next slice" in
+plan.md).**
 
 _(Previous: Contacts slice merged as PR #2 → `fa4fc45`, 2026-07-08.)_
 

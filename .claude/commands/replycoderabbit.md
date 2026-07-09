@@ -43,11 +43,22 @@ gate (Decision 7), and answering it closes the loop.
    **2. …**"
    ```
 
-6. Verify replies landed:
+6. Verify **every** finding got a response — check BOTH reply locations and tie each root
+   CodeRabbit comment to a reply (inline replies live on `pulls/.../comments`; general /
+   outside-diff replies live on `issues/.../comments`):
    ```bash
+   # Root CR inline findings that must each have a reply:
    gh api "repos/$REPO/pulls/$PR/comments" --paginate \
-     --jq '.[] | select(.user.login!="coderabbitai[bot]") | {path, line, body: (.body[:70])}'
+     --jq '[.[] | select(.user.login=="coderabbitai[bot]" and .in_reply_to_id==null) | .id]'
+   # Your inline replies (in_reply_to_id points back at the root finding):
+   gh api "repos/$REPO/pulls/$PR/comments" --paginate \
+     --jq '[.[] | select(.user.login!="coderabbitai[bot]") | .in_reply_to_id]'
+   # General / outside-diff replies (step 5) — NOT on the pulls endpoint:
+   gh api "repos/$REPO/issues/$PR/comments" --paginate \
+     --jq '.[] | select(.user.login!="coderabbitai[bot]") | .body[:80]'
    ```
+   Every root finding id from the first list must appear in the second, or be covered by the
+   general comment from step 5. If any is unmatched, reply before you stop.
 
 ## Rules
 - **Never leave a CodeRabbit finding without a reply** — every one gets a response.
