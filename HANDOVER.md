@@ -2,24 +2,33 @@
 
 # Handover
 
-**Status: Calendar EVENTS + attendees — PR #8 OPEN, awaiting cloud CodeRabbit + merge.**
-Branch `feat/calendar-events` (3 commits: feature + 2 CR-fix) pushed; `main` untouched/clean.
+**Status: Calendar EVENTS + attendees — SHIPPED & DEPLOYED. PR #8 merged (squash → `6f14d66`);
+the 3 event migrations are live on homebase and verified. Deploy-tooling fix PR #11 merged
+(squash → `5947599`). `main` clean and synced at `5947599`; no open branches.**
 Full slice down to the DB: `events` + `event_attendees` (3 migrations) +
 `create/update/soft_delete_event` SECURITY DEFINER RPCs; `Event` model + `EventsRepository`
 (+ fakes); event form (all-day toggle, **24h** time pickers, searchable attendee picker) +
 detail; the four calendar views wired to real data (timeline blocks with lane-splitting +
 bounded all-day band, month dots + selected-day panel, agenda grouped by day). New theme
 tokens (`EventBlockStyle`, mono `switchTheme` + `timePickerTheme`), shared `InitialsAvatar`.
-**`/fullpush` green (analyze · 31 tests · web build · migrations clean on a fresh DB) ·
-`/crlocal` converged (4 rounds, 6 fixed, 1 skipped) · SQL curl-verified · visual QA on the
-Pixel emulator in light + dark · CI build PASSED on the PR.** Decision 18.
+**`/fullpush` green · `/crlocal` converged · cloud CodeRabbit on PR #8 fully answered
+(2 fixed post-review, 2 deferred → #9/#10, 2 skipped false-positives it conceded) · 33 tests ·
+SQL curl-verified · emulator visual QA light+dark · CI green.** Decision 18.
 
-**RESUME = run `/replycoderabbit` once the cloud CodeRabbit review posts (still in progress at
-session end), dispose its findings, then merge PR #8. After merge: `./backend/deploy-homebase.sh`
-to apply the 3 event migrations to homebase; delete the merged branch.** Then: agent fleet (#6).
+**Homebase deploy is LIVE:** `events` + `event_attendees` tables (RLS on), 3 RPCs, ledger has all
+5 migrations, PostgREST cache reloaded — `GET /rest/v1/events` → `200 []` (empty; prod carries no
+seed). Deploys go through `./backend/deploy-homebase.sh` — **now genuinely idempotent** (PR #11
+fixed a broken remote exists-check) — and may prompt a **one-time Tailscale SSH re-auth** (visit
+the printed URL, then it continues; re-run is safe, already-applied migrations are skipped).
 
-_Follow-up issues filed this session: **#6** (LMS-Plus-style agent fleet, Flutter-adapted) ·
-**#7** (Tailscale-joined GitHub Action to auto-deploy migrations to homebase)._
+**RESUME = pick the next slice — no blocker.** Candidates: **agent fleet (#6)** · **auth (GoTrue) +
+DB hardening (#3** — adds `auth.uid()` ownership to the event RPCs; RLS is anon-permissive until
+then**)** · **Tailscale GH Action to auto-deploy migrations (#7)**. Plus the two just-filed
+duplication/idempotency cleanups (**#9**, **#10**).
+
+_Follow-up issues open: **#3** (DB security hardening) · **#6** (LMS-Plus-style agent fleet,
+Flutter-adapted) · **#7** (Tailscale GitHub Action to auto-deploy migrations) · **#9** (idempotent
+event write RPCs — client id / `ON CONFLICT`) · **#10** (dedup test fakes + labelled-field widget)._
 
 _(Previous: Calendar shell merged PR #4 → `7dd0995`; `/replycoderabbit` PR #5 → `4e210e2`;
 Contacts PR #2 → `fa4fc45`.)_
@@ -87,6 +96,27 @@ Contacts PR #2 → `fa4fc45`.)_
 - ✅ **`/fullpush` + `/crlocal`** (4 rounds → 6 fixed incl. a critical `update_event` no-op + a major RLS gap on `event_attendees`; 1 skipped = false-positive `int.clamp` typing). Committed + **pushed → PR #8**; CI build green; cloud CR review in progress at session end.
 - ✅ **Filed follow-up issues #6 (agent fleet) + #7 (Tailscale db-deploy action)** — user wants both tracked; build after this PR.
 - 📝 Notes: `dev-defines.json` still points at `localhost:8000` (IPv6 `::1` fails on **web**; emulator path uses `dev-defines.android.json` + `adb reverse` + `127.0.0.1`). Emulator `hw.keyboard` was flipped to `yes` so the physical keyboard types into fields.
+
+## Done this run (2026-07-09, session 7) — Land + deploy events; fix deploy tooling
+- ✅ **Cloud CodeRabbit on PR #8 fully disposed** once its review posted: 8 findings →
+  **3 fixed** (`a9170cd`: `mounted` guards after `await` in the form's pickers; a trim-before-save
+  test; a reload-failure `_ErrorState` test), **2 deferred** → issues **#9** (idempotent write RPCs)
+  + **#10** (dedup test fakes + `_Field` widget), **2 skipped** as false positives (the `int.clamp`
+  → `num` claims — `int.clamp(int,int)` is statically `int` since Dart 2.19; CR **conceded** both
+  on the thread), **1 nitpick** folded into the fix. Every finding answered inline via
+  `/replycoderabbit`.
+- ✅ **PR #8 merged** (squash → `6f14d66`); branch deleted (local + remote), `main` synced.
+- ✅ **Deployed the 3 event migrations to homebase** and verified live (tables + RLS + RPCs +
+  ledger; PostgREST reloaded; `GET /rest/v1/events` → `200 []`). Prod carries **no seed**.
+- 🐛 **Found & fixed a real bug in `backend/deploy-homebase.sh`:** its per-migration exists-check
+  ran `psql -c "…"` through `ssh → docker exec`, so the space-containing query was **word-split on
+  the remote side** and always returned empty — the script re-applied *every* migration and only
+  worked on a fresh DB (re-runs failed `relation … already exists`). Fixed to pipe the check over
+  **stdin** with `psql -v :'name'` quoting (survives all three hops; robust to odd filenames).
+  Landed via **PR #11** (own branch, `/crlocal` clean 2 rounds, cloud CR's 1 nitpick fixed
+  `060d2ed` + replied) → merged (squash → `5947599`).
+- 📝 Note: homebase deploys may prompt a one-time **Tailscale SSH re-auth**; the deploy is now
+  idempotent so a re-run after auth is safe.
 
 ## Done previous runs
 - 2026-07-08 (s1): styling = stock M3 (Decision 8); planned + built the walking skeleton (parked).
