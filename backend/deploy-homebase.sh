@@ -33,8 +33,11 @@ for f in migrations/*.sql; do
   # query through ssh → docker exec → psql gets word-split by the remote shell
   # (the local quotes are already consumed), so the check silently returned empty
   # and every migration was re-applied. Piping over stdin survives all three hops.
-  exists="$(printf "select 1 from public._migrations where name='%s';" "$name" \
-            | psql_remote -tAq)"
+  # The name is passed as a psql variable and referenced with :'name' so psql
+  # does the SQL quoting — robust even if a filename ever contains a quote (the
+  # -v value has no spaces, so it survives the ssh word-split that broke -c).
+  exists="$(printf "select 1 from public._migrations where name=:'name';" \
+            | psql_remote -tAq -v name="$name")"
   if [ "$exists" = "1" ]; then
     echo "  skip   ${name}"
     continue
