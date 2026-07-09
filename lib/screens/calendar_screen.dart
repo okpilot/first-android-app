@@ -594,11 +594,18 @@ class _TimelineViewState extends State<_TimelineView> {
         AnimatedSize(
           duration: const Duration(milliseconds: 160),
           alignment: Alignment.topCenter,
+          // Cap the band and let it scroll internally so a day with many all-day
+          // events can't push the hour grid off-screen (or overflow the Column).
           child: hasAllDay
-              ? _AllDayBand(
-                  columns: allDayByCol,
-                  gutter: _gutter,
-                  onOpenEvent: widget.onOpenEvent,
+              ? ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 156),
+                  child: SingleChildScrollView(
+                    child: _AllDayBand(
+                      columns: allDayByCol,
+                      gutter: _gutter,
+                      onOpenEvent: widget.onOpenEvent,
+                    ),
+                  ),
                 )
               : const SizedBox(width: double.infinity),
         ),
