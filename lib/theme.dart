@@ -301,6 +301,64 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         shape: shape,
       ),
+      // Every new M3 component we introduce gets mono treatment so nothing ships
+      // with a default tonal fill against the flat theme (Decision 13).
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: scheme.surface,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor:
+            scheme.primaryContainer, // neutral chip, not a tonal pill
+        elevation: 0,
+        height: 64,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => textTheme.labelMedium!.copyWith(
+            color: states.contains(WidgetState.selected)
+                ? scheme.onSurface
+                : scheme.onSurfaceVariant,
+            fontWeight: states.contains(WidgetState.selected)
+                ? FontWeight.w600
+                : FontWeight.w500,
+          ),
+        ),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(
+            size: 22,
+            color: states.contains(WidgetState.selected)
+                ? scheme.onSurface
+                : scheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+      navigationRailTheme: NavigationRailThemeData(
+        backgroundColor: scheme.surface,
+        indicatorColor: scheme.primaryContainer,
+        elevation: 0,
+        selectedIconTheme: IconThemeData(size: 22, color: scheme.onSurface),
+        unselectedIconTheme: IconThemeData(
+          size: 22,
+          color: scheme.onSurfaceVariant,
+        ),
+        selectedLabelTextStyle: textTheme.labelMedium!.copyWith(
+          color: scheme.onSurface,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelTextStyle: textTheme.labelMedium!.copyWith(
+          color: scheme.onSurfaceVariant,
+        ),
+      ),
+      tabBarTheme: TabBarThemeData(
+        indicatorColor: scheme.primary, // ink underline
+        indicatorSize: TabBarIndicatorSize.label,
+        labelColor: scheme.onSurface,
+        unselectedLabelColor: scheme.onSurfaceVariant,
+        labelStyle: textTheme.labelLarge,
+        unselectedLabelStyle: textTheme.labelLarge?.copyWith(
+          fontWeight: FontWeight.w500,
+        ),
+        dividerColor: divider,
+        overlayColor: WidgetStateProperty.all(Colors.transparent),
+      ),
     );
   }
 }

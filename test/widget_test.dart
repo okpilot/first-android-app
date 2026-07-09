@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:first_android_app/app.dart';
@@ -35,7 +36,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Contacts'), findsOneWidget); // app bar title
+    // "Contacts" now appears twice (AppBar title + nav destination label), so
+    // scope the finder to the AppBar title.
+    expect(find.widgetWithText(AppBar, 'Contacts'), findsOneWidget);
     expect(find.text('Ada Lovelace'), findsOneWidget);
     expect(find.text('Alan Turing'), findsOneWidget);
   });
