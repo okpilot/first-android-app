@@ -1,11 +1,17 @@
-> Cross-session work tracker. Update in place. Last updated: 2026-07-08.
+> Cross-session work tracker. Update in place. Last updated: 2026-07-09.
 
 # Handover
 
-**Status: Contacts slice DONE and MERGED. PR #2 squash-merged into `main` (commit
-`fa4fc45`, 2026-07-08); branch deleted (local + remote); `main` clean and synced. Full
-CRUD, bespoke mono theme, running on Android/web/Linux, backend deployed to homebase
-(tailnet). Resume = next slice (auth + DB hardening, issue #3) off a fresh branch.**
+**Status: Calendar shell — DONE, in review as PR #4 (NOT yet merged). Branch
+`slice-calendar-shell` pushed (3 commits ahead of `main`); CI `build` green and cloud
+CodeRabbit reviewed (1 minor finding found + fixed). Chrome only — adaptive nav shell
+(Contacts · Calendar, Bar↔Rail) + `CalendarScreen` with four views (Month · 3-day · Day ·
+Agenda), Monday-start, mono-themed; verified on Android emulator + web (rail/bar) in light +
+dark. No events yet. `main` is clean/synced but you're currently ON the `slice-calendar-shell`
+branch. Resume = merge PR #4 (squash), delete the branch, then start the Calendar *events*
+slice off a fresh branch.**
+
+_(Previous: Contacts slice merged as PR #2 → `fa4fc45`, 2026-07-08.)_
 
 ## How to bring the dev env back up (next session)
 1. **Backend:** `cd backend && docker compose up -d` (data persists; `down -v` to re-seed).
@@ -49,6 +55,15 @@ CRUD, bespoke mono theme, running on Android/web/Linux, backend deployed to home
 ## Done this run (2026-07-08, session 4)
 - ✅ **Squash-merged PR #2** into `main` (`fa4fc45`); deleted branch (local + remote), pruned stale refs; `main` clean and synced.
 - ✅ Synced `docs/plan.md` + `HANDOVER.md` to merged state; DB hardening now points at **issue #3**.
+
+## Done this run (2026-07-09, session 5) — Calendar shell
+- ✅ **Prototyped the calendar** in a throwaway interactive artifact; aligned to the mono theme; chose views **Month · 3-day · Day · Agenda** (phone-first; full 7-col week deferred to a wide-screen slice). Decision 16.
+- ✅ **Plan through 3 adversarial critics** (scope/YAGNI, Flutter correctness, design/UX) before build; fixes folded in (DST-safe date math, no `pumpAndSettle` timer, AA-safe dimming, `find.text('Contacts')` test fix, TabBar over SegmentedButton, …).
+- ✅ **Built the calendar shell** — `HomeShell` (adaptive `NavigationBar`↔`NavigationRail`), `CalendarScreen` (TabBar + 4 views), `lib/util/calendar.dart` (pure, no `intl`), shared `EmptyState`. **No events** (chrome only). analyze clean · **18 tests** · web build.
+- ✅ **Visual QA vs the artifact** (light + dark, emulator + web) caught & fixed: loose grid → hairline grid, left-packed tabs → even, floating nav → grouped, empty-state collisions → contained chips, Day header redundancy removed.
+- ✅ **`/fullpush` + `/crlocal`** (2 rounds → 2 correctness fixes: Month↔timeline `_focused` sync, timeline width via `LayoutBuilder`).
+- ✅ **PR #4 opened**; CI `build` green + cloud CodeRabbit reviewed → **1 minor finding fixed** (hide period nav on Agenda). Awaiting merge.
+- ⏭️ **Deferred (stated):** full 7-column week (wide-screen adaptive), Drawer ≥1200 dp, keyboard grid traversal, now-line visual confirm (hidden behind empty chip until events).
 
 ## Done previous runs
 - 2026-07-08 (s1): styling = stock M3 (Decision 8); planned + built the walking skeleton (parked).
