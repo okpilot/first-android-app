@@ -78,6 +78,8 @@ class _CalendarScreenState extends State<CalendarScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Agenda is a static "Upcoming" list — no range to page, so no period nav there.
+    final showPeriodNav = _tabs[_tab.index] != 'Agenda';
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 16,
@@ -92,23 +94,27 @@ class _CalendarScreenState extends State<CalendarScreen>
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            IconButton(
-              onPressed: () => _step(-1),
-              icon: const Icon(Icons.chevron_left),
-              tooltip: 'Previous',
-              visualDensity: VisualDensity.compact,
-            ),
-            IconButton(
-              onPressed: () => _step(1),
-              icon: const Icon(Icons.chevron_right),
-              tooltip: 'Next',
-              visualDensity: VisualDensity.compact,
-            ),
+            if (showPeriodNav) ...[
+              IconButton(
+                onPressed: () => _step(-1),
+                icon: const Icon(Icons.chevron_left),
+                tooltip: 'Previous',
+                visualDensity: VisualDensity.compact,
+              ),
+              IconButton(
+                onPressed: () => _step(1),
+                icon: const Icon(Icons.chevron_right),
+                tooltip: 'Next',
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
           ],
         ),
         actions: [
-          TextButton(onPressed: _goToday, child: const Text('Today')),
-          const SizedBox(width: 8),
+          if (showPeriodNav) ...[
+            TextButton(onPressed: _goToday, child: const Text('Today')),
+            const SizedBox(width: 8),
+          ],
         ],
         // Four short labels fit — evenly split, not a left-packed scroll strip.
         bottom: TabBar(
