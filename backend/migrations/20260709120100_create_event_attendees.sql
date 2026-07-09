@@ -23,9 +23,19 @@ create index event_attendees_contact_id_idx on public.event_attendees(contact_id
 
 alter table public.event_attendees enable row level security;
 
+-- Only expose a join row while its parent event is live — otherwise a soft-deleted
+-- event's attendee list stays readable via this table even though the event itself is
+-- hidden (the embed path is already covered by the events SELECT policy; a direct query
+-- on this table is not). Read policies filter deleted_at (database.md #4).
 create policy event_attendees_select on public.event_attendees
   for select to anon, authenticated
-  using (true);
+  using (
+    exists (
+      select 1 from public.events e
+      where e.id = event_attendees.event_id
+        and e.deleted_at is null
+    )
+  );
 
 -- No write policy/grant: membership is set only by the SECURITY DEFINER RPCs.
 

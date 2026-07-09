@@ -78,6 +78,13 @@ begin
   where id = p_id
     and deleted_at is null;
 
+  -- Bail (rolling back the whole call) if the id is unknown or already soft-deleted —
+  -- otherwise we'd silently rewrite a hidden event's attendee set and return success.
+  if not found then
+    raise exception 'event % not found or already deleted', p_id
+      using errcode = 'no_data_found';
+  end if;
+
   -- Replace the attendee set. Hard-DELETE of join rows is the annotated exception to
   -- "soft-delete by default" (database.md #4): membership is derived, not a
   -- soft-deletable entity with its own history.

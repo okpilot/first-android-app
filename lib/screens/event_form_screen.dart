@@ -139,13 +139,13 @@ class _EventFormScreenState extends State<EventFormScreen> {
 
     final draft = Event(
       id: widget.existing?.id ?? '',
-      title: _title.text,
+      title: _title.text.trim(),
       date: _date,
       allDay: _allDay,
       startMin: _allDay ? null : _toMin(_start),
       endMin: _allDay ? null : _toMin(_end),
-      location: _location.text,
-      notes: _notes.text,
+      location: _location.text.trim(),
+      notes: _notes.text.trim(),
       attendees: _attendees,
     );
 

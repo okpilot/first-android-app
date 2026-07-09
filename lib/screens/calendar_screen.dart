@@ -70,7 +70,14 @@ class _CalendarScreenState extends State<CalendarScreen>
       _lastData = await future;
       if (mounted) setState(() {});
     } catch (_) {
-      // Surfaced by the FutureBuilder's error branch.
+      // First load: surfaced by the FutureBuilder's error branch. But on a reload
+      // with data already cached, the FutureBuilder keeps showing the stale list —
+      // so a failed refresh after create/edit/delete would otherwise be invisible.
+      if (mounted && _lastData != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Couldn't refresh events.")),
+        );
+      }
     }
   }
 

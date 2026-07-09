@@ -178,7 +178,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     final d = e.date;
     final date =
         '${weekdayShort[d.weekday - 1]}, ${d.day} ${monthShort[d.month - 1]} ${d.year}';
-    if (e.allDay) return '$date · All day';
+    // Times are null iff all-day (DB CHECK enforces it) — guard anyway so a malformed
+    // event never crashes the whole screen.
+    if (e.allDay || e.startMin == null || e.endMin == null) {
+      return '$date · All day';
+    }
     return '$date · ${hhmm(e.startMin!)} – ${hhmm(e.endMin!)}';
   }
 }
