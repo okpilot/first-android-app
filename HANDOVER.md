@@ -2,14 +2,13 @@
 
 # Handover
 
-**Status: Calendar shell — DONE, in review as PR #4 (NOT yet merged). Branch
-`slice-calendar-shell` pushed (3 commits ahead of `main`); CI `build` green and cloud
-CodeRabbit reviewed (1 minor finding found + fixed). Chrome only — adaptive nav shell
-(Contacts · Calendar, Bar↔Rail) + `CalendarScreen` with four views (Month · 3-day · Day ·
-Agenda), Monday-start, mono-themed; verified on Android emulator + web (rail/bar) in light +
-dark. No events yet. `main` is clean/synced but you're currently ON the `slice-calendar-shell`
-branch. Resume = merge PR #4 (squash), delete the branch, then start the Calendar *events*
-slice off a fresh branch.**
+**Status: Calendar shell DONE and MERGED. PR #4 squash-merged into `main` (`7dd0995`,
+2026-07-09); branch deleted (local + remote); `main` clean and synced. Chrome only —
+adaptive nav shell (Contacts · Calendar, Bar↔Rail) + `CalendarScreen` with four views
+(Month · 3-day · Day · Agenda), Monday-start, mono-themed; verified on Android emulator +
+web (rail/bar) in light + dark. No events yet. Resume = the Calendar *events* slice off a
+fresh branch (see "Next slice" in plan.md). Open: PR #5 (`/replycoderabbit` tooling,
+docs-only) awaiting merge.**
 
 _(Previous: Contacts slice merged as PR #2 → `fa4fc45`, 2026-07-08.)_
 
