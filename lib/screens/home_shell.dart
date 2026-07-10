@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../data/contacts_repository.dart';
+import '../data/event_types_repository.dart';
 import '../data/events_repository.dart';
 import 'calendar_screen.dart';
 import 'contacts_list_screen.dart';
+import 'settings_screen.dart';
 
 /// The app's navigation shell: two destinations (Contacts · Calendar). Adaptive —
 /// a bottom `NavigationBar` on narrow screens (phones) and a side `NavigationRail`
@@ -17,10 +19,12 @@ class HomeShell extends StatefulWidget {
     super.key,
     required this.repository,
     required this.eventsRepository,
+    required this.eventTypesRepository,
   });
 
   final ContactsRepository repository;
   final EventsRepository eventsRepository;
+  final EventTypesRepository eventTypesRepository;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -42,6 +46,11 @@ class _HomeShellState extends State<HomeShell> {
       selected: Icons.calendar_today,
       label: 'Calendar',
     ),
+    (
+      icon: Icons.settings_outlined,
+      selected: Icons.settings,
+      label: 'Settings',
+    ),
   ];
 
   @override
@@ -54,6 +63,7 @@ class _HomeShellState extends State<HomeShell> {
           eventsRepository: widget.eventsRepository,
           contactsRepository: widget.repository,
         ),
+        SettingsScreen(eventTypesRepository: widget.eventTypesRepository),
       ],
     );
 

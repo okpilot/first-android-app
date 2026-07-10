@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'data/contacts_repository.dart';
+import 'data/event_types_repository.dart';
 import 'data/events_repository.dart';
 import 'screens/home_shell.dart';
 import 'theme.dart';
@@ -12,10 +13,12 @@ class ContactsApp extends StatelessWidget {
     super.key,
     required this.repository,
     required this.eventsRepository,
+    required this.eventTypesRepository,
   });
 
   final ContactsRepository repository;
   final EventsRepository eventsRepository;
+  final EventTypesRepository eventTypesRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +32,7 @@ class ContactsApp extends StatelessWidget {
       home: HomeShell(
         repository: repository,
         eventsRepository: eventsRepository,
+        eventTypesRepository: eventTypesRepository,
       ),
     );
   }
