@@ -11,7 +11,10 @@ End-of-session wrap-up. Run before stopping — sync docs, dispose of open findi
 List EVERY open non-blocking finding from this session (cr-local skips, cloud CodeRabbit nitpicks, anything deferred). For each, the user picks one:
 - **FIX NOW** (< 10 lines) · **DEFER** → open a GitHub issue (`gh issue create`) · **SKIP** → with a reason.
 - "Noted" is not a disposition — it's a ticket or an explicit skip.
-- **Then reply on the PR:** if there's an open PR with cloud CodeRabbit comments, run **`/replycoderabbit`** — answer every finding inline, citing the fix commit (or skip/defer reason). Never leave a cloud-CR comment unanswered.
+- **Answer the cloud bot on the PR:** if there's an open PR with a cloud CodeRabbit review, run
+  **`/coderabbit`** (triage each finding vs source → fix/defer/skip) → **`/fullpush`** (push the fixes)
+  → **`/replycoderabbit`** (post the reply — one general comment, each finding citing its fix commit
+  or skip/defer reason). Triage before reply; never leave a cloud-CR finding unanswered.
 
 ### 3. Repo hygiene
 - `main` is clean (`git status`) and synced (`git status -sb` shows up-to-date with `origin`).

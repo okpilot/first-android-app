@@ -28,6 +28,10 @@ Skips are allowed but **must be stated, never silent**.
   `flutter analyze` + `flutter test` + `flutter build web`, then **`/crlocal`** (mandatory
   CodeRabbit local review — `.claude/commands/crlocal.md`), then **ask for explicit push approval**.
 - CodeRabbit is installed org-wide, so the cloud bot also reviews the PR on push — that's the authoritative gate; `/crlocal` is the cheaper pre-push preview.
+- **Answering the cloud bot is two commands, split by moment** (both call `scripts/cr-findings.sh`):
+  **`/coderabbit`** triages the cloud review (investigate each finding vs source → fix/defer/skip,
+  records dispositions on the PR) → **`/fullpush`** pushes the fixes → **`/replycoderabbit`** posts the
+  reply. Triage before reply; `/coderabbit` never pushes, `/replycoderabbit` never triages.
 - **Mechanical git hooks** (`.githooks/`, activate with `scripts/setup-hooks.sh`; modeled on LMS Plus's lefthook, no Node): **pre-commit** = `dart format` check + `flutter analyze` (blocking); **commit-msg** = Conventional Commits (blocking); **pre-push** = secret scan (blocks `.env`/`dev-defines`/keys/JWTs). These are the deterministic tier; `/crlocal` + review stay in `/fullpush`. Grow them only as a miss recurs (≥2×).
 - **CI/CD** (GitHub Actions: analyze + test + build) is added *with Slice 1*, when there's a Flutter project to run against.
 - **At end of session, run `/wrapup`** (`.claude/commands/wrapup.md`) — sync docs, dispose of every open finding, leave `main` clean.

@@ -2,11 +2,18 @@
 
 # Handover
 
-**Status: EVENT TYPES (colour-as-data) — Slices 1, 2 & 3 shipped as stacked PRs, not yet merged.
-Decision 19.** Three open PRs: **#13** `feat/event-types-1-data` (Slice 1, base `main`), **#14**
-`feat/event-types-2-manage` (Slice 2, stacked on #13), **#15** `feat/event-types-3-assign`
-(Slice 3, **stacked on #14** — bases auto-retarget on merge). `main` is untouched/clean. Current
-work branch: `feat/event-types-3-assign`. **Merge the stack #13 → #14 → #15 in order.**
+**Status: EVENT TYPES (colour-as-data, Decision 19) — SHIPPED, MERGED & DEPLOYED (Slices 1–3).**
+PRs **#13 → #14 → #15** all squash-merged to `main` in order (`9873585` / `44c230a` / `9a0ca28`);
+all **4** event-types migrations applied to homebase via `deploy-homebase.sh` (ledger at **9**;
+`create_event` now carries `p_type_id`). Cloud CodeRabbit answered on every PR. `main` clean & synced.
+
+**In flight: cloud-CR tooling split — PR #16 open** (`chore/coderabbit-commands`, Decision 20).
+Replaced the single over-merged `/replycoderabbit` with **`/coderabbit`** (triage) +
+**`/replycoderabbit`** (reply-only) + shared **`scripts/cr-findings.sh`** (36-assertion fixture test).
+Designed via **3 adversarial critic rounds** (9 reports, live-verified against #14/#15 — killed a JSON
+ledger, git-ancestry currency, "latest-review" currency, a line-based id) + hardened via **3 `/crlocal`
+rounds** (10→2→2 findings, all fixed — incl. a real `--paginate` page-1 bug). Round-4 `/crlocal` was
+**rate-limited** → the **cloud** CR on #16 is the authoritative check. CI build green · MERGEABLE.
 
 - **Slice 1 (#13):** `event_types` table (RLS, `#RRGGBB` CHECK, soft-delete) + nullable
   `events.type_id` FK + pure-Dart `EventType` model + `event_types(...)` read embed. **Linchpin
@@ -26,23 +33,21 @@ work branch: `feat/event-types-3-assign`. **Merge the stack #13 → #14 → #15 
   Month **density dots + "+N"** (no-type → neutral ink; out-of-month grey). analyze clean · **48
   tests** · migrations clean on a fresh DB · end-to-end curl (typed create/update + soft-delete
   linchpin → embed null) · **emulator visual QA light+dark, every surface**.
-- **NOT deployed to homebase yet** — all three slices are local-only. **Deploy the four
-  event-types migrations** (`20260710120000/120100/120200/120300`) to homebase via
-  `backend/deploy-homebase.sh` before the phone sees it; the Slice-3 migration self-issues
-  `notify pgrst, 'reload schema'` (PostgREST caches the schema — the new RPC signature 404s until
-  reloaded).
+- **DEPLOYED to homebase** — all 4 event-types migrations (`20260710120000/120100/120200/120300`)
+  applied via `backend/deploy-homebase.sh`; ledger at **9**, `create_event` carries `p_type_id`,
+  PostgREST schema reloaded. (Homebase stack has been live for the whole feature.)
 
-**RESUME = merge the stack (#13 → #14 → #15) + deploy migrations to homebase**, then pick the next
-thin slice. Event-types work is done. No blocker for the code.
+**RESUME = merge PR #16** (the `/coderabbit` split) once cloud CR + CI are green — a first live dogfood
+of the new `/coderabbit → /fullpush → /replycoderabbit` flow — then pick the next thin slice.
+Event-types is done & deployed; no code blocker.
 
-_Follow-up issues open: **#3** (DB security hardening — **now also** covers `event_types`
-write-hardening + the `soft_delete_event_type` `auth.uid()` check; two comments couldn't be posted
-this session due to an external-write block — add them manually) · **#6** (agent fleet) · **#7**
-(Tailscale db-deploy action) · **#9** (idempotent event RPCs) · **#10** (dedup test fakes)._
+_Open follow-up issues: **#3** (DB security hardening — also covers `event_types` write-hardening +
+the `soft_delete_event_type` `auth.uid()` check) · **#6** (agent fleet) · **#7** (Tailscale db-deploy
+action) · **#9** (idempotent event RPCs) · **#10** (dedup test fakes) · **#12** (signed Android release)._
 
-_(Previous: Calendar events PR #8 → `6f14d66` (live on homebase); deploy fix #11 → `5947599`;
-Calendar shell PR #4 → `7dd0995`; `/replycoderabbit` #5 → `4e210e2`; Contacts #2 → `fa4fc45`.
-Also this session: the app was installed & run on the physical **S23+** against homebase.)_
+_(Merged this session: the #13/#14/#15 event-types stack + homebase migrations. Earlier: Calendar
+events #8 → `6f14d66`; deploy fix #11 → `5947599`; Calendar shell #4 → `7dd0995`; `/replycoderabbit`
+#5 → `4e210e2`; Contacts #2 → `fa4fc45`. The app also runs on the physical **S23+** against homebase.)_
 
 ## How to bring the dev env back up (next session)
 1. **Backend:** `cd backend && docker compose up -d` (data persists; `down -v` to re-seed).
@@ -142,6 +147,22 @@ Also this session: the app was installed & run on the physical **S23+** against 
   Month/panel/Day/detail/form/picker.
 - ✅ **`/fullpush`** (analyze · 48 tests · web + debug apk · fresh-DB migrations · `/crlocal`);
   committed `036082e`; **PR #15** (stacked on #14).
+
+## Done this run (2026-07-10, session 9) — Land the event-types stack; build the /coderabbit split
+- ✅ **Merged the whole event-types stack** #13 → #14 → #15 (squash) and **deployed all 4 migrations
+  to homebase** (ledger 5 → 9; `create_event` gains `p_type_id`). Verified live each time.
+- 🩹 **Recovered a stacked-PR foot-gun:** merging #13 with `--delete-branch` auto-closed #14 (its base
+  branch vanished). Reopened + retargeted #14 to `main`; thereafter **retarget the next PR's base to
+  `main` before merging** (did so for #15 → it survived). Rebased the stack tree-identically each step.
+- ✅ **Answered cloud CodeRabbit on #14 & #15** (by hand, the way the new commands will): #14 — 2 dart
+  bugs fixed (`_load` stale-guard + refresh-error snackbar) + a Completer ordering test + a coverage
+  nitpick, deferrals to #3; #15 — extracted `fillForType` (DRY nitpick). Both merged.
+- ✅ **Built the `/coderabbit` + `/replycoderabbit` split** (Decision 20) on `chore/coderabbit-commands`:
+  new `coderabbit.md` (triage), reply-only `replycoderabbit.md`, shared `scripts/cr-findings.sh`
+  (36-assertion fixture test), wiring into `/wrapup` + `CLAUDE.md`. **3 critic rounds** (9 reports) +
+  **3 `/crlocal` rounds** (10→2→2, all fixed; caught a real `--paginate` page-1 bug). `/fullpush`:
+  analyze · 52 tests · web build · CR-local (round 4 rate-limited). **PR #16 open, awaiting cloud CR.**
+- 🧠 Memory updated: homebase stack is confirmed **deployed** (was "later slice").
 
 ## Done previous runs
 - 2026-07-08 (s1): styling = stock M3 (Decision 8); planned + built the walking skeleton (parked).

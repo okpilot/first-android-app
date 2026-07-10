@@ -132,6 +132,17 @@ project: First Android App (learning CRM)
 
 **Principle:** Introduce colour only as user-owned data in minimal tokens (a dot + a full-area block tint — the left rail was dropped, see the 2026-07-10 amendment above), never in chrome; give app config a real home (Settings) as the app matures; prototype → approve → critics → build.
 
+## Decision 20: Split cloud-CodeRabbit handling into `/coderabbit` (triage) + `/replycoderabbit` (reply) (2026-07-10)
+**Context:** Decision 17 adopted a single `/replycoderabbit` that both triaged and replied. In practice that conflated two moments — deciding (right after the review) and responding (a later sweep, sometimes a different session) — and a one-off "adaptation" this session quietly merged even more logic into it. LMS Plus keeps them as two commands. The redesign ran through **3 adversarial critic rounds (9 reports, verified against live PRs #14/#15)**, which killed several plausible-but-wrong approaches.
+**Decided:**
+- **Two commands, split by moment:** **`/coderabbit`** triages the cloud review (investigate each finding vs current source → FIX/DEFER/SKIP, using `/crlocal`'s rubric; implements FIX-NOW after approval; **never pushes**), then **`/fullpush`** pushes, then **`/replycoderabbit`** posts the reply (**never triages**). Wired into `/wrapup` in that order.
+- **One shared `scripts/cr-findings.sh`** does fetch+normalize (the single source of truth for the hard-won CodeRabbit quirks), emitting the **union of ALL review runs**; each command applies its own logic. Fixture-tested; `[]`+exit 0 on clean, non-zero only on real failure.
+- **Handoff = a machine-readable PR comment**, not context or a gitignored file. `/coderabbit` upserts a `<!-- crtriage -->` comment with hidden `<!-- crfinding:<id>:<verdict>:<ref> -->` lines; `/replycoderabbit` joins on `<id>` and upserts a `<!-- crreply -->` comment.
+- **Stable finding identity** — a line-number-free content hash (lines move when code is fixed) that is the join/idempotency/loop-termination key; a re-raised already-disposed finding matches its prior verdict instead of bouncing the two commands forever. The **exact byte formula lives in `scripts/cr-findings.sh`** (its single source of truth): first 12 hex of `sha1(path + "\n" + normalized_title)`, where `normalized_title` is lowercased, trimmed, and internal-whitespace-collapsed (note the `\n` separator and the 12-char truncation — the ledger points at the script rather than restating the formula, to avoid drift).
+- **Currency is NOT git-ancestry** (rebases make review commits diverge from head) and **NOT "latest review"** (actionable findings can sit in an older run than a later nitpick-only run). It's the union, validated against current source. Fix SHAs are resolved **live at reply time** (`git log`), never stored (rebases rewrite them).
+**Refines:** Decision 17 (which stays as the "always answer the cloud bot" principle; this splits *how*).
+**Principle:** One rulebook, two surfaces — triage before reply, decide once and record it durably on the PR, and anchor everything on a rebase-stable content identity, never on SHAs or line numbers.
+
 ---
 
 ## OPEN QUESTIONS
