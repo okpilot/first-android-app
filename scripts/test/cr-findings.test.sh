@@ -108,6 +108,15 @@ eq   "first keeps bare stable id"   "$(echo "$outc" | jq -r '.[]|select(.line_di
                                     "$(printf 'lib/foo.dart\nduplicate title collision test.' | sha1sum | cut -c1-12)"
 eq   "second disambiguated by line" "$(echo "$outc" | jq -r '.[]|select(.line_display=="30-32").id|endswith("@30-32")')" "true"
 
+# collision tie-break is NUMERIC, not lexical: line "9-9" must beat "10-12" for the
+# bare id (a string sort would wrongly put "10-12" first).
+outn="$("$SCRIPT" --fixture "$FIX/pr-collision-num.json")"; rcn=$?
+eq   "numeric collision exit 0"     "$rcn" "0"
+eq   "lower numeric line keeps bare id" \
+     "$(echo "$outn" | jq -r '.[]|select(.line_display=="9-9").id')" \
+     "$(printf 'lib/foo.dart\nduplicate title collision test.' | sha1sum | cut -c1-12)"
+eq   "higher line disambiguated"    "$(echo "$outn" | jq -r '.[]|select(.line_display=="10-12").id|endswith("@10-12")')" "true"
+
 # --------------------------------------------------------------------------- #
 echo
 echo "----------------------------------------"

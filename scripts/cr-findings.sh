@@ -288,7 +288,7 @@ jq -s -c '
     unique_by([.run_id, .id, .line_display])
   | group_by([.run_id, .id])
   | map( if length > 1
-         then ( sort_by(.line_display) | to_entries
+         then ( sort_by((.line_display // "") | ((capture("(?<n>[0-9]+)") | .n)? // "0") | tonumber) | to_entries
                 | map(.value + (if .key == 0 then {}
                                 else {id: (.value.id + "@" + .value.line_display)} end)) )
          else . end )
