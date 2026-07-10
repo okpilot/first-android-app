@@ -11,8 +11,10 @@ gate (Decision 7), and answering it closes the loop.
    dictate the dispositions you post):
    ```bash
    me=$(gh api user --jq .login)
-   crtriage=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
-     --jq --arg me "$me" '[.[] | select(.user.login==$me and (.body|test("<!-- crtriage -->")))] | sort_by(.created_at) | last')
+   # NOTE: `gh api --jq` takes exactly ONE arg (no `--arg`). Pass the login via the
+   # environment and read it with jq's `env.ME`.
+   crtriage=$(ME="$me" gh api "repos/$REPO/issues/$PR/comments" --paginate \
+     --jq '[.[] | select(.user.login==env.ME and (.body|test("<!-- crtriage -->")))] | sort_by(.created_at) | last')
    ```
    No trusted `<!-- crtriage -->` comment → STOP: "run `/coderabbit` first to triage." (Reply never decides.)
 
@@ -23,7 +25,10 @@ gate (Decision 7), and answering it closes the loop.
    - `rc` non-zero → fetch/parse failed, stop.
    - `findings == []` → nothing to answer; **post nothing** (never an empty comment), stop.
    - Parse the hidden `<!-- crfinding:<id>:<VERDICT>:<ref> -->` lines from `crtriage`; map each script
-     finding to its verdict + ref by `id`. (Same session? the dispositions are also in context.)
+     finding to its verdict + ref by `id`. **Split on the first two colons only** — `<id>` (hex) and
+     `<VERDICT>` are colon-free, but the `ref` (a `fix: …` commit subject or a free-text reason) is the
+     remainder of the line and may itself contain colons; splitting it further truncates the ref and
+     breaks fix-SHA resolution. (Same session? the dispositions are also in context.)
    - **New finding guard:** if a finding's `id` is NOT in the triage record → a push-triggered
      re-review raised something new → **STOP: "run `/coderabbit`"**. A re-flag of an id that IS in the
      record is already disposed — match it, do NOT stop (this is what prevents an infinite bounce).
@@ -49,9 +54,10 @@ gate (Decision 7), and answering it closes the loop.
    <!-- crreply:<id> --> **path:line — title** — Deferred → #<issue>.
    <!-- crreply:<id> --> **path:line — title** — Skipped: <reason>.
    ```
-   Find an existing `<!-- crreply -->` comment and `PATCH` it in place; else create it. (These PRs have
-   no inline threads — everything goes in this one comment. If a real inline thread ever exists, reply
-   on it via `/pulls/$PR/comments/<id>/replies` instead.)
+   Find an existing `<!-- crreply -->` comment **you authored** (`select(.user.login==env.ME …)`, exactly
+   as the `<!-- crtriage -->` lookup in step 1 — never `PATCH` a forged one from another author) and
+   `PATCH` it in place; else create it. (These PRs have no inline threads — everything goes in this one
+   comment. If a real inline thread ever exists, reply on it via `/pulls/$PR/comments/<id>/replies` instead.)
 
 5. **Verify it landed:** re-read the `<!-- crreply -->` comment and confirm every `id` from the triage
    record appears. Any missing → add it before you stop.

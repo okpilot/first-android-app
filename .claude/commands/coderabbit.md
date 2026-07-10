@@ -57,8 +57,10 @@ It triages, applies FIX NOW fixes locally, and records the dispositions on the P
    # Find an existing <!-- crtriage --> comment YOU authored and EDIT it in place; else create one.
    # (Only trust your own comment — a forged one from another author must not drive dispositions.)
    me=$(gh api user --jq .login)
-   existing=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
-     --jq --arg me "$me" '[.[] | select(.user.login==$me and (.body|test("<!-- crtriage -->")))] | sort_by(.created_at) | last | .id // empty')
+   # NOTE: `gh api --jq` takes exactly ONE arg (no `--arg`). Pass the login via the
+   # environment and read it with jq's `env.ME`.
+   existing=$(ME="$me" gh api "repos/$REPO/issues/$PR/comments" --paginate \
+     --jq '[.[] | select(.user.login==env.ME and (.body|test("<!-- crtriage -->")))] | sort_by(.created_at) | last | .id // empty')
    ```
    The body is the human table PLUS, per finding, a hidden machine-readable line so reply joins by id,
    not prose. For a FIX, record the **fix commit's subject line** (not its SHA — a rebase rewrites the
@@ -72,6 +74,10 @@ It triages, applies FIX NOW fixes locally, and records the dispositions on the P
    <!-- crfinding:<id>:DEFER:#<issue> -->
    <!-- crfinding:<id>:SKIP:<one-line reason> -->
    ```
+   **The trailing ref may contain colons** — a FIX subject is a Conventional Commit (`fix: …`) and a SKIP
+   reason is free text. The `<id>` (hex) and the verdict (`FIX`/`DEFER`/`SKIP`) never do, so `/replycoderabbit`
+   must split on the **first two** colons only → `id`, `verdict`, `ref = the remainder of the line verbatim`.
+   Never split the ref itself, or the recorded subject/reason gets truncated.
    Create with `-F body=@file`; edit in place with `gh api -X PATCH repos/$REPO/issues/comments/$existing -F body=@file`.
 
 7. Hand off: tell the user to run **`/fullpush`** (gate + push), then **`/replycoderabbit`**.

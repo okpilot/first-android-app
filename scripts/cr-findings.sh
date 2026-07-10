@@ -240,11 +240,18 @@ while [ "$j" -lt "$INLINE_COUNT" ]; do
   c="$(jq -c "[ .comments[] | select((.user.login // \"\")==\"coderabbitai[bot]\") ][$j]" "$TMP/bundle.json")"
   prr="$(printf '%s' "$c" | jq -r '.pull_request_review_id | tostring')"
   run_id="$(jq -r --arg k "$prr" '.[$k] // ""' "$TMP/reviewmap.json")"
-  if [ -z "$run_id" ]; then j=$((j + 1)); continue; fi
+  if [ -z "$run_id" ]; then
+    # No run maps to this inline comment's review (the review carried neither a
+    # cr-comment marker nor a **Run ID** label). Do NOT silently drop it — an
+    # unmapped comment may still be an actionable finding. Emit it under a synthetic
+    # run so it survives to triage, and warn loudly (no finding vanishes in silence).
+    run_id="review-$prr"
+    echo "cr-findings: WARNING — inline comment on review $prr maps to no run; emitting under synthetic run '$run_id' (path: $(printf '%s' "$c" | jq -r '.path // "?"'))" >&2
+  fi
 
-  # survivor metadata for this run
-  meta="$(jq -c --arg r "$run_id" '[ .[] | select(.run_id==$r) ][0]' "$TMP/survivors.json")"
-  review_id="$(printf '%s' "$meta" | jq -r '.review_id')"
+  # survivor metadata for this run (a synthetic run has none → {} → sane fallbacks)
+  meta="$(jq -c --arg r "$run_id" '([ .[] | select(.run_id==$r) ][0]) // {}' "$TMP/survivors.json")"
+  review_id="$(printf '%s' "$meta" | jq -r --arg p "$prr" '.review_id // $p')"
   commit_id="$(printf '%s' "$meta" | jq -r '.commit_id // ""')"
   submitted_at="$(printf '%s' "$meta" | jq -r '.submitted_at // ""')"
 
