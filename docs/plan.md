@@ -31,10 +31,11 @@ disposable. Built emergently — thin slices, one at a time.
 4. **Next candidates:** DB security hardening (issue #3 — RPC `auth.uid()`, revoke PUBLIC execute, column-level write grants) · **auth (GoTrue)** logins + owner-based RLS · search/filter on the list · run on the physical S23+ · full 7-column week (wide-screen adaptive).
 
 ## Next slice
-**Docs detour — DONE (this session).** Dropped a briefly-built separate VitePress docs site in
-favour of a capability-level **README Features section** (3 critics → Decision 21); synced docs +
-added the `/updatephone` command. **PR #17** (`docs/readme-features`) is **open & awaiting merge** —
-cloud CodeRabbit posted its summary with **no actionable findings** (`cr-findings.sh` → `[]`).
+**Docs detour — DONE & MERGED (PR #17 → squash `8d8d69e`).** Dropped a briefly-built separate
+VitePress docs site in favour of a capability-level **README Features section** (3 critics →
+Decision 21); synced docs + added the `/updatephone` command. Cloud CodeRabbit raised 3 minor doc
+findings on a later review — 2 fixed (`7354faf`: plan decision count 20→21; HANDOVER MD018 heading
+reflow), 1 skipped (next-slice pointer already aligned). `main` clean & synced.
 **Queued next slice (Decision 21):** in-app **empty-state hints** — a small Flutter slice (help copy
 where the user needs it, e.g. the "No contacts yet" state). Then the standing candidates: **auth
 (GoTrue)** logins + owner-based RLS (unblocks DB-hardening issue #3), or search/filter on Contacts.

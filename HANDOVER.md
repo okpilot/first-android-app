@@ -40,14 +40,16 @@ comment (`5468f0f`: anchored all three lookups to `^`). No cloud re-review trigg
   applied via `backend/deploy-homebase.sh`; ledger at **9**, `create_event` carries `p_type_id`,
   PostgREST schema reloaded. (Homebase stack has been live for the whole feature.)
 
-**RESUME = merge docs PR #17, then build the queued next slice (in-app empty-state hints).** This
-session was a docs-only detour: explored a docs page, briefly built then **dropped** a separate
-VitePress docs site (3 adversarial critics → **Decision 21**), and instead added a **capability-level
-Features section to `README.md`**, synced HANDOVER/plan, and added the **`/updatephone`** command.
-**PR #17** (`docs/readme-features`, 2 commits) is **open & awaiting merge** — cloud CodeRabbit posted
-its summary with **no actionable findings** (`scripts/cr-findings.sh` → `[]`). Next slice, queued by
-Decision 21: in-app **empty-state hints** (small Flutter slice). Standing candidates unchanged:
-**auth (GoTrue)** + owner-based RLS (unblocks the DB-hardening issue #3), or search/filter on Contacts.
+**RESUME = build the queued next slice (in-app empty-state hints).** The docs detour is done and
+**merged**. This session was a docs-only detour: explored a docs page, briefly built then **dropped**
+a separate VitePress docs site (3 adversarial critics → **Decision 21**), and instead added a
+**capability-level Features section to `README.md`**, synced HANDOVER/plan, and added the
+**`/updatephone`** command. **PR #17** (`docs/readme-features`) is **MERGED** (squash → `8d8d69e`,
+branch deleted). Cloud CodeRabbit raised 3 minor doc findings on a later review — 2 fixed (`7354faf`:
+plan decision count 20→21; this HANDOVER's MD018 heading reflow), 1 skipped (next-slice pointer
+already aligned); triage + reply posted on the PR. Next slice, queued by Decision 21: in-app
+**empty-state hints** (small Flutter slice). Standing candidates unchanged: **auth (GoTrue)** +
+owner-based RLS (unblocks the DB-hardening issue #3), or search/filter on Contacts.
 
 _Open follow-up issues: **#3** (DB security hardening — also covers `event_types` write-hardening +
 the `soft_delete_event_type` `auth.uid()` check) · **#6** (agent fleet) · **#7** (Tailscale db-deploy
