@@ -97,6 +97,19 @@ fi
 
 # --------------------------------------------------------------------------- #
 echo
+echo "same-title collision — two findings, one path, identical title, different lines"
+# Both must survive (not collapsed by dedup); reconciliation (N=2) must pass.
+outc="$("$SCRIPT" --fixture "$FIX/pr-collision.json")"; rcc=$?
+eq   "exit 0 (reconciliation passes, N=2)" "$rcc" "0"
+eq   "both findings survive"        "$(echo "$outc" | jq 'length')" "2"
+eq   "distinct ids"                 "$(echo "$outc" | jq '[.[].id]|unique|length')" "2"
+# first occurrence keeps the bare stable id; the later one is disambiguated by line
+eq   "first keeps bare stable id"   "$(echo "$outc" | jq -r '.[]|select(.line_display=="10-12").id')" \
+                                    "$(printf 'lib/foo.dart\nduplicate title collision test.' | sha1sum | cut -c1-12)"
+eq   "second disambiguated by line" "$(echo "$outc" | jq -r '.[]|select(.line_display=="30-32").id|endswith("@30-32")')" "true"
+
+# --------------------------------------------------------------------------- #
+echo
 echo "----------------------------------------"
 echo "passed: $pass   failed: $fail"
 [ "$fail" -eq 0 ] || exit 1

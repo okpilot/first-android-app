@@ -1,0 +1,15 @@
+{
+  "pr": 9001,
+  "reviews": [
+    {
+      "id": 5000000001,
+      "user": {
+        "login": "coderabbitai[bot]"
+      },
+      "commit_id": "deadbeef",
+      "submitted_at": "2026-07-10T00:00:00Z",
+      "body": "**Run ID**: `aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee`\n\n**Actionable comments posted: 2**\n\n<details>\n<summary>🛑 Comments failed to post (2)</summary><blockquote>\n\n<details>\n<summary>lib/foo.dart (2)</summary><blockquote>\n\n`10-12`: _🔒 Security_ | _🟠 Major_\n\n**Duplicate title collision test.**\n\nFirst occurrence description.\n\n<!-- cr-comment:v1:aaa111 -->\n\n`30-32`: _🔒 Security_ | _🟠 Major_\n\n**Duplicate title collision test.**\n\nSecond occurrence description.\n\n<!-- cr-comment:v1:bbb222 -->\n\n</blockquote></details>\n\n</blockquote></details>"
+    }
+  ],
+  "comments": []
+}

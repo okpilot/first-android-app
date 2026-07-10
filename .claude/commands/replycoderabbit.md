@@ -26,13 +26,16 @@ gate (Decision 7), and answering it closes the loop.
      record is already disposed — match it, do NOT stop (this is what prevents an infinite bounce).
 
 3. For each **FIX** finding, resolve the **current** fix SHA live by the commit *subject* the triage
-   recorded (never a stored SHA — rebases rewrite them; and never `git log -1 -- <path>`, which can grab
-   a later unrelated edit to the same file):
+   recorded — never a stored SHA (rebases rewrite them) and never `git log -1 -- <path>` (grabs a later
+   unrelated edit). Match the **subject line exactly** (not a substring — `--grep` would match a later
+   commit that merely mentions it) and require **exactly one** match:
    ```bash
-   sha=$(git log -1 --format=%h --grep="$(printf '%s' "$subject" | sed 's/[][\.*^$/]/\\&/g')")
+   matches=$(git log --format='%h%x09%s' | awk -F'\t' -v s="$subject" '$2==s{print $1}')
+   n=$(printf '%s' "$matches" | grep -c .)
+   if [ "$n" = 1 ]; then sha=$matches; else sha=""; fi   # 0 or >1 → don't cite a SHA you can't verify
    ```
-   If the subject can't be found (e.g. it was squashed/reworded), fall back to the newest commit touching
-   the path and say so, rather than citing a SHA you can't verify.
+   If `sha` is empty (subject squashed/reworded, or ambiguous), say so in the reply instead of citing a
+   SHA you can't stand behind — don't guess.
 
 4. **Upsert ONE general PR comment** (`<!-- crreply -->`) with a line per finding, each tagged so a
    re-run is idempotent (add/update only changed lines; don't duplicate):

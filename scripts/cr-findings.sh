@@ -274,11 +274,26 @@ while [ "$j" -lt "$INLINE_COUNT" ]; do
 done
 
 # --------------------------------------------------------------------------- #
-# dedup by (run_id, id): a finding could be emitted twice (e.g. body + inline, or
-# a repeated section) — collapse before reconciliation counts + emission so
-# duplicates neither distort the actionable check nor leak into the output.
+# Collapse EXACT repeats, then disambiguate genuine same-title collisions.
+#   - unique_by([run_id,id,line_display]) drops only true duplicates (the same
+#     finding emitted twice — e.g. a repeated section, or body+inline at one line).
+#   - a (run_id,id) group with >1 member left = distinct findings that share a
+#     path+normalized_title at DIFFERENT lines (id is line-free by design). Keep
+#     the first (lowest line) on its bare stable id; give the 2nd+ a durable
+#     "<id>@<line>" so none is dropped, the reconciliation count stays correct,
+#     and /replycoderabbit can disposition each separately.
+# Runs before reconciliation + emission.
 # --------------------------------------------------------------------------- #
-jq -s -c 'unique_by([.run_id, .id]) | .[]' "$TMP/findings.ndjson" > "$TMP/findings.dedup" \
+jq -s -c '
+    unique_by([.run_id, .id, .line_display])
+  | group_by([.run_id, .id])
+  | map( if length > 1
+         then ( sort_by(.line_display) | to_entries
+                | map(.value + (if .key == 0 then {}
+                                else {id: (.value.id + "@" + .value.line_display)} end)) )
+         else . end )
+  | flatten | .[]
+' "$TMP/findings.ndjson" > "$TMP/findings.dedup" \
   && mv "$TMP/findings.dedup" "$TMP/findings.ndjson"
 
 # --------------------------------------------------------------------------- #
