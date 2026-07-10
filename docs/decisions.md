@@ -126,6 +126,8 @@ project: First Android App (learning CRM)
 - **Curated palette, no freeform picker** — 9 muted mid-luminance swatches (blue · teal · green · amber · orange · red · purple · pink · slate) chosen to read on both `#FDFDFF` and `#121316`. Freeform RGB rejected as slop-prone.
   - **Amended 2026-07-10:** dropped to **8 swatches** — **slate removed** (a desaturated grey-blue collapses into the no-type neutral in both themes). Implemented in `lib/util/event_type_palette.dart` as named swatches (each carries a screen-reader label).
 - **Management home = a new Settings destination.** Promote the nav to 3 tabs (Contacts · Calendar · Settings); **Settings → Event types** is the manager + editor, and types are *also* creatable on-the-fly from the event form's Type picker sheet. **Delete is non-destructive to events:** they keep their schedule and fall back to "No type" (can't be undone).
+- **Implementation status (amended 2026-07-10):** the design is being built in thin slices (supersedes this entry's opening "Build not started" note). **Slice 1** shipped — `event_types` table + `events.type_id` FK + `EventType` model + read embed (PR #13). **Slice 2** shipped — Settings → Event types manager/editor + `soft_delete_event_type` RPC, palette dropped to 8 swatches (PR #14). **Slice 3** (assign in the event form + tinted Day/3-day blocks + dots in Agenda/detail + coloured Month "+N") is next.
+
 **Principle:** Introduce colour only as user-owned data in minimal tokens (a dot + a full-area block tint — the left rail was dropped, see the 2026-07-10 amendment above), never in chrome; give app config a real home (Settings) as the app matures; prototype → approve → critics → build.
 
 ---

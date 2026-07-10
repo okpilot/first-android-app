@@ -1,37 +1,44 @@
-> Cross-session work tracker. Update in place. Last updated: 2026-07-09.
+> Cross-session work tracker. Update in place. Last updated: 2026-07-10.
 
 # Handover
 
-**Status: Calendar EVENTS + attendees — SHIPPED & DEPLOYED. PR #8 merged (squash → `6f14d66`);
-the 3 event migrations are live on homebase and verified. Deploy-tooling fix PR #11 merged
-(squash → `5947599`). `main` clean and synced at `5947599`; no open branches.**
-Full slice down to the DB: `events` + `event_attendees` (3 migrations) +
-`create/update/soft_delete_event` SECURITY DEFINER RPCs; `Event` model + `EventsRepository`
-(+ fakes); event form (all-day toggle, **24h** time pickers, searchable attendee picker) +
-detail; the four calendar views wired to real data (timeline blocks with lane-splitting +
-bounded all-day band, month dots + selected-day panel, agenda grouped by day). New theme
-tokens (`EventBlockStyle`, mono `switchTheme` + `timePickerTheme`), shared `InitialsAvatar`.
-**`/fullpush` green · `/crlocal` converged · cloud CodeRabbit on PR #8 fully answered
-(2 fixed post-review, 2 deferred → #9/#10, 2 skipped false-positives it conceded) · 33 tests ·
-SQL curl-verified · emulator visual QA light+dark · CI green.** Decision 18.
+**Status: EVENT TYPES (colour-as-data) — Slices 1 & 2 shipped as stacked PRs, not yet merged.
+Decision 19.** Two open PRs: **#13** `feat/event-types-1-data` (Slice 1) and **#14**
+`feat/event-types-2-manage` (Slice 2, **stacked on #13** — base is #13's branch, auto-retargets
+to `main` on merge). `main` is untouched/clean. Current work branch: `feat/event-types-2-manage`
+(clean, synced). **Slice 3 (assign + show) is next.**
 
-**Homebase deploy is LIVE:** `events` + `event_attendees` tables (RLS on), 3 RPCs, ledger has all
-5 migrations, PostgREST cache reloaded — `GET /rest/v1/events` → `200 []` (empty; prod carries no
-seed). Deploys go through `./backend/deploy-homebase.sh` — **now genuinely idempotent** (PR #11
-fixed a broken remote exists-check) — and may prompt a **one-time Tailscale SSH re-auth** (visit
-the printed URL, then it continues; re-run is safe, already-applied migrations are skipped).
+- **Slice 1 (#13):** `event_types` table (RLS, `#RRGGBB` CHECK, soft-delete) + nullable
+  `events.type_id` FK + pure-Dart `EventType` model + `event_types(...)` read embed. **Linchpin
+  curl-verified:** the top-level to-one embed returns `null` (not error/hidden row) after a type
+  is soft-deleted → non-destructive delete works via RLS alone. gate-green · 38 tests.
+- **Slice 2 (#14):** `soft_delete_event_type` RPC + `EventTypesRepository` + a 3rd **Settings**
+  nav destination → **Event types** manager (empty state, swatch+name list) → editor (name +
+  keyboard-operable 8-swatch grid + non-destructive Delete). `event_type_palette` (8 named
+  swatches — slate dropped — + `colorFromHex`/`hexFromColor` alpha-strip). **Emulator visual QA
+  light+dark** (create/edit/delete round-trip). gate-green · 45 tests.
+- **NOT deployed to homebase yet** — both slices are local-only (no calendar rendering until
+  Slice 3, so the phone doesn't need them). Deploy Slice 1+2 migrations to homebase before Slice 3
+  ships to the device. Migrations apply on a fresh DB; **remember `NOTIFY pgrst, 'reload schema'`
+  after DDL** (PostgREST caches the schema — new tables 404 until reloaded).
 
-**RESUME = pick the next slice — no blocker.** Candidates: **agent fleet (#6)** · **auth (GoTrue) +
-DB hardening (#3** — adds `auth.uid()` ownership to the event RPCs; RLS is anon-permissive until
-then**)** · **Tailscale GH Action to auto-deploy migrations (#7)**. Plus the two just-filed
-duplication/idempotency cleanups (**#9**, **#10**).
+**Slice 3 plan** is written at `~/.local/share/claude-config/claude/plans/synthetic-petting-sunset.md`
+(approved; 3 critics folded in). Next steps: `p_type_id uuid default null` on the write RPCs
+(drop+recreate+regrant) + `Event.toRpcParams`; Type picker in the event form (reuse the Slice-2
+editor for on-the-fly create); tinted Day/3-day blocks (no rail; theme-split per-swatch alpha,
+calibrate on emulator); dot + type-name inline in Agenda/detail; coloured Month "+N" (small
+`_DayCell` re-spec); then homebase deploy + emulator QA.
 
-_Follow-up issues open: **#3** (DB security hardening) · **#6** (LMS-Plus-style agent fleet,
-Flutter-adapted) · **#7** (Tailscale GitHub Action to auto-deploy migrations) · **#9** (idempotent
-event write RPCs — client id / `ON CONFLICT`) · **#10** (dedup test fakes + labelled-field widget)._
+**RESUME = build Slice 3** (branch off `feat/event-types-2-manage`). No blocker to clear for the code.
 
-_(Previous: Calendar shell merged PR #4 → `7dd0995`; `/replycoderabbit` PR #5 → `4e210e2`;
-Contacts PR #2 → `fa4fc45`.)_
+_Follow-up issues open: **#3** (DB security hardening — **now also** covers `event_types`
+write-hardening + the `soft_delete_event_type` `auth.uid()` check; two comments couldn't be posted
+this session due to an external-write block — add them manually) · **#6** (agent fleet) · **#7**
+(Tailscale db-deploy action) · **#9** (idempotent event RPCs) · **#10** (dedup test fakes)._
+
+_(Previous: Calendar events PR #8 → `6f14d66` (live on homebase); deploy fix #11 → `5947599`;
+Calendar shell PR #4 → `7dd0995`; `/replycoderabbit` #5 → `4e210e2`; Contacts #2 → `fa4fc45`.
+Also this session: the app was installed & run on the physical **S23+** against homebase.)_
 
 ## How to bring the dev env back up (next session)
 1. **Backend:** `cd backend && docker compose up -d` (data persists; `down -v` to re-seed).
