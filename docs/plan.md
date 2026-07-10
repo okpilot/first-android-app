@@ -31,10 +31,13 @@ disposable. Built emergently — thin slices, one at a time.
 4. **Next candidates:** DB security hardening (issue #3 — RPC `auth.uid()`, revoke PUBLIC execute, column-level write grants) · **auth (GoTrue)** logins + owner-based RLS · search/filter on the list · run on the physical S23+ · full 7-column week (wide-screen adaptive).
 
 ## Next slice
-**Event types — DONE, merged & deployed (Slices 1–3).** **Cloud-CR split — DONE, merged & dogfooded
-(PR #16 → `c2a3fc6`).** No open PR, no code blocker. **Pick the next thin slice** from the candidates
-above — strongest: **auth (GoTrue)** logins + owner-based RLS (also unblocks DB-hardening issue #3),
-or search/filter on the Contacts list.
+**Docs detour — DONE (this session).** Dropped a briefly-built separate VitePress docs site in
+favour of a capability-level **README Features section** (3 critics → Decision 21); synced docs +
+added the `/updatephone` command. **PR #17** (`docs/readme-features`) is **open & awaiting merge** —
+cloud CodeRabbit posted its summary with **no actionable findings** (`cr-findings.sh` → `[]`).
+**Queued next slice (Decision 21):** in-app **empty-state hints** — a small Flutter slice (help copy
+where the user needs it, e.g. the "No contacts yet" state). Then the standing candidates: **auth
+(GoTrue)** logins + owner-based RLS (unblocks DB-hardening issue #3), or search/filter on Contacts.
 
 Later candidates (unchanged): DB hardening + auth (GoTrue) — **issue #3**, now also covers
 `event_types` write-hardening + the `soft_delete_event_type` `auth.uid()` check · agent fleet
