@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:first_android_app/data/event_types_repository.dart';
 import 'package:first_android_app/models/event_type.dart';
 import 'package:first_android_app/screens/event_types_screen.dart';
@@ -57,7 +59,38 @@ class _RefreshFailsRepo implements EventTypesRepository {
   Future<void> softDelete(String id) => throw UnimplementedError();
 }
 
+/// Hands out a fresh [Completer] per fetch so the test can resolve loads out of
+/// order — to prove an older in-flight load can't overwrite a newer one. `create`
+/// resolves immediately (only [fetchAll] is externally controlled).
+class _OrderedRepo implements EventTypesRepository {
+  final List<Completer<List<EventType>>> fetches = [];
+
+  @override
+  Future<List<EventType>> fetchAll() {
+    final c = Completer<List<EventType>>();
+    fetches.add(c);
+    return c.future;
+  }
+
+  @override
+  Future<EventType> create(EventType draft) async =>
+      EventType(id: 'new', name: draft.name, colorHex: draft.colorHex);
+  @override
+  Future<EventType> update(EventType type) => throw UnimplementedError();
+  @override
+  Future<void> softDelete(String id) => throw UnimplementedError();
+}
+
 Widget _wrap(Widget child) => MaterialApp(theme: AppTheme.light, home: child);
+
+/// Adds a type through the editor — the app's other way to trigger a reload.
+Future<void> _addTypeViaEditor(WidgetTester tester, String name) async {
+  await tester.tap(find.widgetWithText(FloatingActionButton, 'New type'));
+  await tester.pumpAndSettle();
+  await tester.enterText(find.byType(TextFormField), name);
+  await tester.tap(find.widgetWithText(TextButton, 'Save'));
+  await tester.pumpAndSettle();
+}
 
 void main() {
   testWidgets('empty state prompts creating the first type', (tester) async {
@@ -141,5 +174,49 @@ void main() {
     // The cached list stays put, and the failure is no longer silent.
     expect(find.text('Meeting'), findsOneWidget);
     expect(find.text("Couldn't refresh — showing saved data"), findsOneWidget);
+  });
+
+  testWidgets('a stale load completing late cannot overwrite newer data', (
+    tester,
+  ) async {
+    final repo = _OrderedRepo();
+    await tester.pumpWidget(_wrap(EventTypesScreen(repository: repo)));
+    await tester.pump();
+
+    // Settle the initial load so the list is on screen (no spinner to churn
+    // pumpAndSettle), leaving fetches[0] resolved.
+    repo.fetches[0].complete(const [
+      EventType(id: 'a', name: 'Alpha', colorHex: '#4E7BC9'),
+    ]);
+    await tester.pumpAndSettle();
+    expect(find.text('Alpha'), findsOneWidget);
+
+    // Kick off two overlapping reloads: an older one (fetches[1]) then a newer
+    // one (fetches[2]) that supersedes it.
+    await _addTypeViaEditor(tester, 'older');
+    await _addTypeViaEditor(tester, 'newer');
+    expect(repo.fetches.length, 3);
+
+    // Resolve the NEWER load first, then let the older one land late.
+    repo.fetches[2].complete(const [
+      EventType(id: 'n', name: 'Newer', colorHex: '#2FA090'),
+    ]);
+    await tester.pumpAndSettle();
+    repo.fetches[1].complete(const [
+      EventType(id: 'o', name: 'Older', colorHex: '#C24A4A'),
+    ]);
+    await tester.pumpAndSettle();
+    expect(find.text('Newer'), findsOneWidget);
+
+    // Force the builder to fall back to _lastData by failing one more load (a
+    // pending load keeps the old snapshot's data, hiding a corrupted _lastData;
+    // an error drops snapshot.data so _lastData is what shows).
+    await _addTypeViaEditor(tester, 'again');
+    repo.fetches[3].completeError(Exception('offline'));
+    await tester.pumpAndSettle();
+
+    // If the stale load had overwritten _lastData, 'Older' would surface now.
+    expect(find.text('Newer'), findsOneWidget);
+    expect(find.text('Older'), findsNothing);
   });
 }
