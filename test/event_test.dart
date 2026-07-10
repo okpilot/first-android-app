@@ -83,6 +83,44 @@ void main() {
       expect(e.startMin, 8 * 60 + 5);
       expect(e.endMin, 8 * 60 + 20);
     });
+
+    test('parses the event_types to-one embed into Event.type', () {
+      final e = Event.fromJson({
+        'id': 'e5',
+        'title': 'Interview',
+        'event_date': '2026-07-10',
+        'all_day': false,
+        'start_time': '16:00:00',
+        'end_time': '19:00:00',
+        'event_types': {'id': 't1', 'name': 'Interview', 'color': '#8A6BC4'},
+        'event_attendees': const [],
+      });
+      expect(e.type, isNotNull);
+      expect(e.type!.name, 'Interview');
+      expect(e.type!.colorHex, '#8A6BC4');
+    });
+
+    test('type is null for no-type, a null embed, and an absent key', () {
+      // event_types comes back null both for an untyped event and for one whose type was
+      // soft-deleted (RLS-hidden). An absent key must be tolerated too.
+      final nullEmbed = Event.fromJson({
+        'id': 'e6',
+        'title': 'No type',
+        'event_date': '2026-07-10',
+        'all_day': true,
+        'event_types': null,
+        'event_attendees': const [],
+      });
+      final absentKey = Event.fromJson({
+        'id': 'e7',
+        'title': 'Absent',
+        'event_date': '2026-07-10',
+        'all_day': true,
+        'event_attendees': const [],
+      });
+      expect(nullEmbed.type, isNull);
+      expect(absentKey.type, isNull);
+    });
   });
 
   group('Event.toRpcParams', () {
