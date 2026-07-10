@@ -22,9 +22,13 @@ class SupabaseEventsRepository implements EventsRepository {
   final SupabaseClient _client;
   static const _table = 'events';
 
-  // The attendee embed: event_attendees is to-many, each row's `contacts` is to-one.
+  // The type embed (event_types) is a to-one via a nullable FK — a plain embed (NOT
+  // `!inner`, which would drop untyped events); it comes back null for no-type or a
+  // soft-deleted (RLS-hidden) type. The attendee embed: event_attendees is to-many,
+  // each row's `contacts` is to-one.
   static const _select =
       'id, title, event_date, all_day, start_time, end_time, location, notes, '
+      'event_types(id, name, color), '
       'event_attendees(contact_id, contacts(id, name, company))';
 
   @override

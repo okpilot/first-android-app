@@ -115,6 +115,18 @@ project: First Android App (learning CRM)
 - **QA:** SQL curl-verified (RPCs, embed shape, all CHECK guards incl. overnight rejection); **31 unit + widget tests**; and a **visual QA on the Android emulator in light + dark** across every screen (the canonical run path — web has the known IPv6/origin backend issue).
 **Principle:** Multi-table writes earn one atomic SECURITY DEFINER RPC; the model stays as simple as the single-user/local reality allows (date+time, not timestamptz); prototype → critics → build → visual QA.
 
+## Decision 19: Event types — colour-as-data + a Settings home (design direction, 2026-07-09)
+**Context:** Next feature: user-defined **event types** (categories) with colours, assignable to events. Explored in two throwaway artifacts (a quick concept, then a full-fidelity tap-through matching the real Day timeline / Agenda / form / detail), QA'd in-browser light + dark, and **approved by the user**. **Build not started** — data model + RPC + thin slicing go through adversarial critics before any Dart.
+**Decided (design direction only):**
+- **One type per event** — a category, not multi-label tags. `events` gains a **nullable** `type_id`; "No type" stays valid.
+- **Colour is data, never chrome.** The app stays mono (theme.dart: "the accent IS the ink"); the *only* colour anywhere is a type's identity, surfaced as (a) a small filled **dot** in lists / pickers / detail / Agenda and (b) the **whole Day/3-day event block** coloured by type. Buttons/text/chrome stay ink. Linear/Attio discipline.
+  - **Amended 2026-07-10:** the initial plan used a coloured **left rail** on the block (from the existing `EventBlockStyle.rail`); the user rejected it as an AI-slop tell ("accent bar on a card") — the design-principles skill lists the same cliché. Blocks are now **full-area coloured, no rail**. **Decided: Tint** (soft wash of the type colour + **ink** text) over Solid (bold fill + white text) — Solid was too loud for the mono system, risked white-on-amber contrast, and fought the quiet dot language; Tint keeps ink text primary and colour secondary. The `EventBlockStyle` extension will carry a **fill + text-colour** pair instead of a rail.
+  - The Event-types manager list shows **swatch + name only** — no per-type event count (user's call).
+- **Month density dots are coloured by type** — the user's explicit call (overrode the initial "keep Month mono" proposal); no-type = neutral grey dot. **Busy days use "Deduped +N":** up to 3 dots for the *distinct types* present that day, then a `+N` count of the remaining events — chosen over capped-chronological (showed 3 identical dots for a day of meetings) and plain dedupe (hid busyness).
+- **Curated palette, no freeform picker** — 9 muted mid-luminance swatches (blue · teal · green · amber · orange · red · purple · pink · slate) chosen to read on both `#FDFDFF` and `#121316`. Freeform RGB rejected as slop-prone.
+- **Management home = a new Settings destination.** Promote the nav to 3 tabs (Contacts · Calendar · Settings); **Settings → Event types** is the manager + editor, and types are *also* creatable on-the-fly from the event form's Type picker sheet. **Delete is non-destructive to events:** they keep their schedule and fall back to "No type" (can't be undone).
+**Principle:** Introduce colour only as user-owned data in minimal tokens (dot + rail), never in chrome; give app config a real home (Settings) as the app matures; prototype → approve → critics → build.
+
 ---
 
 ## OPEN QUESTIONS

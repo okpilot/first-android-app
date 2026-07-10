@@ -1,5 +1,6 @@
 import '../util/format.dart';
 import 'contact.dart';
+import 'event_type.dart';
 
 /// A calendar event — mirrors the `public.events` table plus its attendees (the
 /// `event_attendees` → `contacts` embed). Pure Dart (no Flutter import, like [Contact])
@@ -24,6 +25,10 @@ class Event {
   final String? location;
   final String? notes;
 
+  /// The event's type, or null for "No type" — also null when the assigned type has
+  /// been soft-deleted (RLS hides it, so the `event_types` embed comes back null).
+  final EventType? type;
+
   /// The assigned contacts. Only id/name/company are populated from the embed.
   final List<Contact> attendees;
 
@@ -36,6 +41,7 @@ class Event {
     this.endMin,
     this.location,
     this.notes,
+    this.type,
     this.attendees = const [],
   });
 
@@ -48,6 +54,7 @@ class Event {
     this.endMin,
     this.location,
     this.notes,
+    this.type,
     this.attendees = const [],
   }) : id = '';
 
@@ -59,6 +66,13 @@ class Event {
       final c = (row as Map<String, dynamic>)['contacts'];
       if (c is Map<String, dynamic>) attendees.add(Contact.fromJson(c));
     }
+    // event_types is a to-ONE embed via a nullable FK. It's null when the event has no
+    // type AND when the assigned type was soft-deleted (RLS hides it) — treat both, and
+    // an absent key, as "No type".
+    final typeJson = json['event_types'];
+    final type = typeJson is Map<String, dynamic>
+        ? EventType.fromJson(typeJson)
+        : null;
     final allDay = (json['all_day'] as bool?) ?? false;
     return Event(
       id: json['id'] as String,
@@ -71,6 +85,7 @@ class Event {
       endMin: allDay ? null : _minutesOf(json['end_time']),
       location: json['location'] as String?,
       notes: json['notes'] as String?,
+      type: type,
       attendees: attendees,
     );
   }
