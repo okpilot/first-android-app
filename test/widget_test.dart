@@ -3,9 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:first_android_app/app.dart';
 import 'package:first_android_app/data/contacts_repository.dart';
+import 'package:first_android_app/data/event_types_repository.dart';
 import 'package:first_android_app/data/events_repository.dart';
 import 'package:first_android_app/models/contact.dart';
 import 'package:first_android_app/models/event.dart';
+import 'package:first_android_app/models/event_type.dart';
 
 /// In-memory repository so widget tests never touch the network/Supabase.
 class _FakeRepo implements ContactsRepository {
@@ -33,6 +35,17 @@ class _FakeEventsRepo implements EventsRepository {
   Future<void> softDelete(String id) async {}
 }
 
+class _FakeEventTypesRepo implements EventTypesRepository {
+  @override
+  Future<List<EventType>> fetchAll() async => const [];
+  @override
+  Future<EventType> create(EventType draft) async => draft;
+  @override
+  Future<EventType> update(EventType type) async => type;
+  @override
+  Future<void> softDelete(String id) async {}
+}
+
 void main() {
   testWidgets('renders contacts from the repository', (tester) async {
     await tester.pumpWidget(
@@ -46,6 +59,7 @@ void main() {
           Contact(id: '2', name: 'Alan Turing'),
         ]),
         eventsRepository: _FakeEventsRepo(),
+        eventTypesRepository: _FakeEventTypesRepo(),
       ),
     );
     await tester.pumpAndSettle();
@@ -64,6 +78,7 @@ void main() {
       ContactsApp(
         repository: _FakeRepo(const []),
         eventsRepository: _FakeEventsRepo(),
+        eventTypesRepository: _FakeEventTypesRepo(),
       ),
     );
     await tester.pumpAndSettle();

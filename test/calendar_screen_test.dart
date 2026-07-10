@@ -3,9 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:first_android_app/app.dart';
 import 'package:first_android_app/data/contacts_repository.dart';
+import 'package:first_android_app/data/event_types_repository.dart';
 import 'package:first_android_app/data/events_repository.dart';
 import 'package:first_android_app/models/contact.dart';
 import 'package:first_android_app/models/event.dart';
+import 'package:first_android_app/models/event_type.dart';
 import 'package:first_android_app/screens/calendar_screen.dart';
 import 'package:first_android_app/theme.dart';
 
@@ -31,6 +33,17 @@ class _FakeEventsRepo implements EventsRepository {
   Future<Event> create(Event draft) async => draft;
   @override
   Future<Event> update(Event event) async => event;
+  @override
+  Future<void> softDelete(String id) async {}
+}
+
+class _FakeEventTypesRepo implements EventTypesRepository {
+  @override
+  Future<List<EventType>> fetchAll() async => const [];
+  @override
+  Future<EventType> create(EventType draft) async => draft;
+  @override
+  Future<EventType> update(EventType type) async => type;
   @override
   Future<void> softDelete(String id) async {}
 }
@@ -188,6 +201,7 @@ void main() {
       ContactsApp(
         repository: _FakeContactsRepo(),
         eventsRepository: _FakeEventsRepo(),
+        eventTypesRepository: _FakeEventTypesRepo(),
       ),
     );
     await tester.pumpAndSettle();

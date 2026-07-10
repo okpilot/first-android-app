@@ -20,6 +20,19 @@ class EventType {
     required this.colorHex,
   });
 
+  /// A not-yet-persisted type. Empty id — the DB assigns the real one.
+  const EventType.draft({required this.name, required this.colorHex}) : id = '';
+
+  /// Only the client-writable fields, for the direct-under-RLS insert/update. Name is
+  /// trimmed here (server doesn't normalise it); colour is already a clean `#RRGGBB`.
+  Map<String, dynamic> toWrite() => {'name': name.trim(), 'color': colorHex};
+
+  EventType copyWith({String? name, String? colorHex}) => EventType(
+    id: id,
+    name: name ?? this.name,
+    colorHex: colorHex ?? this.colorHex,
+  );
+
   factory EventType.fromJson(Map<String, dynamic> json) => EventType(
     id: json['id'] as String,
     name: json['name'] as String,
