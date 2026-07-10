@@ -149,7 +149,7 @@ class _EventTypeEditorScreenState extends State<EventTypeEditorScreen> {
     super.initState();
     _name = TextEditingController(text: widget.existing?.name ?? '');
     _color = widget.existing == null
-        ? kEventTypePalette.first
+        ? kEventTypePalette.first.color
         : colorFromHex(widget.existing!.colorHex);
   }
 
@@ -318,19 +318,24 @@ class _SwatchGrid extends StatelessWidget {
       spacing: 16,
       runSpacing: 16,
       children: [
-        for (final c in kEventTypePalette)
+        for (final s in kEventTypePalette)
           Semantics(
+            label: s.name,
             button: true,
-            selected: c.toARGB32() == selected.toARGB32(),
-            child: GestureDetector(
-              onTap: () => onSelect(c),
+            selected: s.color.toARGB32() == selected.toARGB32(),
+            // InkWell (not GestureDetector) so the swatch is keyboard-focusable and
+            // Enter/Space-activatable on web/Linux; the outer Semantics carries the name.
+            child: InkWell(
+              onTap: () => onSelect(s.color),
+              customBorder: const CircleBorder(),
+              excludeFromSemantics: true,
               child: Container(
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: c,
+                  color: s.color,
                   shape: BoxShape.circle,
-                  border: c.toARGB32() == selected.toARGB32()
+                  border: s.color.toARGB32() == selected.toARGB32()
                       ? Border.all(color: scheme.onSurface, width: 2.5)
                       : null,
                 ),

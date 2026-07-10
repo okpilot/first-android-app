@@ -13,8 +13,11 @@ void main() {
     });
 
     test('round-trips through colorFromHex (opaque)', () {
-      for (final c in kEventTypePalette) {
-        expect(colorFromHex(hexFromColor(c)).toARGB32(), c.toARGB32());
+      for (final s in kEventTypePalette) {
+        expect(
+          colorFromHex(hexFromColor(s.color)).toARGB32(),
+          s.color.toARGB32(),
+        );
       }
     });
   });
