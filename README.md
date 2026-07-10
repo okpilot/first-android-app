@@ -1,17 +1,31 @@
-# first_android_app
+# First App — a light CRM
 
-A new Flutter project.
+A small contacts-and-calendar CRM built with Flutter (Android · Web · Linux desktop)
+on a self-hosted, Supabase-shaped backend. It's a learning project: the CRM is a
+disposable vehicle for learning app development end to end.
 
-## Getting Started
+## Features
 
-This project is a starting point for a Flutter application.
+- **Contacts** — keep the people you work with in one place: create, edit, remove,
+  and search them. Each contact holds a name plus optional date of birth, email,
+  phone, company, and free-text remarks.
+- **Calendar** — see your schedule across month, multi-day, day, and agenda views.
+  The week starts on Monday.
+- **Events** — put events on a day, either all-day or with a start and end time
+  (24-hour), and optionally add a location, notes, and attendees drawn from your
+  contacts.
+- **Event types** — define your own colour-coded categories. The colour is used as
+  data throughout the calendar, so you can tell events apart at a glance.
 
-A few resources to get you started if this is your first Flutter project:
+Your data lives on a backend you host yourself (Postgres behind a REST layer), not a
+third-party cloud.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Development
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+The stack and workflow are documented in [`CLAUDE.md`](CLAUDE.md); current status and
+the next slice live in [`docs/plan.md`](docs/plan.md).
+
+Flutter 3.44.5 is installed at `~/flutter` (not on `PATH`):
+
+- Web: `~/flutter/bin/flutter run -d chrome`
+- Linux desktop: `~/flutter/bin/flutter run -d linux`

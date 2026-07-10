@@ -7,13 +7,16 @@ PRs **#13 → #14 → #15** all squash-merged to `main` in order (`9873585` / `4
 all **4** event-types migrations applied to homebase via `deploy-homebase.sh` (ledger at **9**;
 `create_event` now carries `p_type_id`). Cloud CodeRabbit answered on every PR. `main` clean & synced.
 
-**In flight: cloud-CR tooling split — PR #16 open** (`chore/coderabbit-commands`, Decision 20).
-Replaced the single over-merged `/replycoderabbit` with **`/coderabbit`** (triage) +
+**Cloud-CR tooling split — PR #16 MERGED** (squash → `c2a3fc6`, `chore/coderabbit-commands` deleted,
+Decision 20). Replaced the single over-merged `/replycoderabbit` with **`/coderabbit`** (triage) +
 **`/replycoderabbit`** (reply-only) + shared **`scripts/cr-findings.sh`** (36-assertion fixture test).
-Designed via **3 adversarial critic rounds** (9 reports, live-verified against #14/#15 — killed a JSON
-ledger, git-ancestry currency, "latest-review" currency, a line-based id) + hardened via **3 `/crlocal`
-rounds** (10→2→2 findings, all fixed — incl. a real `--paginate` page-1 bug). Round-4 `/crlocal` was
-**rate-limited** → the **cloud** CR on #16 is the authoritative check. CI build green · MERGEABLE.
+Designed via **3 adversarial critic rounds** + hardened via **3 `/crlocal` rounds** pre-push, then the
+first live **dogfood** of `/coderabbit → /fullpush → /replycoderabbit` on the PR itself surfaced (and
+FIX-NOW'd) two real bugs in the new commands: **round 1** — 5 cloud-CR findings (`170f363`: invalid
+`gh api --jq --arg`, colon-unsafe crfinding payload, silent-drop of unmapped inline findings, crreply
+author-scoping, exact-id-formula doc); **round 2** (self-found while replying) — the marker lookups
+used an unanchored `test("<!-- crtriage -->")`, so a finding that *quotes* a marker matched the wrong
+comment (`5468f0f`: anchored all three lookups to `^`). No cloud re-review triggered → merged.
 
 - **Slice 1 (#13):** `event_types` table (RLS, `#RRGGBB` CHECK, soft-delete) + nullable
   `events.type_id` FK + pure-Dart `EventType` model + `event_types(...)` read embed. **Linchpin
@@ -37,17 +40,23 @@ rounds** (10→2→2 findings, all fixed — incl. a real `--paginate` page-1 bu
   applied via `backend/deploy-homebase.sh`; ledger at **9**, `create_event` carries `p_type_id`,
   PostgREST schema reloaded. (Homebase stack has been live for the whole feature.)
 
-**RESUME = merge PR #16** (the `/coderabbit` split) once cloud CR + CI are green — a first live dogfood
-of the new `/coderabbit → /fullpush → /replycoderabbit` flow — then pick the next thin slice.
-Event-types is done & deployed; no code blocker.
+**RESUME = merge docs PR #17, then build the queued next slice (in-app empty-state hints).** This
+session was a docs-only detour: explored a docs page, briefly built then **dropped** a separate
+VitePress docs site (3 adversarial critics → **Decision 21**), and instead added a **capability-level
+Features section to `README.md`**, synced HANDOVER/plan, and added the **`/updatephone`** command.
+**PR #17** (`docs/readme-features`, 2 commits) is **open & awaiting merge** — cloud CodeRabbit posted
+its summary with **no actionable findings** (`scripts/cr-findings.sh` → `[]`). Next slice, queued by
+Decision 21: in-app **empty-state hints** (small Flutter slice). Standing candidates unchanged:
+**auth (GoTrue)** + owner-based RLS (unblocks the DB-hardening issue #3), or search/filter on Contacts.
 
 _Open follow-up issues: **#3** (DB security hardening — also covers `event_types` write-hardening +
 the `soft_delete_event_type` `auth.uid()` check) · **#6** (agent fleet) · **#7** (Tailscale db-deploy
 action) · **#9** (idempotent event RPCs) · **#10** (dedup test fakes) · **#12** (signed Android release)._
 
-_(Merged this session: the #13/#14/#15 event-types stack + homebase migrations. Earlier: Calendar
-events #8 → `6f14d66`; deploy fix #11 → `5947599`; Calendar shell #4 → `7dd0995`; `/replycoderabbit`
-#5 → `4e210e2`; Contacts #2 → `fa4fc45`. The app also runs on the physical **S23+** against homebase.)_
+_(Merged this session: PR #16 — the `/coderabbit` + `/replycoderabbit` split (`c2a3fc6`). Earlier: the
+PRs #13/#14/#15 event-types stack + homebase migrations. Calendar events #8 → `6f14d66`;
+deploy fix #11 → `5947599`; Calendar shell #4 → `7dd0995`; `/replycoderabbit` #5 → `4e210e2`;
+Contacts #2 → `fa4fc45`. The app also runs on the physical **S23+** against homebase.)_
 
 ## How to bring the dev env back up (next session)
 1. **Backend:** `cd backend && docker compose up -d` (data persists; `down -v` to re-seed).
@@ -163,6 +172,25 @@ events #8 → `6f14d66`; deploy fix #11 → `5947599`; Calendar shell #4 → `7d
   **3 `/crlocal` rounds** (10→2→2, all fixed; caught a real `--paginate` page-1 bug). `/fullpush`:
   analyze · 52 tests · web build · CR-local (round 4 rate-limited). **PR #16 open, awaiting cloud CR.**
 - 🧠 Memory updated: homebase stack is confirmed **deployed** (was "later slice").
+
+## Done this run (2026-07-10, session 10) — Dogfood + land the /coderabbit split (PR #16)
+- ✅ **First live run of the new flow on PR #16** itself: `/coderabbit` (triage) → `/fullpush` →
+  `/replycoderabbit` (reply). The dogfood found two real bugs in the new commands, both **FIX NOW**:
+  - **Round 1 (`170f363`)** — 5 cloud-CR findings, all verified against source & fixed: invalid
+    `gh api --jq --arg` (→ `env.ME`); colon-unsafe `crfinding` payload (subjects like `fix: …` truncated
+    → split on first two colons only); `cr-findings.sh` silently dropped unmapped inline findings (→ emit
+    under a synthetic run + stderr warn); crreply upsert not author-scoped; exact stable-id formula doc.
+  - **Round 2 (`5468f0f`, self-found while replying)** — the `crtriage`/`crreply` comment lookups used
+    an **unanchored** `test("<!-- crtriage -->")`, so a comment whose *finding description* quotes the
+    literal marker matched too — I overwrote the triage comment with the reply once before catching it.
+    Anchored all three lookups to `^` (marker is always the body's first line); restored + sanitized the
+    triage comment. **This class of bug is exactly what the split exists to catch.**
+- ✅ **Triage + reply recorded durably on the PR** as `<!-- crtriage -->` / `<!-- crreply -->` comments,
+  joined by line-free `id`; all 5 findings answered *Fixed in `170f363`* (SHA resolved live).
+- ✅ **PR #16 squash-merged** → `c2a3fc6`; branch deleted (local + remote); `main` clean & synced.
+  No cloud re-review had triggered on the round-2 push at merge time (user confirmed, merged as-is).
+- ⏭️ **Note for next time:** `/fullpush`'s `/crlocal` loop is low-value on a docs/command-tooling-only
+  diff (no Dart) — the user cut it short here; the cloud bot is the real gate anyway.
 
 ## Done previous runs
 - 2026-07-08 (s1): styling = stock M3 (Decision 8); planned + built the walking skeleton (parked).
