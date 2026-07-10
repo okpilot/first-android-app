@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:first_android_app/data/contacts_repository.dart';
+import 'package:first_android_app/data/event_types_repository.dart';
 import 'package:first_android_app/data/events_repository.dart';
 import 'package:first_android_app/models/contact.dart';
 import 'package:first_android_app/models/event.dart';
+import 'package:first_android_app/models/event_type.dart';
 import 'package:first_android_app/screens/event_form_screen.dart';
 import 'package:first_android_app/theme.dart';
 
@@ -36,13 +38,28 @@ class _FakeEventsRepo implements EventsRepository {
   Future<void> softDelete(String id) async {}
 }
 
-Widget _form({_FakeEventsRepo? events}) => MaterialApp(
-  theme: AppTheme.light,
-  home: EventFormScreen(
-    eventsRepository: events ?? _FakeEventsRepo(),
-    contactsRepository: _FakeContactsRepo(),
-  ),
-);
+class _FakeEventTypesRepo implements EventTypesRepository {
+  _FakeEventTypesRepo([this.types = const []]);
+  final List<EventType> types;
+  @override
+  Future<List<EventType>> fetchAll() async => types;
+  @override
+  Future<EventType> create(EventType draft) async => draft;
+  @override
+  Future<EventType> update(EventType type) async => type;
+  @override
+  Future<void> softDelete(String id) async {}
+}
+
+Widget _form({_FakeEventsRepo? events, List<EventType> types = const []}) =>
+    MaterialApp(
+      theme: AppTheme.light,
+      home: EventFormScreen(
+        eventsRepository: events ?? _FakeEventsRepo(),
+        contactsRepository: _FakeContactsRepo(),
+        eventTypesRepository: _FakeEventTypesRepo(types),
+      ),
+    );
 
 void main() {
   testWidgets('title is required', (tester) async {
@@ -82,5 +99,35 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(events.lastCreated?.title, 'Coffee with Sam');
+  });
+
+  testWidgets('type defaults to No type and a picked type reaches the draft', (
+    tester,
+  ) async {
+    final events = _FakeEventsRepo();
+    const type = EventType(id: 't1', name: 'Meeting', colorHex: '#4E7BC9');
+    await tester.pumpWidget(_form(events: events, types: const [type]));
+    await tester.pumpAndSettle();
+
+    // The Type field starts on "No type".
+    expect(find.text('No type'), findsOneWidget);
+
+    // Open the picker and choose the one existing type.
+    await tester.tap(find.text('No type'));
+    await tester.pumpAndSettle();
+    expect(find.text('Manage types…'), findsOneWidget);
+    await tester.tap(find.text('Meeting'));
+    await tester.pumpAndSettle();
+
+    // The field now shows the type; "No type" is gone.
+    expect(find.text('Meeting'), findsOneWidget);
+    expect(find.text('No type'), findsNothing);
+
+    // Saving carries the type through to the draft.
+    await tester.enterText(find.widgetWithText(TextFormField, 'Title'), 'Sync');
+    await tester.tap(find.widgetWithText(TextButton, 'Save'));
+    await tester.pumpAndSettle();
+
+    expect(events.lastCreated?.type?.id, 't1');
   });
 }

@@ -10,6 +10,7 @@ import 'package:first_android_app/models/event.dart';
 import 'package:first_android_app/models/event_type.dart';
 import 'package:first_android_app/screens/calendar_screen.dart';
 import 'package:first_android_app/theme.dart';
+import 'package:first_android_app/widgets/type_label.dart';
 
 class _FakeContactsRepo implements ContactsRepository {
   _FakeContactsRepo([this.contacts = const []]);
@@ -70,6 +71,7 @@ Widget _calendar({
     initialDate: initialDate,
     eventsRepository: _FakeEventsRepo(events),
     contactsRepository: _FakeContactsRepo(contacts),
+    eventTypesRepository: _FakeEventTypesRepo(),
   ),
 );
 
@@ -138,9 +140,33 @@ void main() {
     await tester.tap(find.text('Coffee with Ada'));
     await tester.pumpAndSettle();
 
-    // Now on the detail screen.
+    // Now on the detail screen — the Type row shows "No type" for an untyped event.
     expect(find.text('Delete event'), findsOneWidget);
     expect(find.text('ATTENDEES · 1'), findsOneWidget);
+    expect(find.text('No type'), findsOneWidget);
+  });
+
+  testWidgets('a typed event shows its dot and name in the month panel', (
+    tester,
+  ) async {
+    final event = Event(
+      id: 'e3',
+      title: 'Standup',
+      date: DateTime(2026, 7, 8),
+      allDay: false,
+      startMin: 9 * 60,
+      endMin: 9 * 60 + 15,
+      type: const EventType(id: 't1', name: 'Meeting', colorHex: '#4E7BC9'),
+    );
+    await tester.pumpWidget(
+      _calendar(initialDate: DateTime(2026, 7, 8), events: [event]),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Standup'), findsOneWidget);
+    // TypeLabel renders the name; at least one coloured dot is present (panel + month grid).
+    expect(find.text('Meeting'), findsOneWidget);
+    expect(find.byType(TypeDot), findsWidgets);
   });
 
   testWidgets('an all-day event shows in the timeline all-day band', (
@@ -185,6 +211,7 @@ void main() {
           initialDate: DateTime(2026, 7, 8),
           eventsRepository: _FailingEventsRepo(),
           contactsRepository: _FakeContactsRepo(),
+          eventTypesRepository: _FakeEventTypesRepo(),
         ),
       ),
     );

@@ -1,3 +1,6 @@
+import 'dart:ui' show Brightness;
+
+import 'package:first_android_app/models/event_type.dart';
 import 'package:first_android_app/util/event_type_palette.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -33,6 +36,30 @@ void main() {
     test('falls back to the neutral swatch on bad input', () {
       for (final bad in ['#fff', 'blue', '#ff4e7bc9', '']) {
         expect(colorFromHex(bad).toARGB32(), kNeutralSwatch.toARGB32());
+      }
+    });
+  });
+
+  group('fillForType', () {
+    const baseFill = Color(0xFF202020);
+
+    test('an untyped event keeps the mono base fill', () {
+      expect(
+        fillForType(null, Brightness.light, baseFill).toARGB32(),
+        baseFill.toARGB32(),
+      );
+    });
+
+    test('a typed event tints the base fill, matching tintForType', () {
+      const type = EventType(id: 't', name: 'Blue', colorHex: '#4E7BC9');
+      for (final b in Brightness.values) {
+        final got = fillForType(type, b, baseFill);
+        expect(
+          got.toARGB32(),
+          tintForType(colorFromHex('#4E7BC9'), b, baseFill).toARGB32(),
+        );
+        // A colour is actually applied — not left as the mono fill.
+        expect(got.toARGB32(), isNot(baseFill.toARGB32()));
       }
     });
   });

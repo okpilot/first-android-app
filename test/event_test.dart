@@ -1,5 +1,6 @@
 import 'package:first_android_app/models/contact.dart';
 import 'package:first_android_app/models/event.dart';
+import 'package:first_android_app/models/event_type.dart';
 import 'package:first_android_app/util/format.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -158,6 +159,23 @@ void main() {
       expect(p['p_start_time'], isNull);
       expect(p['p_end_time'], isNull);
       expect(p['p_attendees'], isEmpty);
+    });
+
+    test('p_type_id is null with no type and the type id when assigned', () {
+      final none = Event.draft(
+        title: 'Call',
+        date: DateTime(2026, 7, 9),
+        allDay: true,
+      );
+      expect(none.toRpcParams()['p_type_id'], isNull);
+
+      final typed = Event.draft(
+        title: 'Call',
+        date: DateTime(2026, 7, 9),
+        allDay: true,
+        type: const EventType(id: 't1', name: 'Meeting', colorHex: '#4E7BC9'),
+      );
+      expect(typed.toRpcParams()['p_type_id'], 't1');
     });
   });
 

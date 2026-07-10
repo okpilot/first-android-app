@@ -2,11 +2,11 @@
 
 # Handover
 
-**Status: EVENT TYPES (colour-as-data) — Slices 1 & 2 shipped as stacked PRs, not yet merged.
-Decision 19.** Two open PRs: **#13** `feat/event-types-1-data` (Slice 1) and **#14**
-`feat/event-types-2-manage` (Slice 2, **stacked on #13** — base is #13's branch, auto-retargets
-to `main` on merge). `main` is untouched/clean. Current work branch: `feat/event-types-2-manage`
-(clean, synced). **Slice 3 (assign + show) is next.**
+**Status: EVENT TYPES (colour-as-data) — Slices 1, 2 & 3 shipped as stacked PRs, not yet merged.
+Decision 19.** Three open PRs: **#13** `feat/event-types-1-data` (Slice 1, base `main`), **#14**
+`feat/event-types-2-manage` (Slice 2, stacked on #13), **#15** `feat/event-types-3-assign`
+(Slice 3, **stacked on #14** — bases auto-retarget on merge). `main` is untouched/clean. Current
+work branch: `feat/event-types-3-assign`. **Merge the stack #13 → #14 → #15 in order.**
 
 - **Slice 1 (#13):** `event_types` table (RLS, `#RRGGBB` CHECK, soft-delete) + nullable
   `events.type_id` FK + pure-Dart `EventType` model + `event_types(...)` read embed. **Linchpin
@@ -17,19 +17,23 @@ to `main` on merge). `main` is untouched/clean. Current work branch: `feat/event
   keyboard-operable 8-swatch grid + non-destructive Delete). `event_type_palette` (8 named
   swatches — slate dropped — + `colorFromHex`/`hexFromColor` alpha-strip). **Emulator visual QA
   light+dark** (create/edit/delete round-trip). gate-green · 45 tests.
-- **NOT deployed to homebase yet** — both slices are local-only (no calendar rendering until
-  Slice 3, so the phone doesn't need them). Deploy Slice 1+2 migrations to homebase before Slice 3
-  ships to the device. Migrations apply on a fresh DB; **remember `NOTIFY pgrst, 'reload schema'`
-  after DDL** (PostgREST caches the schema — new tables 404 until reloaded).
+- **Slice 3 (#15):** `p_type_id uuid default null` on `create_event`/`update_event` (drop+recreate
+  +regrant + `notify pgrst, 'reload schema'`) + `Event.toRpcParams`. Event-form **Type picker**
+  (pick-existing-only sheet: types + No type + "Manage types…"; inline create deferred).
+  **Colour-as-data:** retired `EventBlockStyle.rail`; `tintForType` (HSL-lighten + `alphaBlend`
+  on dark); full-area **tinted** Day/3-day blocks + all-day band (no rail, neutral hairline, type
+  name in Semantics); shared **`TypeLabel`** atom (dot + name) in Agenda/panel/detail; coloured
+  Month **density dots + "+N"** (no-type → neutral ink; out-of-month grey). analyze clean · **48
+  tests** · migrations clean on a fresh DB · end-to-end curl (typed create/update + soft-delete
+  linchpin → embed null) · **emulator visual QA light+dark, every surface**.
+- **NOT deployed to homebase yet** — all three slices are local-only. **Deploy the four
+  event-types migrations** (`20260710120000/120100/120200/120300`) to homebase via
+  `backend/deploy-homebase.sh` before the phone sees it; the Slice-3 migration self-issues
+  `notify pgrst, 'reload schema'` (PostgREST caches the schema — the new RPC signature 404s until
+  reloaded).
 
-**Slice 3 plan** is written at `~/.local/share/claude-config/claude/plans/synthetic-petting-sunset.md`
-(approved; 3 critics folded in). Next steps: `p_type_id uuid default null` on the write RPCs
-(drop+recreate+regrant) + `Event.toRpcParams`; Type picker in the event form (reuse the Slice-2
-editor for on-the-fly create); tinted Day/3-day blocks (no rail; theme-split per-swatch alpha,
-calibrate on emulator); dot + type-name inline in Agenda/detail; coloured Month "+N" (small
-`_DayCell` re-spec); then homebase deploy + emulator QA.
-
-**RESUME = build Slice 3** (branch off `feat/event-types-2-manage`). No blocker to clear for the code.
+**RESUME = merge the stack (#13 → #14 → #15) + deploy migrations to homebase**, then pick the next
+thin slice. Event-types work is done. No blocker for the code.
 
 _Follow-up issues open: **#3** (DB security hardening — **now also** covers `event_types`
 write-hardening + the `soft_delete_event_type` `auth.uid()` check; two comments couldn't be posted
@@ -124,6 +128,20 @@ Also this session: the app was installed & run on the physical **S23+** against 
   `060d2ed` + replied) → merged (squash → `5947599`).
 - 📝 Note: homebase deploys may prompt a one-time **Tailscale SSH re-auth**; the deploy is now
   idempotent so a re-run after auth is safe.
+
+## Done this run (2026-07-10, session 8) — Event types Slice 3 (assign + show)
+- ✅ **`/plan` through 2 adversarial critics** (correctness/scope · design/a11y) on the code-grounded
+  Slice-3 plan; folded fixes: the `pgrst` schema-reload NOTIFY, the drop-vs-`create or replace`
+  overload hazard, the repo-threading + test-breakage map, a concrete `tintForType` formula, block
+  Semantics carrying the type name, tinted-secondary-text AA, a shared `TypeLabel` atom.
+- ✅ **Two user decisions:** Month = **density dots coloured** (not deduped-by-type — it emptied
+  no-type days + undercounted); picker = **pick-existing-only** (inline create deferred).
+- ✅ **Built** the migration + Dart (see the Slice-3 status bullet above). analyze clean · **48 tests**.
+- ✅ **Verified:** all four migrations apply on a fresh throwaway DB; end-to-end curl on local dev
+  (typed create/update, null-type, soft-delete → embed null); **emulator visual QA light+dark** on
+  Month/panel/Day/detail/form/picker.
+- ✅ **`/fullpush`** (analyze · 48 tests · web + debug apk · fresh-DB migrations · `/crlocal`);
+  committed `036082e`; **PR #15** (stacked on #14).
 
 ## Done previous runs
 - 2026-07-08 (s1): styling = stock M3 (Decision 8); planned + built the walking skeleton (parked).

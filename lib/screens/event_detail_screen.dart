@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../data/contacts_repository.dart';
+import '../data/event_types_repository.dart';
 import '../data/events_repository.dart';
 import '../models/event.dart';
 import '../util/calendar.dart';
 import '../util/format.dart';
 import '../widgets/initials_avatar.dart';
+import '../widgets/type_label.dart';
 import 'event_form_screen.dart';
 
 /// Read view for one event, with edit and (soft) delete. Pops `true` when the event
@@ -15,11 +17,13 @@ class EventDetailScreen extends StatefulWidget {
     super.key,
     required this.eventsRepository,
     required this.contactsRepository,
+    required this.eventTypesRepository,
     required this.event,
   });
 
   final EventsRepository eventsRepository;
   final ContactsRepository contactsRepository;
+  final EventTypesRepository eventTypesRepository;
   final Event event;
 
   @override
@@ -43,6 +47,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         builder: (_) => EventFormScreen(
           eventsRepository: widget.eventsRepository,
           contactsRepository: widget.contactsRepository,
+          eventTypesRepository: widget.eventTypesRepository,
           existing: _event,
         ),
       ),
@@ -133,6 +138,12 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               label: 'When',
               value: _whenLabel(e),
             ),
+            _Field(
+              icon: Icons.sell_outlined,
+              label: 'Type',
+              // A soft-deleted type reads back null → "No type" (RLS hides the embed).
+              child: TypeLabel(type: e.type, placeholder: 'No type'),
+            ),
             if (e.location != null && e.location!.isNotEmpty)
               _Field(
                 icon: _locationIsLink
@@ -193,13 +204,19 @@ class _Field extends StatelessWidget {
   const _Field({
     required this.icon,
     required this.label,
-    required this.value,
+    this.value,
+    this.child,
     this.selectable = false,
-  });
+  }) : assert(value != null || child != null);
 
   final IconData icon;
   final String label;
-  final String value;
+
+  /// The value as text. Mutually exclusive with [child]; exactly one is provided.
+  final String? value;
+
+  /// A custom value widget (e.g. a type dot + name) shown in place of [value].
+  final Widget? child;
   final bool selectable;
 
   @override
@@ -223,9 +240,12 @@ class _Field extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                selectable
-                    ? SelectableText(value, style: theme.textTheme.bodyLarge)
-                    : Text(value, style: theme.textTheme.bodyLarge),
+                if (child != null)
+                  child!
+                else if (selectable)
+                  SelectableText(value!, style: theme.textTheme.bodyLarge)
+                else
+                  Text(value!, style: theme.textTheme.bodyLarge),
               ],
             ),
           ),

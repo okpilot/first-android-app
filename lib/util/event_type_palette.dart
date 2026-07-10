@@ -1,4 +1,7 @@
 import 'package:flutter/painting.dart';
+import 'dart:ui' show Brightness;
+
+import '../models/event_type.dart';
 
 /// A palette entry: the [color] plus a human [name] so the swatch is programmatically
 /// labelled for screen readers / keyboard users (not colour-only).
@@ -40,3 +43,28 @@ String hexFromColor(Color color) {
       (channel(color.r) << 16) | (channel(color.g) << 8) | channel(color.b);
   return '#${rgb.toRadixString(16).padLeft(6, '0')}';
 }
+
+/// The fill for a type-tinted calendar block: the swatch blended over [baseFill] (the mono
+/// no-type block fill) at a low alpha, so a typed block shares the no-type block's
+/// luminance + hairline border and differs only in hue — the calm, "accent-is-the-ink"
+/// version, not a loud coloured card. On dark the hue is lightened first so low-luminance
+/// swatches still register on the dark surface. Alphas are emulator-calibrated (Decision 19
+/// QA); warm/green swatches are the vanish risks and are why dark stays modest.
+Color tintForType(Color c, Brightness b, Color baseFill) {
+  final swatch = b == Brightness.dark
+      ? HSLColor.fromColor(c)
+            .withLightness(
+              (HSLColor.fromColor(c).lightness + 0.12).clamp(0.0, 1.0),
+            )
+            .toColor()
+      : c;
+  final a = b == Brightness.dark ? 0.26 : 0.20;
+  return Color.alphaBlend(swatch.withValues(alpha: a), baseFill);
+}
+
+/// The block/tile fill for [type]: the mono [baseFill] when untyped, else the type's swatch
+/// tinted over it via [tintForType]. One rule shared by the timeline block and the all-day
+/// tile so the two can't silently diverge (Decision 19's tint has been recalibrated before).
+Color fillForType(EventType? type, Brightness b, Color baseFill) => type == null
+    ? baseFill
+    : tintForType(colorFromHex(type.colorHex), b, baseFill);
