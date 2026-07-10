@@ -32,9 +32,21 @@ class _EventTypesScreenState extends State<EventTypesScreen> {
       _future = future;
     });
     try {
-      _lastData = await future;
+      final data = await future;
+      // Ignore a stale fetch a newer _load() has superseded, so an older in-flight
+      // request can't roll the list back to outdated data.
+      if (identical(future, _future)) _lastData = data;
     } catch (_) {
-      // Surfaced by the FutureBuilder's error branch.
+      // With no cached data the FutureBuilder shows _ErrorState. With cached data
+      // on screen the failure is otherwise invisible, so surface it — but only for
+      // the current fetch, not one a newer _load() has already replaced.
+      if (mounted && _lastData != null && identical(future, _future)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Couldn't refresh — showing saved data"),
+          ),
+        );
+      }
     }
   }
 

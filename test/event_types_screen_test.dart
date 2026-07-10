@@ -36,6 +36,27 @@ class _FakeTypesRepo implements EventTypesRepository {
       types.removeWhere((t) => t.id == id);
 }
 
+/// Succeeds on the first load, throws on every later fetch — to exercise a refresh
+/// that fails while cached data is already on screen.
+class _RefreshFailsRepo implements EventTypesRepository {
+  _RefreshFailsRepo(this._first);
+  final List<EventType> _first;
+  int _calls = 0;
+
+  @override
+  Future<List<EventType>> fetchAll() async {
+    if (_calls++ == 0) return List.of(_first);
+    throw Exception('offline');
+  }
+
+  @override
+  Future<EventType> create(EventType draft) => throw UnimplementedError();
+  @override
+  Future<EventType> update(EventType type) => throw UnimplementedError();
+  @override
+  Future<void> softDelete(String id) => throw UnimplementedError();
+}
+
 Widget _wrap(Widget child) => MaterialApp(theme: AppTheme.light, home: child);
 
 void main() {
@@ -101,5 +122,24 @@ void main() {
     expect(find.text('Meeting'), findsNothing);
     expect(find.text('No event types yet'), findsOneWidget);
     expect(repo.types, isEmpty);
+  });
+
+  testWidgets('a failed refresh keeps cached data and surfaces the failure', (
+    tester,
+  ) async {
+    final repo = _RefreshFailsRepo([
+      const EventType(id: 't1', name: 'Meeting', colorHex: '#4E7BC9'),
+    ]);
+    await tester.pumpWidget(_wrap(EventTypesScreen(repository: repo)));
+    await tester.pumpAndSettle();
+    expect(find.text('Meeting'), findsOneWidget);
+
+    // Pull-to-refresh — the second fetch throws.
+    await tester.fling(find.text('Meeting'), const Offset(0, 300), 1000);
+    await tester.pumpAndSettle();
+
+    // The cached list stays put, and the failure is no longer silent.
+    expect(find.text('Meeting'), findsOneWidget);
+    expect(find.text("Couldn't refresh — showing saved data"), findsOneWidget);
   });
 }
