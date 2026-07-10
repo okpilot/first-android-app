@@ -409,35 +409,28 @@ class AppTheme {
         EventBlockStyle(
           fill: scheme.surfaceContainerHigh,
           border: scheme.outlineVariant,
-          rail: scheme.primary,
         ),
       ],
     );
   }
 }
 
-/// Visual tokens for a calendar event block (timeline). A hairline [border] + [fill]
-/// makes it read as a solid object on the flat canvas (fill-delta alone fails the squint
-/// test in light); the ink [rail] is the left accent.
+/// Visual tokens for a calendar event block (timeline). A hairline [border] + [fill] makes
+/// it read as a solid object on the flat canvas (fill-delta alone fails the squint test in
+/// light). This is the mono **no-type** default; a typed event replaces [fill] with a hue
+/// tint (see `tintForType`) while keeping the same border — so the border carries
+/// objecthood and colour is pure enrichment. (Decision 19 retired the left rail — a
+/// coloured edge was the AI-slop tell.)
 @immutable
 class EventBlockStyle extends ThemeExtension<EventBlockStyle> {
-  const EventBlockStyle({
-    required this.fill,
-    required this.border,
-    required this.rail,
-  });
+  const EventBlockStyle({required this.fill, required this.border});
 
   final Color fill;
   final Color border;
-  final Color rail;
 
   @override
-  EventBlockStyle copyWith({Color? fill, Color? border, Color? rail}) =>
-      EventBlockStyle(
-        fill: fill ?? this.fill,
-        border: border ?? this.border,
-        rail: rail ?? this.rail,
-      );
+  EventBlockStyle copyWith({Color? fill, Color? border}) =>
+      EventBlockStyle(fill: fill ?? this.fill, border: border ?? this.border);
 
   @override
   EventBlockStyle lerp(EventBlockStyle? other, double t) {
@@ -445,7 +438,6 @@ class EventBlockStyle extends ThemeExtension<EventBlockStyle> {
     return EventBlockStyle(
       fill: Color.lerp(fill, other.fill, t)!,
       border: Color.lerp(border, other.border, t)!,
-      rail: Color.lerp(rail, other.rail, t)!,
     );
   }
 }

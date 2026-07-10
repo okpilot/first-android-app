@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 
 import '../data/contacts_repository.dart';
+import '../data/event_types_repository.dart';
 import '../data/events_repository.dart';
 import '../models/contact.dart';
 import '../models/event.dart';
+import '../models/event_type.dart';
 import '../util/calendar.dart';
 import '../util/format.dart';
 import '../widgets/initials_avatar.dart';
+import '../widgets/type_label.dart';
 import 'attendee_picker_screen.dart';
+import 'event_types_screen.dart';
 
 /// Add (when [existing] is null) or edit an event. Pops the saved [Event] on success,
 /// or nothing on cancel. New events prefill from [initialDate]/[initialHour] (the
@@ -17,6 +21,7 @@ class EventFormScreen extends StatefulWidget {
     super.key,
     required this.eventsRepository,
     required this.contactsRepository,
+    required this.eventTypesRepository,
     this.existing,
     this.initialDate,
     this.initialHour,
@@ -24,6 +29,7 @@ class EventFormScreen extends StatefulWidget {
 
   final EventsRepository eventsRepository;
   final ContactsRepository contactsRepository;
+  final EventTypesRepository eventTypesRepository;
   final Event? existing;
   final DateTime? initialDate;
   final int? initialHour;
@@ -43,6 +49,11 @@ class _EventFormScreenState extends State<EventFormScreen> {
   late TimeOfDay _start;
   late TimeOfDay _end;
   late List<Contact> _attendees;
+  EventType? _type;
+
+  /// The types available to the picker, loaded once. Empty until [_loadTypes] resolves;
+  /// the picker then shows them (or just "Manage types…" when there are none).
+  List<EventType> _types = const [];
   String? _timeError;
   bool _saving = false;
 
@@ -57,6 +68,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
     _notes = TextEditingController(text: e?.notes ?? '');
     _allDay = e?.allDay ?? false;
     _attendees = List<Contact>.from(e?.attendees ?? const <Contact>[]);
+    _type = e?.type;
     _date = dayOnly(e?.date ?? widget.initialDate ?? DateTime.now());
 
     if (e != null && !e.allDay) {
@@ -66,6 +78,29 @@ class _EventFormScreenState extends State<EventFormScreen> {
       final h = widget.initialHour ?? 9;
       _start = TimeOfDay(hour: h.clamp(0, 22), minute: 0);
       _end = TimeOfDay(hour: (h + 1).clamp(1, 23), minute: 0);
+    }
+    _loadTypes();
+  }
+
+  /// Loads the type list for the picker. Failure is silent — the picker still opens and
+  /// offers "Manage types…". Re-resolves the selected type against the fresh list so a
+  /// rename made via "Manage types…" shows immediately, and a delete **clears** the
+  /// selection right away (→ "No type") rather than showing a ghost that a later save would
+  /// silently drop.
+  Future<void> _loadTypes() async {
+    try {
+      final types = await widget.eventTypesRepository.fetchAll();
+      if (!mounted) return;
+      setState(() {
+        _types = types;
+        final current = _type;
+        if (current != null) {
+          final match = types.where((t) => t.id == current.id);
+          _type = match.isEmpty ? null : match.first;
+        }
+      });
+    } catch (_) {
+      // Surfaced only as an empty picker; the rest of the form is unaffected.
     }
   }
 
@@ -129,6 +164,27 @@ class _EventFormScreenState extends State<EventFormScreen> {
     if (result != null && mounted) setState(() => _attendees = result);
   }
 
+  Future<void> _pickType() async {
+    final choice = await showModalBottomSheet<_TypeChoice>(
+      context: context,
+      builder: (_) => _TypePickerSheet(types: _types, selected: _type),
+    );
+    if (choice == null || !mounted) return;
+    if (choice is _ManageTypes) {
+      // Reuse the Settings manager (create/rename/recolor/delete) rather than an inline
+      // editor; refresh the list on return so new types are pickable immediately.
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) =>
+              EventTypesScreen(repository: widget.eventTypesRepository),
+        ),
+      );
+      await _loadTypes();
+    } else if (choice is _ChooseType) {
+      setState(() => _type = choice.type);
+    }
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     if (!_allDay && _toMin(_end) <= _toMin(_start)) {
@@ -146,6 +202,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
       endMin: _allDay ? null : _toMin(_end),
       location: _location.text.trim(),
       notes: _notes.text.trim(),
+      type: _type,
       attendees: _attendees,
     );
 
@@ -275,6 +332,8 @@ class _EventFormScreenState extends State<EventFormScreen> {
                   border: OutlineInputBorder(),
                 ),
               ),
+              const SizedBox(height: 16),
+              _TypeField(type: _type, onTap: _pickType),
               const SizedBox(height: 24),
               _AttendeesSection(
                 attendees: _attendees,
@@ -420,6 +479,102 @@ class _AttendeesSection extends StatelessWidget {
           label: const Text('Add contacts'),
         ),
       ],
+    );
+  }
+}
+
+/// The tappable "Type" field: shows the selected type (dot + name) or "No type", and opens
+/// the picker sheet. Built like [_ValueField] so it inherits the theme's ink focus border.
+class _TypeField extends StatelessWidget {
+  const _TypeField({required this.type, required this.onTap});
+
+  final EventType? type;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: InputDecorator(
+        decoration: const InputDecoration(
+          labelText: 'Type',
+          prefixIcon: Icon(Icons.sell_outlined),
+          border: OutlineInputBorder(),
+        ),
+        child: TypeLabel(type: type, placeholder: 'No type', dotSize: 12),
+      ),
+    );
+  }
+}
+
+/// What the picker sheet returns: either a chosen type (or [_ChooseType] with a null type
+/// for "No type"), or [_ManageTypes] to jump to the Settings manager. A plain dismiss pops
+/// null (no change) — which is why "No type" needs its own non-null result.
+sealed class _TypeChoice {
+  const _TypeChoice();
+}
+
+class _ChooseType extends _TypeChoice {
+  const _ChooseType(this.type);
+  final EventType? type;
+}
+
+class _ManageTypes extends _TypeChoice {
+  const _ManageTypes();
+}
+
+/// A bottom sheet listing the existing types (dot + name, current one ticked), a "No type"
+/// option, and a "Manage types…" affordance. Pick-existing-only — creating a new type is
+/// done in the manager (Decision 19; inline create deferred).
+class _TypePickerSheet extends StatelessWidget {
+  const _TypePickerSheet({required this.types, required this.selected});
+
+  final List<EventType> types;
+  final EventType? selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SafeArea(
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text('Event type', style: theme.textTheme.titleMedium),
+            ),
+            for (final t in types)
+              ListTile(
+                leading: TypeDot(hex: t.colorHex, size: 14),
+                title: Text(t.name),
+                trailing: t.id == selected?.id
+                    ? Icon(Icons.check, color: theme.colorScheme.primary)
+                    : null,
+                onTap: () => Navigator.pop(context, _ChooseType(t)),
+              ),
+            ListTile(
+              leading: Icon(
+                Icons.block_outlined,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              title: const Text('No type'),
+              trailing: selected == null
+                  ? Icon(Icons.check, color: theme.colorScheme.primary)
+                  : null,
+              onTap: () => Navigator.pop(context, const _ChooseType(null)),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.settings_outlined),
+              title: const Text('Manage types…'),
+              onTap: () => Navigator.pop(context, const _ManageTypes()),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -92,6 +92,10 @@ class Event {
 
   /// Named params for the `create_event` / `update_event` RPCs. Times as `"HH:MM"`
   /// strings; the server trims text and maps empty → NULL. (`update` adds `p_id`.)
+  ///
+  /// `p_type_id` is null for "No type". Note a soft-deleted type reads back as [type] ==
+  /// null (RLS hides the embed), so re-saving such an event nulls its `type_id` — intended
+  /// (the type is gone; the event already shows "No type").
   Map<String, dynamic> toRpcParams() => {
     'p_title': title.trim(),
     'p_event_date': ymd(date),
@@ -101,6 +105,7 @@ class Event {
     'p_location': location,
     'p_notes': notes,
     'p_attendees': [for (final c in attendees) c.id],
+    'p_type_id': type?.id,
   };
 
   /// Order within a single day: all-day events first, then by start time. Null-safe.

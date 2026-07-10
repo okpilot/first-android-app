@@ -62,6 +62,7 @@ class _HomeShellState extends State<HomeShell> {
         CalendarScreen(
           eventsRepository: widget.eventsRepository,
           contactsRepository: widget.repository,
+          eventTypesRepository: widget.eventTypesRepository,
         ),
         SettingsScreen(eventTypesRepository: widget.eventTypesRepository),
       ],

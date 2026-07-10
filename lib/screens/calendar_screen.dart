@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../data/contacts_repository.dart';
+import '../data/event_types_repository.dart';
 import '../data/events_repository.dart';
 import '../models/event.dart';
 import '../theme.dart';
 import '../util/calendar.dart';
+import '../util/event_type_palette.dart';
 import '../util/format.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/initials_avatar.dart';
+import '../widgets/type_label.dart';
 import 'event_detail_screen.dart';
 import 'event_form_screen.dart';
 
@@ -19,11 +22,13 @@ class CalendarScreen extends StatefulWidget {
     super.key,
     required this.eventsRepository,
     required this.contactsRepository,
+    required this.eventTypesRepository,
     this.initialDate,
   });
 
   final EventsRepository eventsRepository;
   final ContactsRepository contactsRepository;
+  final EventTypesRepository eventTypesRepository;
 
   /// Defaults to today; injectable so widget tests are deterministic.
   final DateTime? initialDate;
@@ -120,6 +125,7 @@ class _CalendarScreenState extends State<CalendarScreen>
         builder: (_) => EventFormScreen(
           eventsRepository: widget.eventsRepository,
           contactsRepository: widget.contactsRepository,
+          eventTypesRepository: widget.eventTypesRepository,
           existing: existing,
           initialDate: initialDate,
           initialHour: initialHour,
@@ -135,6 +141,7 @@ class _CalendarScreenState extends State<CalendarScreen>
         builder: (_) => EventDetailScreen(
           eventsRepository: widget.eventsRepository,
           contactsRepository: widget.contactsRepository,
+          eventTypesRepository: widget.eventTypesRepository,
           event: event,
         ),
       ),
@@ -303,7 +310,7 @@ class _MonthView extends StatelessWidget {
                     isToday: isSameDay(days[row * 7 + col], today),
                     isSelected: isSameDay(days[row * 7 + col], selected),
                     lastCol: col == 6,
-                    eventCount: _dayEvents(byDay, days[row * 7 + col]).length,
+                    events: _dayEvents(byDay, days[row * 7 + col]),
                     onTap: () => onSelect(days[row * 7 + col]),
                   ),
                 ),
@@ -327,7 +334,7 @@ class _DayCell extends StatelessWidget {
     required this.isToday,
     required this.isSelected,
     required this.lastCol,
-    required this.eventCount,
+    required this.events,
     required this.onTap,
   });
 
@@ -336,14 +343,25 @@ class _DayCell extends StatelessWidget {
   final bool isToday;
   final bool isSelected;
   final bool lastCol;
-  final int eventCount;
+  final List<Event> events;
   final VoidCallback onTap;
+
+  static const _maxDots = 3;
+
+  /// The density dot for event [e]: coloured by its type in-month (no-type → neutral ink);
+  /// out-of-month days stay grey regardless of type, so colour reads as "this month".
+  Color _dotColor(Event e, ColorScheme scheme) {
+    if (!inMonth) return scheme.onSurfaceVariant;
+    final t = e.type;
+    return t == null ? scheme.onSurface : colorFromHex(t.colorHex);
+  }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
+    final eventCount = events.length;
     final Color numberColor = isToday
         ? scheme.onPrimary
         : (inMonth ? scheme.onSurface : scheme.onSurfaceVariant);
@@ -351,6 +369,7 @@ class _DayCell extends StatelessWidget {
     final countLabel = eventCount == 0
         ? 'no events'
         : (eventCount == 1 ? '1 event' : '$eventCount events');
+    final shownDots = eventCount > _maxDots ? _maxDots : eventCount;
 
     return Semantics(
       button: true,
@@ -393,19 +412,16 @@ class _DayCell extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 3),
-              // Event-density dots (mono; the panel below lists the actual events).
+              // Density dots, coloured by each event's type (no-type → neutral ink), capped
+              // at three with a "+N" overflow. The panel below lists the actual events.
               SizedBox(
-                height: 5,
+                height: 14,
                 child: eventCount == 0
                     ? null
                     : Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          for (
-                            var i = 0;
-                            i < (eventCount > 3 ? 3 : eventCount);
-                            i++
-                          )
+                          for (var i = 0; i < shownDots; i++)
                             Container(
                               width: 5,
                               height: 5,
@@ -414,9 +430,19 @@ class _DayCell extends StatelessWidget {
                               ),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: inMonth
-                                    ? scheme.onSurface
-                                    : scheme.onSurfaceVariant,
+                                color: _dotColor(events[i], scheme),
+                              ),
+                            ),
+                          if (eventCount > shownDots)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 3),
+                              child: Text(
+                                '+${eventCount - shownDots}',
+                                style: textTheme.bodyMedium?.copyWith(
+                                  fontSize: 10,
+                                  height: 1,
+                                  color: scheme.onSurfaceVariant,
+                                ),
                               ),
                             ),
                         ],
@@ -505,6 +531,11 @@ class _EventRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(event.title, style: theme.textTheme.bodyLarge),
+                  // Dot + name when typed; nothing when no-type (absence reads as no type).
+                  if (event.type != null) ...[
+                    const SizedBox(height: 3),
+                    TypeLabel(type: event.type),
+                  ],
                   if (event.attendees.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     _AttendeeStack(attendees: event.attendees),
@@ -918,6 +949,21 @@ class _EventBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final style = theme.extension<EventBlockStyle>()!;
+    final type = event.type;
+    // Typed → hue tint over the neutral fill; untyped keeps the mono fill. Border stays the
+    // neutral hairline either way, so colour is pure enrichment (no rail — Decision 19).
+    final fill = type == null
+        ? style.fill
+        : tintForType(
+            colorFromHex(type.colorHex),
+            theme.brightness,
+            style.fill,
+          );
+    // On a tint the muted onSurfaceVariant drops under AA for warm/green swatches, so the
+    // secondary line steps up to onSurface when tinted.
+    final secondaryColor = type == null
+        ? theme.colorScheme.onSurfaceVariant
+        : theme.colorScheme.onSurface;
     final timeLabel = '${hhmm(event.startMin!)} – ${hhmm(event.endMin!)}';
     final attendeeLabel = event.attendees.isEmpty
         ? ''
@@ -925,7 +971,10 @@ class _EventBlock extends StatelessWidget {
 
     return Semantics(
       button: true,
-      label: '${event.title}, $timeLabel$attendeeLabel',
+      // Type isn't shown as text in the block (no room) — it's carried by the tint — so the
+      // name goes in the a11y label; colour is never the sole signal (Decision 19).
+      label:
+          '${event.title}, ${type?.name ?? 'No type'}, $timeLabel$attendeeLabel',
       child: LayoutBuilder(
         builder: (context, c) {
           final tall = c.maxHeight >= 44;
@@ -934,53 +983,43 @@ class _EventBlock extends StatelessWidget {
             child: InkWell(
               onTap: onTap,
               borderRadius: BorderRadius.circular(8),
-              // Uniform border (borderRadius forbids a non-uniform one) with the ink
-              // rail drawn as a flush left strip.
               child: Container(
                 clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
-                  color: style.fill,
+                  color: fill,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: style.border),
                 ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Container(width: 2.5, color: style.rail),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 4,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              event.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurface,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12.5,
-                              ),
-                            ),
-                            if (tall)
-                              Text(
-                                timeLabel,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  fontSize: 11,
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                          ],
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 4,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        event.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurface,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12.5,
                         ),
                       ),
-                    ),
-                  ],
+                      if (tall)
+                        Text(
+                          timeLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontSize: 11,
+                            color: secondaryColor,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1037,43 +1076,41 @@ class _AllDayBand extends StatelessWidget {
                     for (final e in col)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 4),
-                        child: InkWell(
-                          onTap: () => onOpenEvent(e),
-                          borderRadius: BorderRadius.circular(6),
-                          child: Container(
-                            width: double.infinity,
-                            clipBehavior: Clip.antiAlias,
-                            decoration: BoxDecoration(
-                              color: style.fill,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: style.border),
-                            ),
-                            child: IntrinsicHeight(
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Container(width: 2.5, color: style.rail),
-                                  Expanded(
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 3,
+                        child: Semantics(
+                          button: true,
+                          label: '${e.title}, ${e.type?.name ?? 'No type'}',
+                          child: InkWell(
+                            onTap: () => onOpenEvent(e),
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              width: double.infinity,
+                              clipBehavior: Clip.antiAlias,
+                              decoration: BoxDecoration(
+                                color: e.type == null
+                                    ? style.fill
+                                    : tintForType(
+                                        colorFromHex(e.type!.colorHex),
+                                        theme.brightness,
+                                        style.fill,
                                       ),
-                                      child: Text(
-                                        e.title,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: theme.textTheme.bodyMedium
-                                            ?.copyWith(
-                                              fontSize: 11.5,
-                                              fontWeight: FontWeight.w600,
-                                              color:
-                                                  theme.colorScheme.onSurface,
-                                            ),
-                                      ),
-                                    ),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: style.border),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 3,
+                                ),
+                                child: Text(
+                                  e.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: theme.colorScheme.onSurface,
                                   ),
-                                ],
+                                ),
                               ),
                             ),
                           ),
