@@ -54,9 +54,9 @@ the `soft_delete_event_type` `auth.uid()` check) · **#6** (agent fleet) · **#7
 action) · **#9** (idempotent event RPCs) · **#10** (dedup test fakes) · **#12** (signed Android release)._
 
 _(Merged this session: PR #16 — the `/coderabbit` + `/replycoderabbit` split (`c2a3fc6`). Earlier: the
-#13/#14/#15 event-types stack + homebase migrations. Calendar
-events #8 → `6f14d66`; deploy fix #11 → `5947599`; Calendar shell #4 → `7dd0995`; `/replycoderabbit`
-#5 → `4e210e2`; Contacts #2 → `fa4fc45`. The app also runs on the physical **S23+** against homebase.)_
+PRs #13/#14/#15 event-types stack + homebase migrations. Calendar events #8 → `6f14d66`;
+deploy fix #11 → `5947599`; Calendar shell #4 → `7dd0995`; `/replycoderabbit` #5 → `4e210e2`;
+Contacts #2 → `fa4fc45`. The app also runs on the physical **S23+** against homebase.)_
 
 ## How to bring the dev env back up (next session)
 1. **Backend:** `cd backend && docker compose up -d` (data persists; `down -v` to re-seed).
