@@ -21,6 +21,9 @@ void main() {
         final t = EventType.fromJson({'id': 'x', 'name': 'X', 'color': bad});
         expect(t.colorHex, '#888888', reason: 'colour was: $bad');
       }
+      // An entirely absent `color` key (distinct from an explicit null) also falls back.
+      final noKey = EventType.fromJson({'id': 'x', 'name': 'X'});
+      expect(noKey.colorHex, '#888888');
     });
   });
 }

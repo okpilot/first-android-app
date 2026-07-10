@@ -125,7 +125,7 @@ project: First Android App (learning CRM)
 - **Month density dots are coloured by type** — the user's explicit call (overrode the initial "keep Month mono" proposal); no-type = neutral grey dot. **Busy days use "Deduped +N":** up to 3 dots for the *distinct types* present that day, then a `+N` count of the remaining events — chosen over capped-chronological (showed 3 identical dots for a day of meetings) and plain dedupe (hid busyness).
 - **Curated palette, no freeform picker** — 9 muted mid-luminance swatches (blue · teal · green · amber · orange · red · purple · pink · slate) chosen to read on both `#FDFDFF` and `#121316`. Freeform RGB rejected as slop-prone.
 - **Management home = a new Settings destination.** Promote the nav to 3 tabs (Contacts · Calendar · Settings); **Settings → Event types** is the manager + editor, and types are *also* creatable on-the-fly from the event form's Type picker sheet. **Delete is non-destructive to events:** they keep their schedule and fall back to "No type" (can't be undone).
-**Principle:** Introduce colour only as user-owned data in minimal tokens (dot + rail), never in chrome; give app config a real home (Settings) as the app matures; prototype → approve → critics → build.
+**Principle:** Introduce colour only as user-owned data in minimal tokens (a dot + a full-area block tint — the left rail was dropped, see the 2026-07-10 amendment above), never in chrome; give app config a real home (Settings) as the app matures; prototype → approve → critics → build.
 
 ---
 

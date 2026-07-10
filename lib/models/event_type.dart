@@ -8,8 +8,10 @@ class EventType {
   final String id;
   final String name;
 
-  /// Validated `#RRGGBB` (6-digit, lowercase-or-upper). Always well-formed — see
-  /// [fromJson], which falls back to a neutral grey rather than storing garbage.
+  /// A `#RRGGBB` (6-digit) hex string. Guaranteed well-formed when the instance comes
+  /// from the DB via [fromJson] (which falls back to a neutral grey rather than keeping
+  /// garbage); the raw const constructor cannot re-validate — const forbids the regex
+  /// call — so in-app callers must pass a clean value (they build it from the palette).
   final String colorHex;
 
   const EventType({
