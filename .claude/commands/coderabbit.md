@@ -59,13 +59,14 @@ It triages, applies FIX NOW fixes locally, and records the dispositions on the P
      --jq '[.[] | select(.body|test("<!-- crtriage -->")) ] | sort_by(.created_at) | last | .id // empty')
    ```
    The body is the human table PLUS, per finding, a hidden machine-readable line so reply joins by id,
-   not prose:
-   ```
+   not prose. For a FIX, record the **fix commit's subject line** (not its SHA — a rebase rewrites the
+   SHA but not the subject); `/replycoderabbit` resolves the live SHA from it via `git log --grep`:
+   ```text
    <!-- crtriage -->
    ## CodeRabbit triage — dispositions
    | # | File:line | Sev | Issue | Verdict | Why |
    | … the human table … |
-   <!-- crfinding:<id>:FIX:<will-cite-sha-at-reply-time> -->
+   <!-- crfinding:<id>:FIX:<fix commit subject line> -->
    <!-- crfinding:<id>:DEFER:#<issue> -->
    <!-- crfinding:<id>:SKIP:<one-line reason> -->
    ```

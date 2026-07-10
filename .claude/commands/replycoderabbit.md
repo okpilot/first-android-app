@@ -25,15 +25,18 @@ gate (Decision 7), and answering it closes the loop.
      re-review raised something new → **STOP: "run `/coderabbit`"**. A re-flag of an id that IS in the
      record is already disposed — match it, do NOT stop (this is what prevents an infinite bounce).
 
-3. For each **FIX** finding, resolve the **current** fix SHA live from the branch (never a stored one —
-   rebases rewrite SHAs):
+3. For each **FIX** finding, resolve the **current** fix SHA live by the commit *subject* the triage
+   recorded (never a stored SHA — rebases rewrite them; and never `git log -1 -- <path>`, which can grab
+   a later unrelated edit to the same file):
    ```bash
-   sha=$(git log -1 --format=%h -- "<finding.path>")
+   sha=$(git log -1 --format=%h --grep="$(printf '%s' "$subject" | sed 's/[][\.*^$/]/\\&/g')")
    ```
+   If the subject can't be found (e.g. it was squashed/reworded), fall back to the newest commit touching
+   the path and say so, rather than citing a SHA you can't verify.
 
 4. **Upsert ONE general PR comment** (`<!-- crreply -->`) with a line per finding, each tagged so a
    re-run is idempotent (add/update only changed lines; don't duplicate):
-   ```
+   ```text
    <!-- crreply -->
    ## CodeRabbit findings — dispositions
    <!-- crreply:<id> --> **path:line — title** — Fixed in `<sha>`: <one sentence>.

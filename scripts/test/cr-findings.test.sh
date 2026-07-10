@@ -84,10 +84,16 @@ echo "reconciliation hard-fail on format drift (N present but actionable subset 
 # feed only the nitpick-only twin: it advertises 'Actionable comments posted: 5'
 # yet carries 0 failed-to-post findings => must exit non-zero.
 drift="$HERE/fixtures/.drift.tmp.json"
-jq -n --slurpfile r "$FIX/pr-14-reviews.json" '{pr:14, reviews:[$r[0][0]], comments:[]}' > "$drift"
-"$SCRIPT" --fixture "$drift" >/dev/null 2>&1; rc=$?
-rm -f "$drift"
-if [ "$rc" -ne 0 ]; then ok "exit non-zero on mismatch ($rc)"; else bad "reconciliation did not fail"; fi
+if ! jq -n --slurpfile r "$FIX/pr-14-reviews.json" '{pr:14, reviews:[$r[0][0]], comments:[]}' > "$drift" \
+   || [ ! -s "$drift" ]; then
+  rm -f "$drift"; bad "could not generate the drift fixture"
+else
+  "$SCRIPT" --fixture "$drift" >/dev/null 2>&1; rc=$?
+  rm -f "$drift"
+  # exit 3 is specifically the reconciliation-mismatch code — a validation (1) or
+  # usage (2) failure would mean the test misfired, not that reconciliation caught drift.
+  if [ "$rc" -eq 3 ]; then ok "exit 3 on reconciliation mismatch"; else bad "expected exit 3, got $rc"; fi
+fi
 
 # --------------------------------------------------------------------------- #
 echo

@@ -65,15 +65,20 @@ else
   command -v gh >/dev/null 2>&1 || { echo "cr-findings: missing dependency 'gh'" >&2; exit 2; }
   REPO="$(gh repo view --json nameWithOwner -q .nameWithOwner)"
   [ -n "$REPO" ] || { echo "cr-findings: could not resolve repo via gh" >&2; exit 1; }
-  gh api "repos/$REPO/pulls/$PR/reviews"  --paginate > "$TMP/reviews.json"
-  gh api "repos/$REPO/pulls/$PR/comments" --paginate > "$TMP/comments.json"
+  # --paginate concatenates one JSON array PER PAGE; stream every element with
+  # --jq '.[]' and re-slurp so ALL pages are merged (a raw --slurpfile would keep
+  # only the first page and silently drop reviews/comments past page 1).
+  gh api "repos/$REPO/pulls/$PR/reviews"  --paginate --jq '.[]' | jq -s '.' > "$TMP/reviews.json"
+  gh api "repos/$REPO/pulls/$PR/comments" --paginate --jq '.[]' | jq -s '.' > "$TMP/comments.json"
   jq -n --slurpfile r "$TMP/reviews.json" --slurpfile c "$TMP/comments.json" \
     '{reviews: ($r[0] // []), comments: ($c[0] // [])}' > "$TMP/bundle.json"
 fi
 
-# validate JSON early (jq parse error => non-zero, per contract)
-jq -e 'type=="object" and has("reviews")' "$TMP/bundle.json" >/dev/null \
-  || { echo "cr-findings: bundle is not a {reviews,comments} object" >&2; exit 1; }
+# validate JSON early (jq parse error => non-zero, per contract). Both arrays must
+# be present + array-typed — a missing/non-array `comments` must FAIL, not be silently
+# treated as "no inline findings".
+jq -e 'type=="object" and (.reviews|type=="array") and (.comments|type=="array")' "$TMP/bundle.json" >/dev/null \
+  || { echo "cr-findings: bundle must be an object with array 'reviews' and 'comments'" >&2; exit 1; }
 
 # --------------------------------------------------------------------------- #
 # survivors: one review per Run ID.
@@ -105,8 +110,13 @@ jq -c "$RUNS_JQ" "$TMP/bundle.json" > "$TMP/survivors.json"
 jq -c '
   reduce ( .reviews[]
            | select((.user.login // "") == "coderabbitai[bot]")
-           | { key: (.id|tostring),
-               value: (((.body // "") | capture("\\*\\*Run ID\\*\\*: `(?<r>[0-9a-fA-F-]+)`") | .r)? // null) }
+           | { review_id: .id,
+               marker_count: ([ (.body // "") | scan("cr-comment:v1:") ] | length),
+               rid: (((.body // "") | capture("\\*\\*Run ID\\*\\*: `(?<r>[0-9a-fA-F-]+)`") | .r)? // null) }
+           # SAME fallback as RUNS_JQ: a marker-bearing review with no **Run ID** label
+           # still gets review-<id>, so its inline comments are attributed, not discarded.
+           | { key: (.review_id|tostring),
+               value: (.rid // (if .marker_count > 0 then "review-\(.review_id)" else null end)) }
            | select(.value != null)
          ) as $e ({}; . + {($e.key): $e.value})
 ' "$TMP/bundle.json" > "$TMP/reviewmap.json"
@@ -197,7 +207,11 @@ while [ "$i" -lt "$SURV_COUNT" ]; do
   commit_id="$(jq -r ".[$i].commit_id // \"\"" "$TMP/survivors.json")"
   submitted_at="$(jq -r ".[$i].submitted_at // \"\"" "$TMP/survivors.json")"
 
-  jq -r ".[$i].body" "$TMP/survivors.json" | awk "$BODY_AWK" > "$TMP/findings.tsv" || true
+  # Extract the body first (a jq failure here MUST be loud — set -e aborts on a failed
+  # substitution), then parse it. awk exits 0 on an empty result, so no `|| true` mask
+  # is needed and a genuine awk error surfaces instead of a silent zero-finding run.
+  body="$(jq -r ".[$i].body" "$TMP/survivors.json")"
+  printf '%s\n' "$body" | awk "$BODY_AWK" > "$TMP/findings.tsv"
 
   while IFS=$'\t' read -r kind line_display path title; do
     [ -n "${kind:-}" ] || continue
@@ -235,7 +249,12 @@ while [ "$j" -lt "$INLINE_COUNT" ]; do
   submitted_at="$(printf '%s' "$meta" | jq -r '.submitted_at // ""')"
 
   path="$(printf '%s' "$c" | jq -r '.path // ""')"
-  line_display="$(printf '%s' "$c" | jq -r '(.line // .original_line // "") | tostring')"
+  line_display="$(printf '%s' "$c" | jq -r '
+    (.start_line // .original_start_line) as $s
+    | (.line // .original_line) as $e
+    | if ($s != null) and ($e != null) and ($s != $e) then "\($s)-\($e)"
+      elif $e != null then "\($e)"
+      else "" end')"
   title="$(printf '%s' "$c" | jq -r '.body // ""' | awk '/^\*\*/{ sub(/^\*\*/,""); sub(/\*\*[[:space:]]*$/,""); print; exit }')"
   [ -n "$title" ] || title="$(printf '%s' "$c" | jq -r '(.body // "") | split("\n")[0]')"
   # inline comments are actionable unless the body self-identifies as a nitpick
@@ -253,6 +272,14 @@ while [ "$j" -lt "$INLINE_COUNT" ]; do
       path:$path, line_display:$line_display, title:$title}' >> "$TMP/findings.ndjson"
   j=$((j + 1))
 done
+
+# --------------------------------------------------------------------------- #
+# dedup by (run_id, id): a finding could be emitted twice (e.g. body + inline, or
+# a repeated section) — collapse before reconciliation counts + emission so
+# duplicates neither distort the actionable check nor leak into the output.
+# --------------------------------------------------------------------------- #
+jq -s -c 'unique_by([.run_id, .id]) | .[]' "$TMP/findings.ndjson" > "$TMP/findings.dedup" \
+  && mv "$TMP/findings.dedup" "$TMP/findings.ndjson"
 
 # --------------------------------------------------------------------------- #
 # per-run, per-category reconciliation self-check.
