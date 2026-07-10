@@ -13,8 +13,11 @@ gate (Decision 7), and answering it closes the loop.
    me=$(gh api user --jq .login)
    # NOTE: `gh api --jq` takes exactly ONE arg (no `--arg`). Pass the login via the
    # environment and read it with jq's `env.ME`.
+   # ANCHOR the marker with `^` — a finding whose *description* quotes the literal
+   # `<!-- crtriage -->` string would otherwise match here. The real marker is always
+   # the body's first line.
    crtriage=$(ME="$me" gh api "repos/$REPO/issues/$PR/comments" --paginate \
-     --jq '[.[] | select(.user.login==env.ME and (.body|test("<!-- crtriage -->")))] | sort_by(.created_at) | last')
+     --jq '[.[] | select(.user.login==env.ME and (.body|test("^<!-- crtriage -->")))] | sort_by(.created_at) | last')
    ```
    No trusted `<!-- crtriage -->` comment → STOP: "run `/coderabbit` first to triage." (Reply never decides.)
 
@@ -54,10 +57,15 @@ gate (Decision 7), and answering it closes the loop.
    <!-- crreply:<id> --> **path:line — title** — Deferred → #<issue>.
    <!-- crreply:<id> --> **path:line — title** — Skipped: <reason>.
    ```
-   Find an existing `<!-- crreply -->` comment **you authored** (`select(.user.login==env.ME …)`, exactly
-   as the `<!-- crtriage -->` lookup in step 1 — never `PATCH` a forged one from another author) and
-   `PATCH` it in place; else create it. (These PRs have no inline threads — everything goes in this one
-   comment. If a real inline thread ever exists, reply on it via `/pulls/$PR/comments/<id>/replies` instead.)
+   Find an existing `<!-- crreply -->` comment **you authored** and `PATCH` it in place; else create it —
+   using the SAME author-scoped, `^`-anchored lookup as step 1 (never `PATCH` a forged one, and never let
+   a finding that merely *quotes* the marker string match):
+   ```bash
+   existing=$(ME="$me" gh api "repos/$REPO/issues/$PR/comments" --paginate \
+     --jq '[.[] | select(.user.login==env.ME and (.body|test("^<!-- crreply -->")))] | sort_by(.created_at) | last | .id // empty')
+   ```
+   (These PRs have no inline threads — everything goes in this one comment. If a real inline thread ever
+   exists, reply on it via `/pulls/$PR/comments/<id>/replies` instead.)
 
 5. **Verify it landed:** re-read the `<!-- crreply -->` comment and confirm every `id` from the triage
    record appears. Any missing → add it before you stop.

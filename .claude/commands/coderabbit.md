@@ -59,8 +59,11 @@ It triages, applies FIX NOW fixes locally, and records the dispositions on the P
    me=$(gh api user --jq .login)
    # NOTE: `gh api --jq` takes exactly ONE arg (no `--arg`). Pass the login via the
    # environment and read it with jq's `env.ME`.
+   # ANCHOR the marker with `^` — a finding whose *description* quotes the literal
+   # `<!-- crtriage -->` (or `<!-- crreply -->`) string would otherwise match here and
+   # you could edit the wrong comment. The real marker is always the body's first line.
    existing=$(ME="$me" gh api "repos/$REPO/issues/$PR/comments" --paginate \
-     --jq '[.[] | select(.user.login==env.ME and (.body|test("<!-- crtriage -->")))] | sort_by(.created_at) | last | .id // empty')
+     --jq '[.[] | select(.user.login==env.ME and (.body|test("^<!-- crtriage -->")))] | sort_by(.created_at) | last | .id // empty')
    ```
    The body is the human table PLUS, per finding, a hidden machine-readable line so reply joins by id,
    not prose. For a FIX, record the **fix commit's subject line** (not its SHA — a rebase rewrites the
