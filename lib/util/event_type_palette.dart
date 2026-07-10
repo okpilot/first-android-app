@@ -1,6 +1,8 @@
 import 'package:flutter/painting.dart';
 import 'dart:ui' show Brightness;
 
+import '../models/event_type.dart';
+
 /// A palette entry: the [color] plus a human [name] so the swatch is programmatically
 /// labelled for screen readers / keyboard users (not colour-only).
 typedef PaletteSwatch = ({Color color, String name});
@@ -59,3 +61,10 @@ Color tintForType(Color c, Brightness b, Color baseFill) {
   final a = b == Brightness.dark ? 0.26 : 0.20;
   return Color.alphaBlend(swatch.withValues(alpha: a), baseFill);
 }
+
+/// The block/tile fill for [type]: the mono [baseFill] when untyped, else the type's swatch
+/// tinted over it via [tintForType]. One rule shared by the timeline block and the all-day
+/// tile so the two can't silently diverge (Decision 19's tint has been recalibrated before).
+Color fillForType(EventType? type, Brightness b, Color baseFill) => type == null
+    ? baseFill
+    : tintForType(colorFromHex(type.colorHex), b, baseFill);

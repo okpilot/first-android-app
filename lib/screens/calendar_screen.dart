@@ -952,13 +952,7 @@ class _EventBlock extends StatelessWidget {
     final type = event.type;
     // Typed → hue tint over the neutral fill; untyped keeps the mono fill. Border stays the
     // neutral hairline either way, so colour is pure enrichment (no rail — Decision 19).
-    final fill = type == null
-        ? style.fill
-        : tintForType(
-            colorFromHex(type.colorHex),
-            theme.brightness,
-            style.fill,
-          );
+    final fill = fillForType(type, theme.brightness, style.fill);
     // On a tint the muted onSurfaceVariant drops under AA for warm/green swatches, so the
     // secondary line steps up to onSurface when tinted.
     final secondaryColor = type == null
@@ -1086,13 +1080,11 @@ class _AllDayBand extends StatelessWidget {
                               width: double.infinity,
                               clipBehavior: Clip.antiAlias,
                               decoration: BoxDecoration(
-                                color: e.type == null
-                                    ? style.fill
-                                    : tintForType(
-                                        colorFromHex(e.type!.colorHex),
-                                        theme.brightness,
-                                        style.fill,
-                                      ),
+                                color: fillForType(
+                                  e.type,
+                                  theme.brightness,
+                                  style.fill,
+                                ),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(color: style.border),
                               ),
