@@ -2,19 +2,23 @@
 
 # Handover
 
-**Status: AGENT FLEET (issue #6) — BUILT & PUSHED, PR #18 OPEN (cloud-CR cycle 1 ANSWERED).**
+**Status: EVENT COMMENTS — IMPLEMENTED, PR #20 open (feat/event-comments) — cloud-CR cycle 1 triaged, reply pending.**
+Add / inline-edit / archive / toggle-archived / unarchive on events. Single-table, direct-CRUD under RLS (no RPC); SELECT policy `using (true)` so archived comments stay readable (Decision 23, database.md #4 amendment). Comment model reads `deleted_at` back; CommentsRepository direct CRUD (edit is body-only); self-contained _CommentsSection on event detail. 69 tests green; curl-verified (insert/edit/archive/unarchive 200, archived SELECTable, empty body 400, anon DELETE 401); emulator visual QA light+dark.
+**This session (session 12) — `/coderabbit` on PR #20:** 6 cloud findings → **3 FIX** (doc/memory-accuracy in `d0aa1f1`: plan.md 63→69 tests + branch-ready-not-SHIPPED; code-reviewer memory async-safety wording; learner memory `discarded_futures` now-enabled), **1 DEFER → #10** (duplicate inert `_FakeCommentsRepo` in two test files), **2 SKIP** (red-team + semantic/test-writer memories already resolved in current source). Pushed via `/fullpush` (gate green · analyze · 69 tests · web build · `/crlocal` 2 rounds clean). Disposition comment on PR #20. **Caught+removed a stray `CRM+ logo design (5).zip`** an over-broad `git add -A` had swept into the commit (amended out; still untracked on disk).
+**RESUME = run `/replycoderabbit` on PR #20** once the cloud bot re-reviews `d0aa1f1`, then squash-merge + deploy the migration to homebase.
+
+**Previous: AGENT FLEET (issue #6) — SHIPPED & MERGED (PR #18 → squash `fba34f6`).**
 Full **10-agent LMS-Plus reviewer fleet** ported to this project, Flutter-adapted (Decision 22,
-revised 2026-07-11 from "build 2, earn 8" → **full port**). **7 commits** on `feat/agent-fleet`
-(`060f099` fleet · `d577c51`/`65e8a0a` fleet-aware `/wrapup` + tighten · `46435bc` post-commit
-exec-bit fix · `49dec85` doc sync · `f80bc5e`/`870ba1d` cloud-CR fixes), all pushed; **PR #18 open**.
-Gate green (analyze · **52 tests** · web build); the fleet's CR-local converged over **4 rounds
-(26 findings)**; the `/wrapup` change got **2 adversarial critics + 2 clean CR-local rounds**.
+revised 2026-07-11 from "build 2, earn 8" → **full port**). PR #18 **squash-merged to `main`**
+(`fba34f6`, 7 commits collapsed); branch deleted (local + remote), stale ref pruned; `main` clean
+& synced. Gate was green (analyze · **52 tests** · web build); the fleet's CR-local converged over
+**4 rounds (26 findings)**; the `/wrapup` change got **2 adversarial critics + 2 clean CR-local rounds**.
 **Cloud CodeRabbit cycle 1 answered:** 9 findings → **8 fixed** (`f80bc5e` + polish `870ba1d`),
 **1 deferred → #3** (SECURITY DEFINER `search_path` → `pg_temp` hardening); triage + reply comments
-posted on #18.
-**RESUME = check CR's re-review of the last push (`870ba1d`) on #18; if clean → merge #18 (squash),
-then post-merge doc sync.** If a cloud cycle 2 appears, `/coderabbit` → `/fullpush` → `/replycoderabbit`
-(3-cycle ceiling). Then the queued **empty-state hints** slice.
+on #18. (Cloud CR's final review sat at `060f099`, 5 commits behind the merge — never re-reviewed
+the fixes, but every finding was disposed against current source before merging.)
+**RESUME = build the queued next slice: in-app empty-state hints** (small Flutter slice, Decision 21).
+red-team curl recs → **#19**; DB `search_path` hardening → **#3**.
 
 - **10 agents** in `.claude/agents/` (phase-aware, advisory): plan-critic, db-security-reviewer
   (= the `security-auditor` role), implementation-critic, semantic-reviewer, code-reviewer, red-team,
@@ -218,6 +222,24 @@ Contacts #2 → `fa4fc45`. The app also runs on the physical **S23+** against ho
   No cloud re-review had triggered on the round-2 push at merge time (user confirmed, merged as-is).
 - ⏭️ **Note for next time:** `/fullpush`'s `/crlocal` loop is low-value on a docs/command-tooling-only
   diff (no Dart) — the user cut it short here; the cloud bot is the real gate anyway.
+
+## Done this run (2026-07-11, session 11) — Land the agent fleet (PR #18)
+- ✅ **`/coderabbit` on PR #18 — clean carry-forward.** All 9 findings were the *same* stale review
+  (`4676963616` @ `060f099`, 5 commits behind HEAD); already triaged/fixed/deferred in cycle 1.
+  Re-verified every fix persists in current source (8 present, 1 correctly deferred → #3). No new
+  commit, no crtriage change.
+- ✅ **`/replycoderabbit` — idempotent no-op.** Existing `<!-- crreply -->` already covers all 9 ids;
+  re-resolved the fix SHA live by commit subject → single match `f80bc5e`; nothing to post.
+- ✅ **Squash-merged PR #18** → `fba34f6` (`feat: adopt the full LMS-Plus agent fleet…`); deleted the
+  remote branch + pruned the stale local ref; local `main` fast-forwarded, clean & synced. Fleet
+  (10 agents + rules + post-commit nudge + agent-memory trackers) now on `main`.
+
+## Done this run (2026-07-11, session 12) — Event comments
+- ✅ **Built event comments on events.** Add / inline-edit / archive / toggle-archived / unarchive. Single `event_comments` table (id, event_id FK, body, created_at, updated_at, deleted_at) under RLS.
+- ✅ **SELECT policy `using (true)` — archived comments stay readable** (Decision 23, database.md #4 amendment) so the UI can surface them under a toggle. Because archived rows survive PostgREST's RETURNING re-check, archive/unarchive/edit are plain direct UPDATEs — no soft-delete RPC needed (unlike `soft_delete_event_type` / `soft_delete_contact`).
+- ✅ **Dart:** pure-Dart `Comment` model (the only model that reads `deleted_at` back); `CommentsRepository` (interface + SupabaseCommentsRepository, direct CRUD); self-contained `_CommentsSection` on `EventDetailScreen`.
+- ✅ **Tests:** 69 green (comment_test + comments_section_test + calendar_screen_test + widget_test coverage; test-writer added 6 for the load-failure/stale-guard/button-gating branches). **curl-verified:** insert/edit/archive/unarchive 200 · archived still SELECTable · empty body 400 · anon DELETE 401 (no grant).
+- ✅ **Branch ready:** `feat/event-comments` awaiting push/merge. Gate: analyze · 69 tests · web build.
 
 ## Done previous runs
 - 2026-07-08 (s1): styling = stock M3 (Decision 8); planned + built the walking skeleton (parked).

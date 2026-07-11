@@ -22,7 +22,13 @@
 ## Verified literals (READ source before asserting — extend this list, never re-guess)
 - `EventType` invalid-hex fallback: **`#888888`**.
 - Calendar initial-load error copy: **`"Couldn't load events"`**; Retry is an `OutlinedButton`.
-- Refresh-failure banner: **`"Couldn't refresh — showing saved data"`**.
+- Refresh-failure banner (list screens): **`"Couldn't refresh — showing saved data"`**.
+- `_CommentsSection` (event_detail_screen.dart) inline load error: **`"Couldn't load comments."`**
+  (note trailing period); Retry is a `TextButton` (inline, not the list-screen `OutlinedButton`).
+- `_CommentsSection` refresh-failure snackbar: **`"Couldn't refresh comments — showing saved data"`**
+  (distinct copy from the list screens — has the word "comments").
+- Comment composer/edit buttons are `FilledButton` labelled **`Comment`** / **`Save`**; both gate on
+  `!_busy && controller.text.trim().isNotEmpty` → assert `.onPressed == null` when empty/whitespace.
 
 ## Recurring coverage gaps (none logged yet)
 _First run pending. Seed watch-items from conventions:_
@@ -32,7 +38,20 @@ _First run pending. Seed watch-items from conventions:_
 - New util helper without a boundary / bad-input test.
 
 ## Positive signals
-_None yet._
+- **Tests backstop the `setState(() => Future)` trap** — they caught it in both `fa4fc45` and
+  `3a87cc8` when `flutter analyze` still missed it. The `discarded_futures` lint (enabled `0e4a7af`)
+  is now the primary mechanical catch; keep the load/refresh-failure + button-gating branches
+  covered on every new stateful section as regression coverage. (PROMOTED, count 2.)
+- `_CommentsSection` (private widget in event_detail_screen.dart) is tested through its host
+  `EventDetailScreen` with 3 inert repo fakes + a real `_FakeCommentsRepo` (has a `throwOnFetch`
+  toggle — flip it AFTER the initial pump to drive a failed *refresh*, or set it true before pump
+  for a failed *initial load*). No separate `_RefreshFailsRepo`/`_OrderedRepo` needed here.
+- **Design note (why no `_OrderedRepo` out-of-order test for `_CommentsSection`):** its reloads run
+  through `_run`, which sets `_busy=true` and disables every action button while a load is in flight,
+  so two user-triggered reloads can't overlap. The stale-guard's catch branch (`identical(future,
+  _future)` + failed-refresh snackbar) IS covered by the `throwOnFetch`-after-pump test; the
+  success-branch out-of-order overwrite is already covered on the shared pattern in
+  `event_types_screen_test.dart`. Not a gap — do not flag it.
 
 ## Known false-positive traps (do not flag / do not do)
 - Pure presenter widgets in `lib/widgets/` (`EmptyState`, `TypeLabel`, `InitialsAvatar`) need no

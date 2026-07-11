@@ -36,3 +36,15 @@ join public.contacts c on (
   or (ins.title = 'Contract signing'  and c.name = 'Alan Turing')
   or (ins.title = 'Product demo'      and c.name = 'Ada Lovelace')
 );
+
+-- Dev-only seed comments. Only if there are no comments yet. One is pre-archived so the
+-- "Show archived" toggle has something to reveal on a fresh volume.
+insert into public.event_comments (event_id, body, deleted_at)
+select e.id, v.body, v.deleted_at
+from public.events e
+join (values
+  ('Onboarding — NASA', 'Sent the agenda round — Grace is covering the data import.', null::timestamptz),
+  ('Onboarding — NASA', 'Need final headcount from the team before this.',            null::timestamptz),
+  ('Onboarding — NASA', 'Original slot was 15:00; rescheduled to the afternoon.',      now())
+) as v(title, body, deleted_at) on e.title = v.title
+where not exists (select 1 from public.event_comments);

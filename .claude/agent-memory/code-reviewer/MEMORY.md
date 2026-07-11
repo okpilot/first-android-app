@@ -25,6 +25,13 @@
 - **New pure-Dart util/model → flag missing test only; `test-writer` writes it.**
 
 ## Known false-positive traps (do not flag these)
+- **`EmptyState` is a full-screen panel** (64px icon, vertically centered, scrollable) meant for a
+  whole empty *screen*. A small inline "No comments yet." / inline-error inside a sub-section of a
+  populated screen (e.g. `_CommentsSection`) correctly hand-rolls a compact `Text` — do NOT flag it
+  as "re-implementing `EmptyState`". The atom would look wrong inline.
+- **Snapshot partition in `build()` is fine** — `list.where((c)=>!c.isArchived)` splitting a small
+  already-fetched list into live/archived is trivial derived view-state, NOT the "heavy transform"
+  item #2 targets. Don't flag light filtering of a snapshot.
 - **Not a hard line cap** — a long file that is one cohesive concern is correct; do not flag length.
 - **Generated / platform files** (`*.g.dart`, `*.freezed.dart`, `build/`, `android/…`, `web/…`) are
   not hand-authored — never flag them.
@@ -41,3 +48,12 @@
   `ScaffoldMessenger`/`Navigator` captured before the await in `_save`. Reuses `InitialsAvatar`
   / `TypeLabel` / `TypeDot` (colour-as-data honoured). 581 lines = one cohesive concern, NOT a
   cap violation. Use as the pattern to compare other form screens against.
+- **`_CommentsSection` in `event_detail_screen.dart`** — reference-quality inline stateful
+  sub-section. `build()` is a `FutureBuilder` composing `_header`/`_composerRow`/`_liveTile`/
+  `_archivedSection` helpers (method-extraction, which item #1 allows alongside StatelessWidgets).
+  Owns its own `_lastData` stale-guard load with `identical(future,_future)` stale-fetch checks and
+  `mounted` guards before any `context`/`setState` access after an await (`_load` assigns `_lastData`
+  post-await unguarded — a plain field write, safe); `_run` captures the messenger before the await. Legit
+  `StatefulWidget` (controllers + `_future` + `setState`). Comments are mono — no colour-as-data.
+  Model (`comment.dart`) + repo (`comments_repository.dart`) follow the pure-Dart-model /
+  abstract-interface-repository split; tests shipped in the same commit.

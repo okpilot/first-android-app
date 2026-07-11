@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
 import 'config.dart';
+import 'data/comments_repository.dart';
 import 'data/contacts_repository.dart';
 import 'data/event_types_repository.dart';
 import 'data/events_repository.dart';
@@ -23,6 +24,7 @@ Future<void> main() async {
         repository: SupabaseContactsRepository(client),
         eventsRepository: SupabaseEventsRepository(client),
         eventTypesRepository: SupabaseEventTypesRepository(client),
+        commentsRepository: SupabaseCommentsRepository(client),
       ),
     );
   } catch (error) {

@@ -1,6 +1,6 @@
 ---
 status: read me first each session
-updated: 2026-07-10
+updated: 2026-07-11
 ---
 
 # Plan — First Android App (learning CRM)
@@ -12,7 +12,9 @@ disposable. Built emergently — thin slices, one at a time.
 
 ## Current status (2026-07-11)
 - ✅ Environment: Flutter 3.44.5; Web + Linux + **Android** targets all ready (SDK installed, Pixel + S23+ emulators). **App installed & running on the physical S23+** (debug APK against homebase over Tailscale — data round-trips verified).
-- ✅ Decisions made — **21** (see `docs/decisions.md`): + design-principles adoption, local backend, Android SDK, Contacts slice, bespoke theme, homebase deploy, git hooks, calendar shell, /replycoderabbit, calendar events, **event types (colour-as-data)**, **cloud-CR two-command split (D20)**, **README Features section over a docs site (D21)**.
+- ✅ Decisions made — **23** (see `docs/decisions.md`): + design-principles adoption, local backend, Android SDK, Contacts slice, bespoke theme, homebase deploy, git hooks, calendar shell, /replycoderabbit, calendar events, **event types (colour-as-data)**, **cloud-CR two-command split (D20)**, **README Features section over a docs site (D21)**, **full LMS-Plus agent fleet (D22)**, **event comments (viewable soft-delete, D23)**.
+- ✅ **Agent fleet (issue #6) — SHIPPED & MERGED (PR #18 → squash `fba34f6`).** Full 10-agent LMS-Plus reviewer fleet, Flutter-adapted (Decision 22): `.claude/agents/` (10 phase-aware advisory reviewers) + `.claude/rules/agent-workflow.md`/`agent-memory.md` + `.githooks/post-commit` nudge + a CLAUDE.md fleet section + a fleet-aware `/wrapup`. Cloud CR cycle 1 answered (8 fixed, 1 deferred → #3); branch deleted; `main` clean & synced.
+- 🔧 **Event comments — branch-ready (feat/event-comments), not yet merged.** Add / inline-edit / archive (soft-delete) / view-archived toggle / unarchive on events. Single-table direct-CRUD (no RPC); SELECT policy `using (true)` so archived comments stay readable (Decision 23, database.md convention #4 amendment). Pure-Dart `Comment` model (reads `deleted_at` back), `CommentsRepository` (direct CRUD), self-contained `_CommentsSection` on event detail. 69 tests green; verified via curl (insert/edit/archive/unarchive 200, archived SELECTable, empty body 400, anon DELETE 401). Branch-ready (feat/event-comments) — awaiting push/merge.
 - ✅ **Event types — SHIPPED, MERGED & DEPLOYED (Slices 1–3).** Colour-as-data (Decision 19). **Slice 1** (PR #13 → squash): `event_types` table + `events.type_id` FK + `EventType` model + read embed. **Slice 2** (PR #14 → squash): Settings → Event types manager/editor + `soft_delete_event_type` RPC; 8-swatch palette. **Slice 3** (PR #15 → squash): `p_type_id` on the write RPCs; event-form Type picker (pick-existing + "Manage types…"); full-area **tinted** Day/3-day blocks (no rail); dot + name in Agenda/detail/panel; coloured Month density dots + "+N"; shared `TypeLabel` atom; `tintForType`. All three squash-merged in order; each cloud-CR answered · **52 tests** · emulator visual QA light+dark. **Deployed to homebase** — all 4 event-types migrations applied via `deploy-homebase.sh` (ledger at **9**; `create_event` carries `p_type_id`).
 - ✅ **Cloud-CR tooling split — SHIPPED & MERGED (PR #16 → squash `c2a3fc6`).** Replaced the single `/replycoderabbit` with **`/coderabbit`** (triage) + **`/replycoderabbit`** (reply-only) + shared `scripts/cr-findings.sh` (36-assertion test). Decision 20. Designed via 3 critic rounds + 3 `/crlocal` rounds, then **dogfooded on its own PR** — the live `/coderabbit → /fullpush → /replycoderabbit` run FIX-NOW'd two real bugs in the new commands (`170f363`: 5 cloud-CR findings; `5468f0f`: unanchored marker lookup matched the wrong comment). `main` clean & synced.
 - ✅ **Calendar events + attendees — SHIPPED & DEPLOYED (PR #8 merged → `6f14d66`).** `events` + `event_attendees` tables (3 migrations) + `create/update/soft_delete_event` RPCs; `Event` model + `EventsRepository`; event form (all-day toggle, 24h time pickers, attendee picker) + detail; the four calendar views wired to real data (blocks with lane-splitting, bounded all-day band, month dots + panel, agenda). `/fullpush` green · **33 tests** · migrations clean on a fresh DB · `/crlocal` converged · cloud CodeRabbit fully answered (2 fixed, 2 deferred → #9/#10, 2 skipped false-positives) · **emulator visual QA light+dark** · CI green. **Live on homebase** (`GET /rest/v1/events` → `200 []`). Decision 18.
@@ -31,16 +33,20 @@ disposable. Built emergently — thin slices, one at a time.
 4. **Next candidates:** DB security hardening (issue #3 — RPC `auth.uid()`, revoke PUBLIC execute, column-level write grants) · **auth (GoTrue)** logins + owner-based RLS · search/filter on the list · run on the physical S23+ · full 7-column week (wide-screen adaptive).
 
 ## Next slice
-**Agent fleet (issue #6) — BUILT & PUSHED, PR #18 OPEN (in flight).** Full 10-agent LMS-Plus
-reviewer fleet, Flutter-adapted (Decision 22, revised 2026-07-11 to the full port): 10 agents in
-`.claude/agents/` + `.claude/rules/agent-workflow.md`/`agent-memory.md` + a `.githooks/post-commit`
-nudge + a CLAUDE.md fleet section + a fleet-aware `/wrapup`. Gate green (analyze · 52 tests · web
-build); fleet CR-local converged (4 rounds); `/wrapup` change had 2 critics + 2 clean CR-local
-rounds. **Cloud CR cycle 1 answered** (9 findings → 8 fixed `f80bc5e`/`870ba1d`, 1 deferred → #3).
-**RESUME = check CR's re-review of the last push on PR #18; if clean → merge #18 (squash)**, then
-post-merge sync. (red-team curl recs → #19.)
-**Then the queued slice (Decision 21):** in-app **empty-state hints** — a small Flutter slice (help
-copy where the user needs it, e.g. the "No contacts yet" state). Then: **auth (GoTrue)** logins +
+**Event comments (Decision 23) — IMPLEMENTED, PR #20 open (feat/event-comments), awaiting cloud-CR + merge.**
+Comments on events: add / inline-edit / archive (viewable soft-delete) / show-archived toggle / unarchive.
+Single-table direct-CRUD under RLS, `select using (true)` so archived rows stay readable → **no soft-delete
+RPC** (archive/edit/unarchive are plain UPDATEs). New `event_comments` table (FK `on delete restrict`, body
+CHECK, index, no delete grant) + pure-Dart `Comment` model (reads `deleted_at` back) + `CommentsRepository`
+(edit body-only) + self-contained `_CommentsSection` on event detail. Also enabled the `discarded_futures`
+lint (learner). Gate green (analyze · **69 tests** · web build · fresh-DB migration · db-security CLEAN ·
+`/crlocal` 3 rounds → clean); **emulator visual QA light+dark**. 7 commits on the branch.
+**Cloud-CR cycle 1 triaged** (`/coderabbit` on PR #20, 6 findings → 3 FIX doc/memory-accuracy in `d0aa1f1`,
+1 DEFER → #10, 2 SKIP already-resolved); pushed via `/fullpush` (gate green, `/crlocal` 2 rounds clean).
+
+**RESUME = run `/replycoderabbit` on PR #20** once the cloud bot re-reviews `d0aa1f1` (triage + fixes are
+already pushed), then squash-merge + deploy the migration to homebase (`deploy-homebase.sh`). **Then the queued slice
+(Decision 21):** in-app **empty-state hints** — a small Flutter slice. Then: **auth (GoTrue)** logins +
 owner-based RLS (unblocks DB-hardening issue #3), or search/filter on Contacts.
 
 Later candidates: DB hardening + auth (GoTrue) — **issue #3**, now also covers

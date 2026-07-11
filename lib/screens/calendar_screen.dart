@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../data/comments_repository.dart';
 import '../data/contacts_repository.dart';
 import '../data/event_types_repository.dart';
 import '../data/events_repository.dart';
@@ -23,12 +26,14 @@ class CalendarScreen extends StatefulWidget {
     required this.eventsRepository,
     required this.contactsRepository,
     required this.eventTypesRepository,
+    required this.commentsRepository,
     this.initialDate,
   });
 
   final EventsRepository eventsRepository;
   final ContactsRepository contactsRepository;
   final EventTypesRepository eventTypesRepository;
+  final CommentsRepository commentsRepository;
 
   /// Defaults to today; injectable so widget tests are deterministic.
   final DateTime? initialDate;
@@ -57,7 +62,7 @@ class _CalendarScreenState extends State<CalendarScreen>
     _tab.addListener(() {
       if (!_tab.indexIsChanging) setState(() {});
     });
-    _load();
+    unawaited(_load());
   }
 
   @override
@@ -142,6 +147,7 @@ class _CalendarScreenState extends State<CalendarScreen>
           eventsRepository: widget.eventsRepository,
           contactsRepository: widget.contactsRepository,
           eventTypesRepository: widget.eventTypesRepository,
+          commentsRepository: widget.commentsRepository,
           event: event,
         ),
       ),

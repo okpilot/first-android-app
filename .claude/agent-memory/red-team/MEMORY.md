@@ -20,7 +20,7 @@
 
 | Pattern | First Seen | Count | Last Seen | Status (→ rule loc) |
 |---|---|---|---|---|
-| _(none yet)_ | | | | |
+| Linchpin soft-delete/RLS verification curl run live but not recorded in `backend/README.md` (I re-raise it every RLS slice) | #13 → #19 | 2 | 3a87cc8 | PROMOTED → `docs/database.md` #11 (`4911243`); recorded for event_comments in `backend/README.md` |
 
 ## Positive signals (none yet)
 - _(none yet)_

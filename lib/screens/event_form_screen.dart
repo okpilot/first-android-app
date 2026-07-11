@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../data/contacts_repository.dart';
@@ -79,7 +81,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
       _start = TimeOfDay(hour: h.clamp(0, 22), minute: 0);
       _end = TimeOfDay(hour: (h + 1).clamp(1, 23), minute: 0);
     }
-    _loadTypes();
+    unawaited(_loadTypes());
   }
 
   /// Loads the type list for the picker. Failure is silent — the picker still opens and

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../data/contacts_repository.dart';
@@ -27,7 +29,7 @@ class _ContactsListScreenState extends State<ContactsListScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    unawaited(_load());
   }
 
   /// Reload. Async so `RefreshIndicator` keeps spinning until the fetch resolves.
