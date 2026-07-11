@@ -31,16 +31,18 @@ disposable. Built emergently — thin slices, one at a time.
 4. **Next candidates:** DB security hardening (issue #3 — RPC `auth.uid()`, revoke PUBLIC execute, column-level write grants) · **auth (GoTrue)** logins + owner-based RLS · search/filter on the list · run on the physical S23+ · full 7-column week (wide-screen adaptive).
 
 ## Next slice
-**Docs detour — DONE & MERGED (PR #17 → squash `8d8d69e`).** Dropped a briefly-built separate
-VitePress docs site in favour of a capability-level **README Features section** (3 critics →
-Decision 21); synced docs + added the `/updatephone` command. Cloud CodeRabbit raised 3 minor doc
-findings on a later review — 2 fixed (`7354faf`: plan decision count 20→21; HANDOVER MD018 heading
-reflow), 1 skipped (next-slice pointer already aligned). `main` clean & synced.
-**Queued next slice (Decision 21):** in-app **empty-state hints** — a small Flutter slice (help copy
-where the user needs it, e.g. the "No contacts yet" state). Then the standing candidates: **auth
-(GoTrue)** logins + owner-based RLS (unblocks DB-hardening issue #3), or search/filter on Contacts.
+**Agent fleet (issue #6) — BUILT & PUSHED, PR #18 OPEN (in flight).** Full 10-agent LMS-Plus
+reviewer fleet, Flutter-adapted (Decision 22, revised 2026-07-11 to the full port): 10 agents in
+`.claude/agents/` + `.claude/rules/agent-workflow.md`/`agent-memory.md` + a `.githooks/post-commit`
+nudge + a CLAUDE.md fleet section + a fleet-aware `/wrapup`. Gate green (analyze · 52 tests · web
+build); fleet CR-local converged (4 rounds); `/wrapup` change had 2 critics + 2 clean CR-local
+rounds. **RESUME = triage the 9 cloud CodeRabbit findings on PR #18** (`/coderabbit` → `/fullpush` →
+`/replycoderabbit`), then merge #18.
+**Then the queued slice (Decision 21):** in-app **empty-state hints** — a small Flutter slice (help
+copy where the user needs it, e.g. the "No contacts yet" state). Then: **auth (GoTrue)** logins +
+owner-based RLS (unblocks DB-hardening issue #3), or search/filter on Contacts.
 
 Later candidates (unchanged): DB hardening + auth (GoTrue) — **issue #3**, now also covers
-`event_types` write-hardening + the `soft_delete_event_type` `auth.uid()` check · agent fleet
-(#6) · Tailscale db-deploy action (#7) · #9/#10 cleanups · overnight/`timestamptz` events ·
-full 7-column week · search/filter.
+`event_types` write-hardening + the `soft_delete_event_type` `auth.uid()` check · Tailscale
+db-deploy action (#7) · #9/#10 cleanups · overnight/`timestamptz` events · full 7-column week ·
+search/filter.

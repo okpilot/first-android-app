@@ -1,6 +1,27 @@
-> Cross-session work tracker. Update in place. Last updated: 2026-07-10.
+> Cross-session work tracker. Update in place. Last updated: 2026-07-11.
 
 # Handover
+
+**Status: AGENT FLEET (issue #6) — BUILT & PUSHED, PR #18 OPEN (cloud-CR triage pending).**
+Full **10-agent LMS-Plus reviewer fleet** ported to this project, Flutter-adapted (Decision 22,
+revised 2026-07-11 from "build 2, earn 8" → **full port**). 4 commits on `feat/agent-fleet`
+(`060f099` fleet · `d577c51` fleet-aware `/wrapup` · `46435bc` post-commit exec-bit fix · `65e8a0a`
+`/wrapup` tighten), pushed; **PR #18 open**. Gate green (analyze · **52 tests** · web build); the
+fleet's CR-local converged over **4 rounds (26 findings, all applied)**; the `/wrapup` change got
+**2 adversarial critics + 2 clean scoped CR-local rounds**.
+**RESUME = triage the 9 cloud CodeRabbit findings on PR #18** (`/coderabbit` → `/fullpush` →
+`/replycoderabbit`), then merge #18, then post-merge doc sync.
+
+- **10 agents** in `.claude/agents/` (phase-aware, advisory): plan-critic, db-security-reviewer
+  (= the `security-auditor` role), implementation-critic, semantic-reviewer, code-reviewer, red-team,
+  learner, doc-updater, test-writer, coderabbit-sync. Shared rules `.claude/rules/agent-workflow.md`
+  + `agent-memory.md`; wiring via a bash `.githooks/post-commit` nudge + a CLAUDE.md fleet section;
+  `/wrapup` gained an Agent-pipeline check. Built via `/plan` + 3 `plan-critic` rounds (dogfood) +
+  8 parallel authors + a consistency review + 5 reviewer smoke-tests. The fleet caught a real
+  day-one `.coderabbit.yaml` drift (unconditional `auth.uid()`), fixed in the PR.
+- **Follow-up flagged (not yet an issue):** red-team recommended two `backend/README.md` curl checks
+  (soft-delete persistence via a privileged read; soft-deleted-type → embed-null) — disposition next
+  session (DEFER→issue or SKIP).
 
 **Status: EVENT TYPES (colour-as-data, Decision 19) — SHIPPED, MERGED & DEPLOYED (Slices 1–3).**
 PRs **#13 → #14 → #15** all squash-merged to `main` in order (`9873585` / `44c230a` / `9a0ca28`);
