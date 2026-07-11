@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'data/comments_repository.dart';
 import 'data/contacts_repository.dart';
 import 'data/event_types_repository.dart';
 import 'data/events_repository.dart';
@@ -14,11 +15,13 @@ class ContactsApp extends StatelessWidget {
     required this.repository,
     required this.eventsRepository,
     required this.eventTypesRepository,
+    required this.commentsRepository,
   });
 
   final ContactsRepository repository;
   final EventsRepository eventsRepository;
   final EventTypesRepository eventTypesRepository;
+  final CommentsRepository commentsRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +36,7 @@ class ContactsApp extends StatelessWidget {
         repository: repository,
         eventsRepository: eventsRepository,
         eventTypesRepository: eventTypesRepository,
+        commentsRepository: commentsRepository,
       ),
     );
   }

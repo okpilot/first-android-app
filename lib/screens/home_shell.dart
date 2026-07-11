@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/comments_repository.dart';
 import '../data/contacts_repository.dart';
 import '../data/event_types_repository.dart';
 import '../data/events_repository.dart';
@@ -20,11 +21,13 @@ class HomeShell extends StatefulWidget {
     required this.repository,
     required this.eventsRepository,
     required this.eventTypesRepository,
+    required this.commentsRepository,
   });
 
   final ContactsRepository repository;
   final EventsRepository eventsRepository;
   final EventTypesRepository eventTypesRepository;
+  final CommentsRepository commentsRepository;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -63,6 +66,7 @@ class _HomeShellState extends State<HomeShell> {
           eventsRepository: widget.eventsRepository,
           contactsRepository: widget.repository,
           eventTypesRepository: widget.eventTypesRepository,
+          commentsRepository: widget.commentsRepository,
         ),
         SettingsScreen(eventTypesRepository: widget.eventTypesRepository),
       ],
