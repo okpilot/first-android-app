@@ -38,10 +38,10 @@ _First run pending. Seed watch-items from conventions:_
 - New util helper without a boundary / bad-input test.
 
 ## Positive signals
-- **Tests are the current net for the `setState(() => Future)` trap** — `flutter analyze` misses it,
-  so the load/refresh-failure + button-gating tests are what caught it in both `fa4fc45` and
-  `3a87cc8`. Keep those branches covered on every new stateful section until the `discarded_futures`
-  lint lands (learner proposal). (RULE CANDIDATE, count 2.)
+- **Tests backstop the `setState(() => Future)` trap** — they caught it in both `fa4fc45` and
+  `3a87cc8` when `flutter analyze` still missed it. The `discarded_futures` lint (enabled `0e4a7af`)
+  is now the primary mechanical catch; keep the load/refresh-failure + button-gating branches
+  covered on every new stateful section as regression coverage. (PROMOTED, count 2.)
 - `_CommentsSection` (private widget in event_detail_screen.dart) is tested through its host
   `EventDetailScreen` with 3 inert repo fakes + a real `_FakeCommentsRepo` (has a `throwOnFetch`
   toggle — flip it AFTER the initial pump to drive a failed *refresh*, or set it true before pump

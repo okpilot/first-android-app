@@ -33,16 +33,18 @@ disposable. Built emergently — thin slices, one at a time.
 4. **Next candidates:** DB security hardening (issue #3 — RPC `auth.uid()`, revoke PUBLIC execute, column-level write grants) · **auth (GoTrue)** logins + owner-based RLS · search/filter on the list · run on the physical S23+ · full 7-column week (wide-screen adaptive).
 
 ## Next slice
-**Agent fleet (issue #6) — SHIPPED & MERGED (PR #18 → squash `fba34f6`).** Full 10-agent LMS-Plus
-reviewer fleet, Flutter-adapted (Decision 22, revised 2026-07-11 to the full port): 10 agents in
-`.claude/agents/` + `.claude/rules/agent-workflow.md`/`agent-memory.md` + a `.githooks/post-commit`
-nudge + a CLAUDE.md fleet section + a fleet-aware `/wrapup`. Gate green (analyze · 52 tests · web
-build); fleet CR-local converged (4 rounds); `/wrapup` change had 2 critics + 2 clean CR-local
-rounds. **Cloud CR cycle 1 answered** (9 findings → 8 fixed `f80bc5e`/`870ba1d`, 1 deferred → #3);
-squash-merged, branch deleted, `main` clean & synced. (red-team curl recs → #19.)
+**Event comments (Decision 23) — IMPLEMENTED, PR #20 open (feat/event-comments), awaiting cloud-CR + merge.**
+Comments on events: add / inline-edit / archive (viewable soft-delete) / show-archived toggle / unarchive.
+Single-table direct-CRUD under RLS, `select using (true)` so archived rows stay readable → **no soft-delete
+RPC** (archive/edit/unarchive are plain UPDATEs). New `event_comments` table (FK `on delete restrict`, body
+CHECK, index, no delete grant) + pure-Dart `Comment` model (reads `deleted_at` back) + `CommentsRepository`
+(edit body-only) + self-contained `_CommentsSection` on event detail. Also enabled the `discarded_futures`
+lint (learner). Gate green (analyze · **69 tests** · web build · fresh-DB migration · db-security CLEAN ·
+`/crlocal` 3 rounds → clean); **emulator visual QA light+dark**. 5 commits on the branch.
 
-**RESUME = the queued slice (Decision 21):** in-app **empty-state hints** — a small Flutter slice (help
-copy where the user needs it, e.g. the "No contacts yet" state). Then: **auth (GoTrue)** logins +
+**RESUME = triage cloud CodeRabbit on PR #20** (`/coderabbit` → `/fullpush` → `/replycoderabbit`), then
+squash-merge + deploy the migration to homebase (`deploy-homebase.sh`). **Then the queued slice
+(Decision 21):** in-app **empty-state hints** — a small Flutter slice. Then: **auth (GoTrue)** logins +
 owner-based RLS (unblocks DB-hardening issue #3), or search/filter on Contacts.
 
 Later candidates: DB hardening + auth (GoTrue) — **issue #3**, now also covers

@@ -5,12 +5,12 @@
 > Curated at `/wrapup`.
 
 ## Recurring semantic bugs
-- **`setState(() => <expr that returns a Future>)`** (RULE CANDIDATE, count 2: Contacts `fa4fc45`,
+- **`setState(() => <expr that returns a Future>)`** (PROMOTED, count 2: Contacts `fa4fc45`,
   comments `3a87cc8`). The arrow discards the Future — async work fires but `setState` returns
-  synchronously; `flutter analyze` does NOT flag it (legal void-context arrow). Caught only by
-  tests both times. Fix = block body `setState(() { … })` and `await`/`unawaited` the call outside.
-  learner has proposed enabling the `discarded_futures` lint to mechanize the catch. Flag any new
-  `setState(() => …)` whose callee returns a Future.
+  synchronously; `flutter analyze` did NOT flag it (legal void-context arrow) until the
+  `discarded_futures` lint was enabled (`0e4a7af`) — that lint now mechanizes the catch. Fix =
+  block body `setState(() { … })` and `await`/`unawaited` the call outside. Still worth a semantic
+  flag on any new `setState(() => …)` whose callee returns a Future (belt-and-braces with the lint).
 
 _Seed watch-items carried from the project's conventions:_
 - **`mounted`-after-`await`** — a new `await` in a `State` method that then touches `context` /

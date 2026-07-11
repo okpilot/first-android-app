@@ -12,8 +12,8 @@ not a re-mention. Read columns by header, not position.
 
 | Issue Type | Count | Last Seen | Status (→ rule loc) |
 |---|---|---|---|
-| `setState(() => …)` arrow returns a Future (async work discarded; not caught by analyze, only by tests). First: Contacts slice `fa4fc45`. | 2 | 3a87cc8 | RULE CANDIDATE → propose `analysis_options.yaml` enable `discarded_futures` |
-| RLS/soft-delete slice's linchpin verification curl run live but not recorded in `backend/README.md` (red-team re-raises). First: event-types #13 → follow-up #19. | 2 | 3a87cc8 | RULE CANDIDATE → propose `docs/database.md` convention |
+| `setState(() => …)` arrow returns a Future (async work discarded; not caught by analyze, only by tests). First: Contacts slice `fa4fc45`. | 2 | 3a87cc8 | PROMOTED → `analysis_options.yaml` `discarded_futures` enabled (`0e4a7af`) |
+| RLS/soft-delete slice's linchpin verification curl run live but not recorded in `backend/README.md` (red-team re-raises). First: event-types #13 → follow-up #19. | 2 | 3a87cc8 | PROMOTED → `docs/database.md` #11 (`4911243`) |
 
 ## Durable cross-agent lessons (edit in place; don't stack)
 - **`setState(() => Future)` is invisible to `flutter analyze`** (arrow returning a value in a void
