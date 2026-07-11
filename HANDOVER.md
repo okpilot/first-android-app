@@ -2,8 +2,8 @@
 
 # Handover
 
-**Status: EVENT COMMENTS — SHIPPED, branch ready (feat/event-comments).**
-Add / inline-edit / archive / toggle-archived / unarchive on events. Single-table, direct-CRUD under RLS (no RPC); SELECT policy `using (true)` so archived comments stay readable (Decision 23, database.md #4 amendment). Comment model reads `deleted_at` back; CommentsRepository direct CRUD; self-contained _CommentsSection on event detail. 63 tests green; curl-verified (insert/edit/archive/unarchive 200, archived SELECTable, empty body 400, anon DELETE 401). Awaiting push/merge.
+**Status: EVENT COMMENTS — IMPLEMENTED, branch ready (feat/event-comments) — not yet merged.**
+Add / inline-edit / archive / toggle-archived / unarchive on events. Single-table, direct-CRUD under RLS (no RPC); SELECT policy `using (true)` so archived comments stay readable (Decision 23, database.md #4 amendment). Comment model reads `deleted_at` back; CommentsRepository direct CRUD (edit is body-only); self-contained _CommentsSection on event detail. 69 tests green; curl-verified (insert/edit/archive/unarchive 200, archived SELECTable, empty body 400, anon DELETE 401); emulator visual QA light+dark. Awaiting push/merge.
 
 **Previous: AGENT FLEET (issue #6) — SHIPPED & MERGED (PR #18 → squash `fba34f6`).**
 Full **10-agent LMS-Plus reviewer fleet** ported to this project, Flutter-adapted (Decision 22,

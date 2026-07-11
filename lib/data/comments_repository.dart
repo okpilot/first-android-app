@@ -49,9 +49,11 @@ class SupabaseCommentsRepository implements CommentsRepository {
 
   @override
   Future<Comment> edit(Comment comment) async {
+    // Body-only on purpose — never re-send event_id, so an edit can't move a
+    // comment to another event (toWrite() is for inserts, where event_id is set).
     final row = await _client
         .from(_table)
-        .update(comment.toWrite())
+        .update({'body': comment.body.trim()})
         .eq('id', comment.id)
         .select(_columns)
         .single();

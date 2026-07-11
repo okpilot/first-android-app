@@ -15,7 +15,11 @@
 
 create table public.event_comments (
   id          uuid        primary key default gen_random_uuid(),
-  event_id    uuid        not null references public.events(id) on delete cascade,
+  -- RESTRICT, not CASCADE: comments are retained content (history), unlike the ephemeral
+  -- event_attendees join rows (which cascade). Events are soft-deleted only, so this never
+  -- fires today — but if a hard-delete of events is ever added, RESTRICT blocks it rather
+  -- than silently erasing archived comment history.
+  event_id    uuid        not null references public.events(id) on delete restrict,
   body        text        not null check (length(trim(body)) > 0),
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now(),
