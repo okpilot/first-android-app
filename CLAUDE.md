@@ -36,6 +36,18 @@ Skips are allowed but **must be stated, never silent**.
 - **CI/CD** (GitHub Actions: analyze + test + build) is added *with Slice 1*, when there's a Flutter project to run against.
 - **At end of session, run `/wrapup`** (`.claude/commands/wrapup.md`) — sync docs, dispose of every open finding, leave `main` clean.
 
+## The agent fleet (reviewers in `.claude/agents/`)
+A 10-agent reviewer fleet ported from LMS Plus, Flutter-adapted (Decision 22). **Orchestrator-driven,
+advisory:** I launch each reviewer via the Agent tool at its moment in the session so findings are
+visible and fixed in-chat; the human approval step in `/fullpush` stays the only real gate. The
+git hooks stay mechanical — the new **post-commit** hook just *nudges* the pipeline.
+- **plan-critic** (plan time) · **implementation-critic** (pre-commit) · post-commit parallel:
+  **code-reviewer · semantic-reviewer · doc-updater · test-writer** → **learner** → conditional
+  **red-team** (migrations/auth) · **coderabbit-sync** (rule/config files) · **db-security-reviewer**
+  (pre-push, in `/fullpush`, = the `security-auditor` role).
+- The pipeline, severity, multi-round discipline, model tiers, and finding-validation live in
+  **`.claude/rules/agent-workflow.md`**; memory format in **`.claude/rules/agent-memory.md`**.
+
 ## NEVER DO
 - **NEVER** build a large feature from a vague ask — propose the next thinnest slice and confirm first.
 - **NEVER** commit or push without the user's explicit go-ahead.

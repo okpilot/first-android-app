@@ -25,6 +25,9 @@ List EVERY open non-blocking finding from this session (cr-local skips, cloud Co
 ### 4. Task & memory
 - Any `TaskCreate` tasks are completed or explicitly carried forward.
 - Project memory is accurate and lean; stale entries removed.
+- **Agent memory** (`.claude/agent-memory/*/MEMORY.md`) — curate in place: keep the pattern
+  trackers accurate and lean, prune stale rows, and confirm no raw secrets/findings leaked in.
+  If the auth phase advanced this session (issue #3), flip the `db-security-reviewer` phase note.
 
 ### 5. Session summary (present to user)
 - **Done this session** — what shipped / merged.
