@@ -6,6 +6,8 @@ End-of-session wrap-up. Run before stopping — sync docs, dispose of open findi
 - `HANDOVER.md` — reflects exactly where we stopped + the resume condition.
 - `docs/plan.md` — status section and "next slice" are current.
 - `docs/decisions.md` — every decision made this session is recorded (numbered, dated).
+- `README.md` — the **Features** section lists every shipped user-facing feature (Decision 21;
+  doc-updater's remit). Add/adjust an entry when a slice changes what the app does.
 
 ### 2. Findings disposition (no silent skips)
 List EVERY open non-blocking finding from this session — cr-local skips, cloud CodeRabbit nitpicks, anything deferred, **and every open ISSUE/SUGGESTION from a reviewer in the fleet** (plan-critic, implementation-critic, semantic-reviewer, code-reviewer, red-team, doc-updater, test-writer, coderabbit-sync). (`db-security-reviewer`'s blockers are resolved at the `/fullpush` gate; `learner`'s proposals are dispositioned in §5.) For each, the user picks one:
