@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Post-commit (NON-blocking): nudge the reviewer fleet. Modeled on LMS Plus's
+# post-commit-reminder — the git hook can't launch agents, it just prints a banner
+# that lands in the commit's tool output so the session launches them (Agent tool).
+# See CLAUDE.md "The agent fleet" + .claude/rules/agent-workflow.md.
+echo ""
+echo "=========================================================="
+echo "  POST-COMMIT: run the reviewer fleet now (Agent tool)"
+echo "  Parallel:  code-reviewer · semantic-reviewer ·"
+echo "             doc-updater · test-writer"
+echo "  If diff touched backend/migrations/** (or auth):  red-team"
+echo "  If diff touched CLAUDE.md / docs/database.md /"
+echo "     analysis_options.yaml / .claude/rules/*:        coderabbit-sync"
+echo "  LAST:      learner (aggregates ALL the above findings)"
+echo "  Findings are advisory — fix in-session; /fullpush still gates."
+echo "=========================================================="
+echo ""
+exit 0

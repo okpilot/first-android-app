@@ -27,8 +27,12 @@ reviews:
         Postgres migrations (Supabase). Enforce docs/database.md: enable RLS in the
         SAME migration as CREATE TABLE; soft-delete via deleted_at (no hard DELETE
         except explicitly-annotated exceptions); SECURITY DEFINER functions must
-        SET search_path = public and check auth.uid(); use idempotent upserts
-        (ON CONFLICT); migrations are forward-only.
+        SET search_path = public (and, once auth is wired — issue #3 — client-facing
+        ones must check auth.uid()). Auth (GoTrue) is NOT wired yet, so do NOT flag
+        missing auth.uid() checks on pre-auth client-facing RPCs, their expected anon
+        grants, or WITH CHECK (true) as issues today — but DO still review unexpected
+        anon privilege expansion (grants on new tables/sequences/admin RPCs) normally.
+        Use idempotent upserts (ON CONFLICT); migrations are forward-only.
 
 chat:
   auto_reply: true

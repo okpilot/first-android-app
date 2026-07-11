@@ -10,7 +10,7 @@ Learn app development end-to-end by building a light CRM in Flutter, backed by a
 trimmed self-hosted Supabase on homebase. Learning is the point; the CRM is
 disposable. Built emergently — thin slices, one at a time.
 
-## Current status (2026-07-10)
+## Current status (2026-07-11)
 - ✅ Environment: Flutter 3.44.5; Web + Linux + **Android** targets all ready (SDK installed, Pixel + S23+ emulators). **App installed & running on the physical S23+** (debug APK against homebase over Tailscale — data round-trips verified).
 - ✅ Decisions made — **21** (see `docs/decisions.md`): + design-principles adoption, local backend, Android SDK, Contacts slice, bespoke theme, homebase deploy, git hooks, calendar shell, /replycoderabbit, calendar events, **event types (colour-as-data)**, **cloud-CR two-command split (D20)**, **README Features section over a docs site (D21)**.
 - ✅ **Event types — SHIPPED, MERGED & DEPLOYED (Slices 1–3).** Colour-as-data (Decision 19). **Slice 1** (PR #13 → squash): `event_types` table + `events.type_id` FK + `EventType` model + read embed. **Slice 2** (PR #14 → squash): Settings → Event types manager/editor + `soft_delete_event_type` RPC; 8-swatch palette. **Slice 3** (PR #15 → squash): `p_type_id` on the write RPCs; event-form Type picker (pick-existing + "Manage types…"); full-area **tinted** Day/3-day blocks (no rail); dot + name in Agenda/detail/panel; coloured Month density dots + "+N"; shared `TypeLabel` atom; `tintForType`. All three squash-merged in order; each cloud-CR answered · **52 tests** · emulator visual QA light+dark. **Deployed to homebase** — all 4 event-types migrations applied via `deploy-homebase.sh` (ledger at **9**; `create_event` carries `p_type_id`).
@@ -31,16 +31,19 @@ disposable. Built emergently — thin slices, one at a time.
 4. **Next candidates:** DB security hardening (issue #3 — RPC `auth.uid()`, revoke PUBLIC execute, column-level write grants) · **auth (GoTrue)** logins + owner-based RLS · search/filter on the list · run on the physical S23+ · full 7-column week (wide-screen adaptive).
 
 ## Next slice
-**Docs detour — DONE & MERGED (PR #17 → squash `8d8d69e`).** Dropped a briefly-built separate
-VitePress docs site in favour of a capability-level **README Features section** (3 critics →
-Decision 21); synced docs + added the `/updatephone` command. Cloud CodeRabbit raised 3 minor doc
-findings on a later review — 2 fixed (`7354faf`: plan decision count 20→21; HANDOVER MD018 heading
-reflow), 1 skipped (next-slice pointer already aligned). `main` clean & synced.
-**Queued next slice (Decision 21):** in-app **empty-state hints** — a small Flutter slice (help copy
-where the user needs it, e.g. the "No contacts yet" state). Then the standing candidates: **auth
-(GoTrue)** logins + owner-based RLS (unblocks DB-hardening issue #3), or search/filter on Contacts.
+**Agent fleet (issue #6) — BUILT & PUSHED, PR #18 OPEN (in flight).** Full 10-agent LMS-Plus
+reviewer fleet, Flutter-adapted (Decision 22, revised 2026-07-11 to the full port): 10 agents in
+`.claude/agents/` + `.claude/rules/agent-workflow.md`/`agent-memory.md` + a `.githooks/post-commit`
+nudge + a CLAUDE.md fleet section + a fleet-aware `/wrapup`. Gate green (analyze · 52 tests · web
+build); fleet CR-local converged (4 rounds); `/wrapup` change had 2 critics + 2 clean CR-local
+rounds. **Cloud CR cycle 1 answered** (9 findings → 8 fixed `f80bc5e`/`870ba1d`, 1 deferred → #3).
+**RESUME = check CR's re-review of the last push on PR #18; if clean → merge #18 (squash)**, then
+post-merge sync. (red-team curl recs → #19.)
+**Then the queued slice (Decision 21):** in-app **empty-state hints** — a small Flutter slice (help
+copy where the user needs it, e.g. the "No contacts yet" state). Then: **auth (GoTrue)** logins +
+owner-based RLS (unblocks DB-hardening issue #3), or search/filter on Contacts.
 
-Later candidates (unchanged): DB hardening + auth (GoTrue) — **issue #3**, now also covers
-`event_types` write-hardening + the `soft_delete_event_type` `auth.uid()` check · agent fleet
-(#6) · Tailscale db-deploy action (#7) · #9/#10 cleanups · overnight/`timestamptz` events ·
-full 7-column week · search/filter.
+Later candidates: DB hardening + auth (GoTrue) — **issue #3**, now also covers
+`event_types` write-hardening + the `soft_delete_event_type` `auth.uid()` check · Tailscale
+db-deploy action (#7) · #9/#10 cleanups · overnight/`timestamptz` events · full 7-column week ·
+search/filter.

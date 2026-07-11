@@ -151,6 +151,51 @@ project: First Android App (learning CRM)
 - VitePress scaffold removed (never committed). Notes retained if a docs site is ever revisited: keep it **in-repo** (don't split the repo); add CI `paths` filters + a `pnpm docs:build` job; `cleanUrls` needs Caddy `try_files`.
 **Principle:** Documentation follows the "disposable CRM, learning is the goal" premise — favour the lowest-maintenance surface that lives next to the code (README + in-app copy) over a parallel product; describe capabilities, not UI trivia, so docs don't rot; prototype → critics → decide.
 
+## Decision 22: Adopt the LMS-Plus agent fleet as a framework — build 2 reviewers now, earn the rest (2026-07-10)
+**Context:** Issue #6 — port LMS Plus's 10-agent reviewer fleet (`.claude/agents/`), Flutter-adapted. Decisions 6/7/15 deliberately shipped none of it (inherit principles, earn each agent as the project grows). This is a proven AI workflow the user runs on LMS Plus. Planned the wiring, then ran **2 adversarial critics** (wiring-logic + Flutter/Supabase technical accuracy) — both returned REVISE and caught real defects that were folded in before building.
+**Decided — the two-layer principle (copied from LMS Plus):** mechanical gates stay in the deterministic `.githooks/` (format+analyze, commit-msg, secret-scan); **judgement reviewers are Claude subagents (Agent tool), invoked at a workflow moment, findings flow into the chat — advisory.** No Claude subagent blocks a `git push` here (no Node to wire one into a hook, and the human approval step in `/fullpush` is the real gate). This is the one honest divergence from LMS Plus, which runs its security-auditor as a blocking pre-push hook.
+**Built now (issue #6 acceptance minimum):**
+- **`plan-critic`** — reads a plan before user approval (workflow step 3), pokes holes (wrong Dart signatures/model fields, missed callers incl. **test fakes**, wrong defaults, pattern violations, DB-security-surface gaps). Keeps the "CREATE OR REPLACE chain" false-positive guard (our RPCs use `drop … ; create or replace …` to change signatures — correct, not breaking). **Supersedes** the ad-hoc "run critics before approval" hand-habit (adds a persisted checklist + memory). Model: inherits session.
+- **`db-security-reviewer`** — runs **inside `/fullpush`, before `/crlocal`**, fired by the same deterministic `backend/migrations/**/*.sql` trigger `/fullpush` already uses; **advisory**. **Phase-aware:** auth (GoTrue) is NOT wired (issue #3), so a missing `auth.uid()` owner check is **INFO/tracked-#3, never CRITICAL** (the critics caught that the naive checklist would have blocked every pre-auth push). Checklist grounded in `docs/database.md` + the real migrations: RLS-present (NOT `FORCE` — unused here and would break the SECURITY-DEFINER soft-delete bypass), `SET search_path`, **`revoke execute … from public`** (issue #3's actionable-today check — the highest-value item, was missing), soft-vs-hard delete. Secrets + "no raw pg from client" dropped (covered by the pre-push hook / cloud CR / architecture). **Model pinned to `opus`** — it's the security reviewer; don't let quality silently inherit a cheaper session model.
+- **Framework:** `.claude/agents/` + committed `.claude/agent-memory/<agent>/MEMORY.md` pattern-trackers; `/wrapup` step 4 extended to curate them.
+**Two explicit scope decisions (surfaced, not buried):**
+1. **Port 2 now, adopt the other 8 on recurrence (≥2×)** — same earn-rule as the git hooks. In a solo low-volume learning repo that trigger may rarely trip, and 3 of the 8 (`semantic-reviewer`, `code-reviewer`, `doc-updater`) will likely **fold into existing gates** (`/crlocal`, cloud CodeRabbit, `/wrapup`) rather than become standalone agents. This narrows the issue's "full fleet eventually" — a deliberate call, not under-delivery. The full 10-agent wiring table lives in the session plan and the agent files.
+2. **Agent memory is committed** (curated pattern trackers, not secret dumps; `.md` skips the Dart-only pre-commit hook), curated at `/wrapup`. Per-run raw findings stay in the chat and are dispositioned via `/wrapup` FIX/DEFER/SKIP.
+**Refines:** Decisions 6/7/15 (earn the ceremony) — this adopts the fleet *as* an earned, reviewed, documented framework.
+**Principle:** Two layers — deterministic hooks for mechanical truth, advisory Claude reviewers for judgement; adopt a proven workflow as a reviewed framework, build only what the next slice uses, keep every reviewer honest about what it does and doesn't gate.
+
+**Revised 2026-07-11 — port the FULL fleet now (the "build 2, earn 8" scope above is reversed):**
+The user directed (explicitly, twice) that this is a **proven workflow to adopt whole, not a
+ceremony to earn piecemeal** — so all 10 agents are built now, not just the acceptance-minimum 2.
+The original earn-the-rest rationale is kept above for the record; the reversal's reasoning: a
+proven fleet is ported as a coherent system (the reviewers reference each other + shared rules),
+and the "3 will fold into existing gates" prediction was my framing, not the user's. Planned via
+`/plan` + **3 `plan-critic` rounds** (dogfooding the built agent; round 1 APPROVED w/ 4 suggestions,
+round 2 caught 2 consistency gaps, round 3 clean).
+- **The 10 = 2 already built + 8 new.** `security-auditor`'s role **is** `db-security-reviewer`
+  (the phase-aware, `/fullpush`-wired security gate) — not a separate agent. New: `implementation-critic`,
+  `semantic-reviewer`, `code-reviewer`, `red-team`, `learner`, `doc-updater`, `test-writer`,
+  `coderabbit-sync`.
+- **Wiring** (full pipeline in `.claude/rules/agent-workflow.md`): plan-critic (plan time) ·
+  implementation-critic (pre-commit) · post-commit parallel code-reviewer/semantic-reviewer/
+  doc-updater/test-writer → learner → conditional red-team (migrations/auth) + coderabbit-sync
+  (rule/config files) · db-security-reviewer (pre-push). A new bash **`.githooks/post-commit`**
+  nudges the post-commit batch (no Node; LMS's reminder-banner equivalent). Memory format in
+  `.claude/rules/agent-memory.md`. **`/wrapup` gains an Agent-pipeline check** — a per-commit list of
+  which reviewers ran (+ ceiling-escalations) and the disposition of `learner`'s proposals — plus
+  fleet-memory curation, so end-of-session verifies the fleet actually ran. (Two critics trimmed it
+  from 6 audit items to 2: the rest were redundant with the findings/memory sections or unverifiable
+  rubber-stamps.)
+- **Model tiers:** db-security-reviewer = opus (gates); doc-updater + coderabbit-sync = haiku; the
+  rest inherit the session model. `coderabbit-sync` has no memory; `red-team` keeps a protected
+  `topics/attack-surface.md` matrix.
+- **Deferred (not this slice):** promoting db-security-reviewer to a headless *blocking* pre-push
+  hook (LMS's one mechanical agent gate) — revisit when auth lands (#3); pre-auth there's nothing
+  to hard-block. And a `review-gate` edit-blocking equivalent (protocol suffices for now).
+**Revised principle:** Adopt a proven multi-agent workflow **whole** — port the system, not a
+subset — but keep it Flutter-honest (phase-aware, no cargo-culted TS/Next rules) and advisory
+(the human `/fullpush` approval remains the only real gate).
+
 ---
 
 ## OPEN QUESTIONS
