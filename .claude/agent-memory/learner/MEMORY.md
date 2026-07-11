@@ -19,8 +19,9 @@ not a re-mention. Read columns by header, not position.
 - **`setState(() => Future)` is invisible to `flutter analyze`** (arrow returning a value in a void
   context is legal Dart; `flutter_lints` has no rule for it). It has surfaced twice as a runtime
   bug caught only by tests (`fa4fc45`, `3a87cc8`). The mechanical catch is the `discarded_futures`
-  lint — not currently enabled, so not double-gated. Noise caveat: it also flags intentional
-  fire-and-forget, which need `unawaited(...)` / `// ignore: discarded_futures`.
+  lint — now enabled in `analysis_options.yaml` (`0e4a7af`), so the pattern is double-gated (lint +
+  tests). Noise caveat: it also flags intentional fire-and-forget, which need `unawaited(...)` /
+  `// ignore: discarded_futures`.
 - **red-team's "record the curl" finding is structural, not per-slice.** Each RLS/soft-delete
   slice runs a linchpin curl live to prove non-destructive delete, but it isn't written down, so
   red-team re-raises it every time (#19, then `3a87cc8`). A standing convention in the DB doc stops

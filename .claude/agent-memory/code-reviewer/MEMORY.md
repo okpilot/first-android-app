@@ -52,7 +52,8 @@
   sub-section. `build()` is a `FutureBuilder` composing `_header`/`_composerRow`/`_liveTile`/
   `_archivedSection` helpers (method-extraction, which item #1 allows alongside StatelessWidgets).
   Owns its own `_lastData` stale-guard load with `identical(future,_future)` stale-fetch checks and
-  `mounted` guards after every await; `_run` captures the messenger before the await. Legit
+  `mounted` guards before any `context`/`setState` access after an await (`_load` assigns `_lastData`
+  post-await unguarded — a plain field write, safe); `_run` captures the messenger before the await. Legit
   `StatefulWidget` (controllers + `_future` + `setState`). Comments are mono — no colour-as-data.
   Model (`comment.dart`) + repo (`comments_repository.dart`) follow the pure-Dart-model /
   abstract-interface-repository split; tests shipped in the same commit.
