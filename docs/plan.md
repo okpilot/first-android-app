@@ -33,10 +33,10 @@ disposable. Built emergently — thin slices, one at a time.
 4. **Next candidates:** DB security hardening (issue #3 — RPC `auth.uid()`, revoke PUBLIC execute, column-level write grants) · **auth (GoTrue)** logins + owner-based RLS · search/filter on the list · run on the physical S23+ · full 7-column week (wide-screen adaptive).
 
 ## Next slice
-**In-app empty-state hints (Decision 21)** — a small Flutter slice: contextual hint text on the empty
-Contacts / Calendar / comments states (no new table, no migration). Event comments are fully shipped,
-merged & deployed — nothing owed there. After this: **auth (GoTrue)** logins + owner-based RLS (unblocks
-DB-hardening issue #3), or search/filter on Contacts.
+**In-app empty-state hints — issue #21 (Decision 21)** — a small Flutter slice: contextual hint text on
+the empty Contacts / Calendar / comments states (no new table, no migration). Event comments are fully
+shipped, merged & deployed — nothing owed there. After this: **auth (GoTrue)** logins + owner-based RLS
+(unblocks DB-hardening issue #3), or search/filter on Contacts.
 
 Later candidates: DB hardening + auth (GoTrue) — **issue #3**, now also covers
 `event_types` write-hardening + the `soft_delete_event_type` `auth.uid()` check · Tailscale
