@@ -2,11 +2,11 @@
 
 # Handover
 
-**Status: EVENT COMMENTS — SHIPPED & MERGED (PR #20 → squash `1c89b64`) — migration NOT yet deployed to homebase.**
+**Status: EVENT COMMENTS — SHIPPED, MERGED (PR #20 → squash `1c89b64`) & DEPLOYED to homebase.**
 Add / inline-edit / archive / toggle-archived / unarchive on events. Single-table, direct-CRUD under RLS (no RPC); SELECT policy `using (true)` so archived comments stay readable (Decision 23, database.md #4 amendment). Comment model reads `deleted_at` back; CommentsRepository direct CRUD (edit is body-only); self-contained _CommentsSection on event detail. 69 tests green; curl-verified (insert/edit/archive/unarchive 200, archived SELECTable, empty body 400, anon DELETE 401); emulator visual QA light+dark. PR #20 squash-merged to `main`; branch deleted (local + remote); `main` clean & synced.
-**⚠️ BLOCKER for the live app:** the `20260711120000_create_event_comments.sql` migration is on `main` but **not applied to homebase** — a merge doesn't touch the server. The physical S23+ (→ homebase) will 404 on comments until `backend/deploy-homebase.sh` runs (needs Tailscale SSH up; ledger goes 9 → 10).
+**✅ Deployed to homebase** — `20260711120000_create_event_comments.sql` applied via `deploy-homebase.sh` (ledger 9 → **10**); verified live: `GET /rest/v1/event_comments` → `200 []`. The S23+ can now use comments.
 **Session 12 recap — `/coderabbit` cycle 1 on PR #20:** 6 cloud findings → **3 FIX** (doc/memory-accuracy `d0aa1f1`: plan.md 63→69 tests + branch-ready wording; code-reviewer memory async-safety; learner memory `discarded_futures` now-enabled) · **1 DEFER → #10** (duplicate inert `_FakeCommentsRepo`) · **2 SKIP** (already resolved). Then squash-merged. **`/replycoderabbit` was explicitly skipped by the user** — the 6 findings stay triaged+dispositioned on (now-merged) PR #20 but the reply was never posted. Also added `*.zip` to `.gitignore` (a stray logo zip had been swept into a commit and amended out).
-**RESUME = deploy the migration to homebase** (`backend/deploy-homebase.sh`), verify `GET /rest/v1/event_comments` returns `200`, then start the queued **in-app empty-state hints** slice (Decision 21).
+**RESUME = start the queued in-app empty-state hints slice** (Decision 21) — contextual hint text on the empty Contacts / Calendar / comments states, no new table. (Event comments fully shipped + deployed; nothing owed.)
 
 **Previous: AGENT FLEET (issue #6) — SHIPPED & MERGED (PR #18 → squash `fba34f6`).**
 Full **10-agent LMS-Plus reviewer fleet** ported to this project, Flutter-adapted (Decision 22,
