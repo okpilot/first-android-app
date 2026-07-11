@@ -13,9 +13,9 @@ TypeScript/Next.js to Dart/Flutter. You run **post-commit**, in the unconditiona
 (alongside `semantic-reviewer`, `doc-updater`, `test-writer`), on the last commit's diff.
 
 You are **advisory**. Nothing you output blocks a `git push` — the deterministic `.githooks/` and
-the **human approval step in `/fullpush`** are the only real gates. Structural findings are
-**BLOCKING** in the sense that they should be fixed before the slice merges to `main`; idiom and
-naming findings are **WARNINGs** the main session can batch into a follow-up.
+the **human approval step in `/fullpush`** are the only real gates. Structural findings are **ISSUE**
+(blocking in the sense that they should be fixed before the slice merges to `main`); idiom and naming
+findings are **SUGGESTION** the main session can batch into a follow-up.
 
 ## Trigger (deterministic)
 Runs on **every commit**, unconditionally, on `git diff HEAD~1..HEAD`. No path condition, no
@@ -37,7 +37,7 @@ There are **no hard line caps** in this project (LMS's TS file-size taxonomy is 
 not one that is merely long-but-single-concern. When a long file is genuinely one cohesive concern
 (a full theme definition, a data model with many fields), **say so explicitly and do not flag it**.
 
-### BLOCKING (structural — should be fixed before merge to `main`)
+### ISSUE — structural (should be fixed before merge to `main`)
 1. **Giant `build()` that should extract widgets.** A `build()` method composing many distinct
    sub-sections (a header + a list + a footer + branching states inline) that would read far better
    as extracted `Widget`s or `_buildX()` helpers / small `StatelessWidget`s. Judge by
@@ -53,13 +53,13 @@ not one that is merely long-but-single-concern. When a long file is genuinely on
    mutable field, no `initState`/`dispose`, no `setState` — it should be a `StatelessWidget`. (The
    inverse — a screen that legitimately owns a `Future`/`_lastData` — is correct; see #4 below.)
 
-### WARNING (idiom / naming / tests — non-blocking)
+### SUGGESTION — idiom / naming / tests (non-blocking)
 4. **Missing `_lastData` stale-guard on a new list screen.** A new list/index screen using
    `FutureBuilder` should follow the established pattern (`calendar_screen.dart`,
    `contacts_list_screen.dart`, `event_types_screen.dart`): cache into `_lastData` so a failed
    refresh keeps stale data and a late load can't overwrite newer, plus `if (!mounted) return`
-   after each `await`. A new list screen missing this is a WARNING. A missing `if (!mounted) return`
-   after an `await` that precedes a `setState`/`context` use is also a WARNING.
+   after each `await`. A new list screen missing this is a SUGGESTION. A missing `if (!mounted) return`
+   after an `await` that precedes a `setState`/`context` use is also a SUGGESTION.
 5. **Missing `const`.** A widget constructor or literal that could be `const` but isn't (`Text('x')`
    → `const Text('x')`, `SizedBox(height: 8)` → `const SizedBox(...)`). Only flag when the whole
    subtree is genuinely const-eligible; do not flag if any arg is non-const. **Don't double-gate:**
@@ -86,8 +86,8 @@ not one that is merely long-but-single-concern. When a long file is genuinely on
 - **CRITICAL** — reserve for a structural failure that risks data loss or a broken build (rare for
   style; e.g. a repo write wired directly into `build()` so it fires on every rebuild). Surface
   loudly.
-- **ISSUE (BLOCKING)** — the structural items #1–#3: fix before the slice merges to `main`.
-- **SUGGESTION (WARNING)** — the idiom/naming/test items #4–#9: noted, batchable into a follow-up.
+- **ISSUE** — the structural items #1–#3 (blocking): fix before the slice merges to `main`.
+- **SUGGESTION** — the idiom/naming/test items #4–#9 (non-blocking): noted, batchable into a follow-up.
 
 ## Output format
 ```text

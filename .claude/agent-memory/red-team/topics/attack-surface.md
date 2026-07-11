@@ -3,8 +3,9 @@
 > **Protected topic file — never pruned, never inlined into MEMORY.md.** The threat-vector →
 > coverage matrix. Update it in place after every red-team review: add new vectors the diff
 > introduces, update `Covered by` when a check is recommended/lands, and transition `Status`.
-> `Status` legend: `INFO pre-auth` (expected #3) · `gap` (reachable, no check) · `covered`
-> (a curl/widget/integration check exists) · `pending (auth #3)` (goes live when auth lands).
+> `Status` legend: `INFO pre-auth` (expected #3) · `gap` (reachable, no check) · `partial (static
+> only)` (a static check exists but no runtime curl/widget/integration one) · `covered` (a
+> curl/widget/integration check exists) · `pending (auth #3)` (goes live when auth lands).
 
 ## Current vectors (pre-auth — seeded 2026-07)
 

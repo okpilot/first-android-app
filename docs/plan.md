@@ -10,7 +10,7 @@ Learn app development end-to-end by building a light CRM in Flutter, backed by a
 trimmed self-hosted Supabase on homebase. Learning is the point; the CRM is
 disposable. Built emergently — thin slices, one at a time.
 
-## Current status (2026-07-10)
+## Current status (2026-07-11)
 - ✅ Environment: Flutter 3.44.5; Web + Linux + **Android** targets all ready (SDK installed, Pixel + S23+ emulators). **App installed & running on the physical S23+** (debug APK against homebase over Tailscale — data round-trips verified).
 - ✅ Decisions made — **21** (see `docs/decisions.md`): + design-principles adoption, local backend, Android SDK, Contacts slice, bespoke theme, homebase deploy, git hooks, calendar shell, /replycoderabbit, calendar events, **event types (colour-as-data)**, **cloud-CR two-command split (D20)**, **README Features section over a docs site (D21)**.
 - ✅ **Event types — SHIPPED, MERGED & DEPLOYED (Slices 1–3).** Colour-as-data (Decision 19). **Slice 1** (PR #13 → squash): `event_types` table + `events.type_id` FK + `EventType` model + read embed. **Slice 2** (PR #14 → squash): Settings → Event types manager/editor + `soft_delete_event_type` RPC; 8-swatch palette. **Slice 3** (PR #15 → squash): `p_type_id` on the write RPCs; event-form Type picker (pick-existing + "Manage types…"); full-area **tinted** Day/3-day blocks (no rail); dot + name in Agenda/detail/panel; coloured Month density dots + "+N"; shared `TypeLabel` atom; `tintForType`. All three squash-merged in order; each cloud-CR answered · **52 tests** · emulator visual QA light+dark. **Deployed to homebase** — all 4 event-types migrations applied via `deploy-homebase.sh` (ledger at **9**; `create_event` carries `p_type_id`).
@@ -42,7 +42,7 @@ rounds. **RESUME = triage the 9 cloud CodeRabbit findings on PR #18** (`/coderab
 copy where the user needs it, e.g. the "No contacts yet" state). Then: **auth (GoTrue)** logins +
 owner-based RLS (unblocks DB-hardening issue #3), or search/filter on Contacts.
 
-Later candidates (unchanged): DB hardening + auth (GoTrue) — **issue #3**, now also covers
+Later candidates: DB hardening + auth (GoTrue) — **issue #3**, now also covers
 `event_types` write-hardening + the `soft_delete_event_type` `auth.uid()` check · Tailscale
 db-deploy action (#7) · #9/#10 cleanups · overnight/`timestamptz` events · full 7-column week ·
 search/filter.
