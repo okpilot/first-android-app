@@ -236,8 +236,8 @@ Contacts #2 → `fa4fc45`. The app also runs on the physical **S23+** against ho
 - ✅ **Built event comments on events.** Add / inline-edit / archive / toggle-archived / unarchive. Single `event_comments` table (id, event_id FK, body, created_at, updated_at, deleted_at) under RLS.
 - ✅ **SELECT policy `using (true)` — archived comments stay readable** (Decision 23, database.md #4 amendment) so the UI can surface them under a toggle. Because archived rows survive PostgREST's RETURNING re-check, archive/unarchive/edit are plain direct UPDATEs — no soft-delete RPC needed (unlike `soft_delete_event_type` / `soft_delete_contact`).
 - ✅ **Dart:** pure-Dart `Comment` model (the only model that reads `deleted_at` back); `CommentsRepository` (interface + SupabaseCommentsRepository, direct CRUD); self-contained `_CommentsSection` on `EventDetailScreen`.
-- ✅ **Tests:** 63 green (comment_test + comments_section_test + calendar_screen_test + widget_test coverage). **curl-verified:** insert/edit/archive/unarchive 200 · archived still SELECTable · empty body 400 · anon DELETE 401 (no grant).
-- ✅ **Branch ready:** `feat/event-comments` awaiting push/merge. Gate: analyze · 63 tests · web build.
+- ✅ **Tests:** 69 green (comment_test + comments_section_test + calendar_screen_test + widget_test coverage; test-writer added 6 for the load-failure/stale-guard/button-gating branches). **curl-verified:** insert/edit/archive/unarchive 200 · archived still SELECTable · empty body 400 · anon DELETE 401 (no grant).
+- ✅ **Branch ready:** `feat/event-comments` awaiting push/merge. Gate: analyze · 69 tests · web build.
 
 ## Done previous runs
 - 2026-07-08 (s1): styling = stock M3 (Decision 8); planned + built the walking skeleton (parked).
