@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../data/comments_repository.dart';
@@ -119,7 +121,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
         final navigator = Navigator.of(context);
-        Future.microtask(() => navigator.pop(_dirty));
+        unawaited(Future.microtask(() => navigator.pop(_dirty)));
       },
       child: Scaffold(
         appBar: AppBar(
@@ -354,7 +356,7 @@ class _CommentsSectionState extends State<_CommentsSection> {
       _rebuild,
     ); // toggle the Comment button as text changes
     _editController.addListener(_rebuild); // toggle the Save button
-    _load();
+    unawaited(_load());
   }
 
   @override

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../data/contacts_repository.dart';
@@ -104,7 +106,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
         // Defer the pop out of the PopScope callback to avoid re-entering the
         // navigator (which can trip _debugLocked) during system/app-bar back.
         final navigator = Navigator.of(context);
-        Future.microtask(() => navigator.pop(_dirty));
+        unawaited(Future.microtask(() => navigator.pop(_dirty)));
       },
       child: Scaffold(
         appBar: AppBar(

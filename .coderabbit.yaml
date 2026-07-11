@@ -26,7 +26,9 @@ reviews:
       instructions: >
         Postgres migrations (Supabase). Enforce docs/database.md: enable RLS in the
         SAME migration as CREATE TABLE; soft-delete via deleted_at (no hard DELETE
-        except explicitly-annotated exceptions); SECURITY DEFINER functions must
+        except explicitly-annotated exceptions); SELECT policies on mutable tables
+        filter deleted_at IS NULL, except event_comments (which uses SELECT USING (true)
+        for archived comments — docs/database.md #4); SECURITY DEFINER functions must
         SET search_path = public (and, once auth is wired — issue #3 — client-facing
         ones must check auth.uid()). Auth (GoTrue) is NOT wired yet, so do NOT flag
         missing auth.uid() checks on pre-auth client-facing RPCs, their expected anon

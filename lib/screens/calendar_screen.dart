@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../data/comments_repository.dart';
@@ -60,7 +62,7 @@ class _CalendarScreenState extends State<CalendarScreen>
     _tab.addListener(() {
       if (!_tab.indexIsChanging) setState(() {});
     });
-    _load();
+    unawaited(_load());
   }
 
   @override

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../data/event_types_repository.dart';
@@ -23,7 +25,7 @@ class _EventTypesScreenState extends State<EventTypesScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    unawaited(_load());
   }
 
   Future<void> _load() async {
