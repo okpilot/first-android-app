@@ -17,8 +17,9 @@ fixed immediately. External hooks I can't see are useless — the git hooks only
 |---|---|---|
 | **Plan time** — after I draft a plan, before you approve | `plan-critic` | multi-round (below); skip for single-file <10-line changes |
 | **Pre-commit** — after building, before `git commit` | `implementation-critic` | **always**, no skip |
-| **Post-commit** (the `.githooks/post-commit` banner nudges) | `code-reviewer` · `semantic-reviewer` · `doc-updater` · `test-writer` in parallel → `learner` | unconditional (each no-ops if nothing in its scope) |
+| **Post-commit** (the `.githooks/post-commit` banner nudges) | `code-reviewer` · `semantic-reviewer` · `doc-updater` · `test-writer` in parallel | unconditional (each no-ops if nothing in its scope) |
 | ↳ then, conditional | `red-team` (if diff touched `backend/migrations/**` or auth) · `coderabbit-sync` (if diff touched `CLAUDE.md` / `docs/database.md` / `analysis_options.yaml` / `.claude/rules/*`) | only when the path condition holds |
+| ↳ **last** | `learner` — after all the above, so it aggregates every reviewer's findings (the parallel four **plus** any conditional `red-team`/`coderabbit-sync`) | always |
 | **Pre-push** (`/fullpush`, before `/crlocal`) | `db-security-reviewer` | when diff touches `backend/migrations/**/*.sql` |
 | **PR** | cloud CodeRabbit + `/coderabbit` triage | authoritative |
 | **Session end** | `/wrapup` | disposes findings + curates memory |

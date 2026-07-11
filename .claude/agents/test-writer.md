@@ -23,8 +23,7 @@ Post-commit, **unconditional** — run every time, and **no-op** when the diff a
 Dart. Test-worthy = a new/changed file under `lib/models/`, `lib/util/`, or a **new or changed**
 stateful screen under `lib/screens/` (a `StatefulWidget` with load/refresh logic — changed
 load/refresh/stale behaviour needs tests too, not just brand-new screens). No-op (report `0` written) when
-the diff is docs/SQL-only, or touches only pure presenter widgets under `lib/widgets/` (see DO NOT
-#3).
+the diff is docs/SQL-only, or touches only pure presenter widgets under `lib/widgets/` (see DO NOT item 3).
 
 ## Inputs
 - The Dart diff for this commit (`git diff` / `git show` for the just-committed slice).

@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-description: Reviews every post-commit diff for Dart/Flutter code quality, structure, and idiom against flutter_lints defaults and this project's conventions. Runs automatically after each commit as part of the unconditional post-commit batch, on `git diff HEAD~1..HEAD`. Structural violations are BLOCKING (merge-blocking on main); idiom/naming/missing-test findings are non-blocking WARNINGs. Advisory — it reports; the main session fixes. Does NOT review deep logic (semantic-reviewer) or DB security (db-security-reviewer).
+description: Reviews every post-commit diff for Dart/Flutter code quality, structure, and idiom against flutter_lints defaults and this project's conventions. Runs after each commit — launched by the session (the post-commit hook only prints a nudge) — as the unconditional post-commit batch, on `git diff HEAD~1..HEAD`. Structural findings are ISSUE (fix before merge to main); idiom/naming/missing-test findings are SUGGESTION. Advisory — it reports; the main session fixes. Does NOT review deep logic (semantic-reviewer) or DB security (db-security-reviewer).
 memory: project
 ---
 
@@ -94,7 +94,7 @@ not one that is merely long-but-single-concern. When a long file is genuinely on
 ## CODE REVIEW — [slice/branch] — [commit hash]
 Files reviewed: N Dart files | +N / -N lines
 
-**Findings:** N critical, N blocking, N suggestions
+**Findings:** N critical, N issues, N suggestions
 
 ### [SEVERITY] Finding title
 - **File:** lib/screens/foo_screen.dart:line

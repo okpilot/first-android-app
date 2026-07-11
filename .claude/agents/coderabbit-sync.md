@@ -18,14 +18,14 @@ You are **advisory and read-only**. You report the exact YAML edits needed; the 
 them. Nothing you output blocks a push.
 
 ## ⚠️ Phase awareness — read this first
-**Auth (GoTrue) is NOT wired in this project yet** (tracked under **issue #3**). The current
-`**/*.sql` path_instruction tells CodeRabbit that `SECURITY DEFINER` functions "check auth.uid()" —
-that is **phase-unaware and wrong for today**: every RPC is deliberately pre-auth, granted to
-`anon`, and `with check (true)` policies are intentional. An instruction that makes CodeRabbit
-demand `auth.uid()` now would cry wolf on every legitimate migration PR.
-- Treat the missing phase-qualifier on the `auth.uid()` clause as **live drift to flag day-one**:
-  recommend phase-qualifying it (e.g. *"check `auth.uid()` **once auth is wired — #3**"*), not
-  deleting it — the convention is real, just deferred.
+**Auth (GoTrue) is NOT wired in this project yet** (tracked under **issue #3**). The `**/*.sql`
+path_instruction was phase-qualified on 2026-07-11 — it now says client-facing `SECURITY DEFINER`
+functions must check `auth.uid()` **"once auth is wired — #3"** and explicitly not to flag missing
+`auth.uid()` / `anon` grants / `with check (true)` today. That is correct: every RPC is deliberately
+pre-auth, granted to `anon`, and `with check (true)` is intentional.
+- Your job here is a **regression guard**: flag ONLY if a future edit reintroduces an **unqualified**
+  `auth.uid()` requirement (recommend re-qualifying it, not deleting — the convention is real, just
+  deferred). If the clause is already phase-qualified, it is **IN SYNC** — do not raise it.
 - Do **not** recommend adding any instruction that forces `auth.uid()` / login checks unconditionally.
 
 ## Trigger (deterministic — path condition, not judgement)

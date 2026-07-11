@@ -26,10 +26,13 @@ List EVERY open non-blocking finding from this session — cr-local skips, cloud
 - Any `TaskCreate` tasks are completed or explicitly carried forward.
 - Project memory is accurate and lean; stale entries removed.
 - **Agent memory** (`.claude/agent-memory/*/MEMORY.md`) — curate in place: keep the pattern
-  trackers accurate and lean, prune stale rows, and confirm no raw secrets/findings leaked in. Each
-  `MEMORY.md` stays **under the 200-line / 25 KB budget** (spill durable detail to `topics/`); keep
-  `red-team/topics/attack-surface.md` current. If the auth phase advanced this session (issue #3),
-  flip the `db-security-reviewer` (and `red-team`) phase notes.
+  trackers accurate and lean, **transition** stale tracker rows to `RESOLVED`/`FALSE POSITIVE`
+  (never *delete* a tracker row — per `agent-memory.md`), prune stale prose, and confirm no raw
+  secrets/findings leaked in. Each `MEMORY.md` stays **under the 200-line / 25 KB budget** (spill
+  durable detail to `topics/`); keep `red-team/topics/attack-surface.md` current. If the auth phase
+  advanced this session (issue #3), flip **every** auth-phase artifact: the `db-security-reviewer`
+  phase note, the `red-team` matrix rows (move `cross-user data access` / `owner-scoping` out of
+  `pending (auth #3)`), and the `.coderabbit.yaml` `auth.uid()` qualifier.
 
 ### 5. Agent pipeline (the reviewer fleet — see `.claude/rules/agent-workflow.md`)
 Two checks, both verifiable against the session transcript (list the evidence — don't rubber-stamp
