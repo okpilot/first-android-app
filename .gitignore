@@ -31,3 +31,6 @@ app.*.map.json
 # Local dev backend secrets & Flutter dart-defines (never commit)
 backend/.env
 dev-defines*.json
+
+# Stray design/export archives dropped in the project root (e.g. logo zips)
+*.zip

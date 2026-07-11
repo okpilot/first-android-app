@@ -2,8 +2,10 @@
 
 # Handover
 
-**Status: EVENT COMMENTS — IMPLEMENTED, branch ready (feat/event-comments) — not yet merged.**
-Add / inline-edit / archive / toggle-archived / unarchive on events. Single-table, direct-CRUD under RLS (no RPC); SELECT policy `using (true)` so archived comments stay readable (Decision 23, database.md #4 amendment). Comment model reads `deleted_at` back; CommentsRepository direct CRUD (edit is body-only); self-contained _CommentsSection on event detail. 69 tests green; curl-verified (insert/edit/archive/unarchive 200, archived SELECTable, empty body 400, anon DELETE 401); emulator visual QA light+dark. Awaiting push/merge.
+**Status: EVENT COMMENTS — IMPLEMENTED, PR #20 open (feat/event-comments) — cloud-CR cycle 1 triaged, reply pending.**
+Add / inline-edit / archive / toggle-archived / unarchive on events. Single-table, direct-CRUD under RLS (no RPC); SELECT policy `using (true)` so archived comments stay readable (Decision 23, database.md #4 amendment). Comment model reads `deleted_at` back; CommentsRepository direct CRUD (edit is body-only); self-contained _CommentsSection on event detail. 69 tests green; curl-verified (insert/edit/archive/unarchive 200, archived SELECTable, empty body 400, anon DELETE 401); emulator visual QA light+dark.
+**This session (session 12) — `/coderabbit` on PR #20:** 6 cloud findings → **3 FIX** (doc/memory-accuracy in `d0aa1f1`: plan.md 63→69 tests + branch-ready-not-SHIPPED; code-reviewer memory async-safety wording; learner memory `discarded_futures` now-enabled), **1 DEFER → #10** (duplicate inert `_FakeCommentsRepo` in two test files), **2 SKIP** (red-team + semantic/test-writer memories already resolved in current source). Pushed via `/fullpush` (gate green · analyze · 69 tests · web build · `/crlocal` 2 rounds clean). Disposition comment on PR #20. **Caught+removed a stray `CRM+ logo design (5).zip`** an over-broad `git add -A` had swept into the commit (amended out; still untracked on disk).
+**RESUME = run `/replycoderabbit` on PR #20** once the cloud bot re-reviews `d0aa1f1`, then squash-merge + deploy the migration to homebase.
 
 **Previous: AGENT FLEET (issue #6) — SHIPPED & MERGED (PR #18 → squash `fba34f6`).**
 Full **10-agent LMS-Plus reviewer fleet** ported to this project, Flutter-adapted (Decision 22,

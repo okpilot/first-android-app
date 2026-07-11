@@ -40,10 +40,12 @@ RPC** (archive/edit/unarchive are plain UPDATEs). New `event_comments` table (FK
 CHECK, index, no delete grant) + pure-Dart `Comment` model (reads `deleted_at` back) + `CommentsRepository`
 (edit body-only) + self-contained `_CommentsSection` on event detail. Also enabled the `discarded_futures`
 lint (learner). Gate green (analyze · **69 tests** · web build · fresh-DB migration · db-security CLEAN ·
-`/crlocal` 3 rounds → clean); **emulator visual QA light+dark**. 5 commits on the branch.
+`/crlocal` 3 rounds → clean); **emulator visual QA light+dark**. 7 commits on the branch.
+**Cloud-CR cycle 1 triaged** (`/coderabbit` on PR #20, 6 findings → 3 FIX doc/memory-accuracy in `d0aa1f1`,
+1 DEFER → #10, 2 SKIP already-resolved); pushed via `/fullpush` (gate green, `/crlocal` 2 rounds clean).
 
-**RESUME = triage cloud CodeRabbit on PR #20** (`/coderabbit` → `/fullpush` → `/replycoderabbit`), then
-squash-merge + deploy the migration to homebase (`deploy-homebase.sh`). **Then the queued slice
+**RESUME = run `/replycoderabbit` on PR #20** once the cloud bot re-reviews `d0aa1f1` (triage + fixes are
+already pushed), then squash-merge + deploy the migration to homebase (`deploy-homebase.sh`). **Then the queued slice
 (Decision 21):** in-app **empty-state hints** — a small Flutter slice. Then: **auth (GoTrue)** logins +
 owner-based RLS (unblocks DB-hardening issue #3), or search/filter on Contacts.
 
