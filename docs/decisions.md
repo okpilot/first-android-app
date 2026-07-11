@@ -205,6 +205,18 @@ subset — but keep it Flutter-honest (phase-aware, no cargo-culted TS/Next rule
 - **Implementation:** `event_comments` table (id, event_id FK, body, created_at, updated_at, deleted_at) under RLS. Single migration, direct-CRUD repository (CommentsRepository), self-contained UI section (_CommentsSection) on event detail. Comment model reads `deleted_at` back (unlike other models) so the UI can distinguish archived.
 **Principle:** Soft-delete is a convention with documented exceptions — this table's exception is justified by its read-always-archived design.
 
+## Decision 24: App identity — launcher name `CRM+` + dark `C⁺` icon (2026-07-11)
+**Context:** The app still shipped as `first_android_app` with the default Flutter blue-swirl icon. Gave it a real identity on the phone: renamed the launcher and installed a bespoke dark `C⁺` mark (user-supplied SVG; dark variant chosen over light).
+**Decided:**
+- **Launcher name:** `android:label` in `AndroidManifest.xml` → **`CRM+`** (was `first_android_app`). Android-only for now — the phone (S23+) is the only real target; iOS/web/Linux labels untouched.
+- **Icon generation via `flutter_launcher_icons`** (dev-dependency + config block in `pubspec.yaml`), the idiomatic Flutter tool — one config generates every mipmap density **plus** a modern adaptive icon. Re-run with `dart run flutter_launcher_icons` after any icon change. `android: true, ios: false` (scope = phone).
+- **Two source images, deliberately different** (both committed under `assets/icon/` as the reproducible source of truth, rendered from SVG via `cairosvg`):
+  - `crm-plus-dark-1024.png` — the **full designed tile** (grid + border + rounded corners + `C⁺`), used as the legacy `image_path` and shown as-is on older launchers / the app switcher.
+  - `crm-plus-dark-fg-1024.png` — a **clean transparent glyph** (white `C⁺` + faint grid, NO border, NO rounded-card), used as `adaptive_icon_foreground`. The full tile makes a bad adaptive foreground: the generator insets it 16% and floats it on the background, so the tile's own border + rounded corners read as a "card-inside-the-icon" outline under the mask. The transparent glyph avoids that.
+- **Adaptive background:** solid `#0a0a0a` (matches the tile's background) → the foreground glyph sits seamlessly, and a round/squircle mask just rounds a uniform dark field. Geometry checked: the `C` and the `⁺` both stay inside a circle mask's safe zone, so nothing important clips.
+- **Removed the generator's 16% foreground `<inset>`** in `mipmap-anydpi-v26/ic_launcher.xml`: the `C⁺` already sits inside the 72dp adaptive safe circle (the `⁺` at ~158px vs the ~170px safe radius on a 512 grid), so the inset only shrank the mark below the chosen framing for no clip-safety gain. Without it, the adaptive icon matches the legacy tile. (Re-drop the inset if a future `flutter_launcher_icons` run re-adds it.)
+**Principle:** Store the reproducible icon *source* (SVG + PNG) in the repo, generate the platform variants with a tool — never hand-drop density PNGs. Adaptive foregrounds must be transparent glyphs, not opaque tiles.
+
 ---
 
 ## OPEN QUESTIONS

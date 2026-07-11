@@ -22,6 +22,14 @@ _First run pending. Seed watch-items carried from the project's conventions:_
   When a new stateful list/section copies an existing green screen's load pattern verbatim, the
   stale-guard/mounted checks tend to be right — verify the copy is faithful rather than re-deriving.
 
+- App-icon/name slice (2026-07-11, `slice/app-icon-and-name`): clean pre-commit review, 0 blocking.
+  Config/asset-only (no Dart). Verified the way that actually catches the trap: decode the PNG alpha,
+  don't trust colortype. Adaptive foreground (`crm-plus-dark-fg-1024.png` + generated
+  `ic_launcher_foreground.png`) had corner alpha=0 = transparent glyph; legacy tile
+  (`crm-plus-dark-1024.png`) corner alpha=255 rgb(10,10,10)=#0a0a0a opaque — correct split. colors.xml
+  `#0a0a0a` matched `adaptive_icon_background`; anydpi-v26 refs resolved. For icon slices, pixel-sample
+  corner-vs-center alpha rather than reading the SVG or PNG header alone.
+
 ## Known false-positive traps (do not flag these)
 - Missing `auth.uid()` / login checks are expected pre-auth (issue #3) — not a defect.
 - `with check (true)` policies and RPCs granted to `anon` are intentional pre-auth.
