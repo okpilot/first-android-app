@@ -8,7 +8,7 @@ End-of-session wrap-up. Run before stopping — sync docs, dispose of open findi
 - `docs/decisions.md` — every decision made this session is recorded (numbered, dated).
 
 ### 2. Findings disposition (no silent skips)
-List EVERY open non-blocking finding from this session — cr-local skips, cloud CodeRabbit nitpicks, anything deferred, **and every open ISSUE/SUGGESTION from a reviewer in the fleet** (plan-critic, implementation-critic, semantic-reviewer, code-reviewer, red-team, doc-updater, test-writer, coderabbit-sync). For each, the user picks one:
+List EVERY open non-blocking finding from this session — cr-local skips, cloud CodeRabbit nitpicks, anything deferred, **and every open ISSUE/SUGGESTION from a reviewer in the fleet** (plan-critic, implementation-critic, semantic-reviewer, code-reviewer, red-team, doc-updater, test-writer, coderabbit-sync). (`db-security-reviewer`'s blockers are resolved at the `/fullpush` gate; `learner`'s proposals are dispositioned in §5.) For each, the user picks one:
 - **FIX NOW** (< 10 lines) · **DEFER** → open a GitHub issue (`gh issue create`) · **SKIP** → with a reason.
 - "Noted" is not a disposition — it's a ticket or an explicit skip.
 - **Answer the cloud bot on the PR:** if there's an open PR with a cloud CodeRabbit review, run
@@ -32,21 +32,18 @@ List EVERY open non-blocking finding from this session — cr-local skips, cloud
   flip the `db-security-reviewer` (and `red-team`) phase notes.
 
 ### 5. Agent pipeline (the reviewer fleet — see `.claude/rules/agent-workflow.md`)
-Report pass/fail with brief notes. Only audit what applies to this session's work.
-- **Findings resolved** — no orphaned CRITICAL/ISSUE from any reviewer; each was fixed, deferred, or
-  skipped (dispositioned in §2, not left hanging).
-- **Pipeline ran** — each commit this session got the post-commit reviewers (+ `learner`);
-  `implementation-critic` ran before each commit and `plan-critic` before each plan approval. Any
-  skip is **stated** (plan-critic may skip a <10-line single-file change; implementation-critic
-  never skips).
-- **Ceiling escalations** — any critic that hit the multi-round ceiling (4) was **escalated to the
-  user** with residual findings, not silently resolved.
-- **Scope violations** — no reviewer acted outside its lane (e.g. `test-writer` editing `lib/`
-  production code, `doc-updater` making an architectural decision, a critic editing code directly).
-- **`learner` proposals** — any rule/doc/config change it proposed was applied or **explicitly
-  declined** (not "noted"); none conflicts with an existing rule or double-gates the `.githooks/`.
-- **doc-updater DRIFT** — any DRIFT it flagged (a doc contradicting committed code) was resolved —
-  the doc updated or the code fixed.
+Two checks, both verifiable against the session transcript (list the evidence — don't rubber-stamp
+"pass"). The reviewers are launched by hand, so this is the memory-jog that they actually ran.
+- **Pipeline ran — name the reviewers per commit.** For each commit this session, list which
+  reviewers ran and any **stated** skip, e.g. `abc123 → code-reviewer · semantic-reviewer ·
+  doc-updater · test-writer · learner; red-team N/A (no migrations)`. Confirm `implementation-critic`
+  ran before each commit and `plan-critic` before each plan approval (plan-critic may skip a
+  <10-line single-file change — say so; implementation-critic never skips). Note any critic loop that
+  hit the round **ceiling** (4 for plan/semantic/code; implementation-critic hands to the
+  orchestrator at 2) — it must have been **escalated to the user**, not silently resolved.
+- **`learner` proposals dispositioned** — any rule/doc/config change `learner` proposed was applied
+  or **explicitly declined** (not "noted"). (`learner` emits proposals, not findings, so §2 doesn't
+  cover it — this is the one fleet output dispositioned here.)
 
 ### 6. Session summary (present to user)
 - **Done this session** — what shipped / merged.

@@ -181,9 +181,11 @@ round 2 caught 2 consistency gaps, round 3 clean).
   doc-updater/test-writer → learner → conditional red-team (migrations/auth) + coderabbit-sync
   (rule/config files) · db-security-reviewer (pre-push). A new bash **`.githooks/post-commit`**
   nudges the post-commit batch (no Node; LMS's reminder-banner equivalent). Memory format in
-  `.claude/rules/agent-memory.md`. **`/wrapup` gains an Agent-pipeline audit** (findings resolved ·
-  pipeline ran · ceiling escalations · scope violations · learner proposals · doc-updater DRIFT) +
-  fleet-memory curation — so end-of-session verifies the fleet actually ran.
+  `.claude/rules/agent-memory.md`. **`/wrapup` gains an Agent-pipeline check** — a per-commit list of
+  which reviewers ran (+ ceiling-escalations) and the disposition of `learner`'s proposals — plus
+  fleet-memory curation, so end-of-session verifies the fleet actually ran. (Two critics trimmed it
+  from 6 audit items to 2: the rest were redundant with the findings/memory sections or unverifiable
+  rubber-stamps.)
 - **Model tiers:** db-security-reviewer = opus (gates); doc-updater + coderabbit-sync = haiku; the
   rest inherit the session model. `coderabbit-sync` has no memory; `red-team` keeps a protected
   `topics/attack-surface.md` matrix.
