@@ -2,15 +2,19 @@
 
 # Handover
 
-**Status: AGENT FLEET (issue #6) — BUILT & PUSHED, PR #18 OPEN (cloud-CR triage pending).**
+**Status: AGENT FLEET (issue #6) — BUILT & PUSHED, PR #18 OPEN (cloud-CR cycle 1 ANSWERED).**
 Full **10-agent LMS-Plus reviewer fleet** ported to this project, Flutter-adapted (Decision 22,
-revised 2026-07-11 from "build 2, earn 8" → **full port**). 4 commits on `feat/agent-fleet`
-(`060f099` fleet · `d577c51` fleet-aware `/wrapup` · `46435bc` post-commit exec-bit fix · `65e8a0a`
-`/wrapup` tighten), pushed; **PR #18 open**. Gate green (analyze · **52 tests** · web build); the
-fleet's CR-local converged over **4 rounds (26 findings, all applied)**; the `/wrapup` change got
-**2 adversarial critics + 2 clean scoped CR-local rounds**.
-**RESUME = triage the 9 cloud CodeRabbit findings on PR #18** (`/coderabbit` → `/fullpush` →
-`/replycoderabbit`), then merge #18, then post-merge doc sync.
+revised 2026-07-11 from "build 2, earn 8" → **full port**). **7 commits** on `feat/agent-fleet`
+(`060f099` fleet · `d577c51`/`65e8a0a` fleet-aware `/wrapup` + tighten · `46435bc` post-commit
+exec-bit fix · `49dec85` doc sync · `f80bc5e`/`870ba1d` cloud-CR fixes), all pushed; **PR #18 open**.
+Gate green (analyze · **52 tests** · web build); the fleet's CR-local converged over **4 rounds
+(26 findings)**; the `/wrapup` change got **2 adversarial critics + 2 clean CR-local rounds**.
+**Cloud CodeRabbit cycle 1 answered:** 9 findings → **8 fixed** (`f80bc5e` + polish `870ba1d`),
+**1 deferred → #3** (SECURITY DEFINER `search_path` → `pg_temp` hardening); triage + reply comments
+posted on #18.
+**RESUME = check CR's re-review of the last push (`870ba1d`) on #18; if clean → merge #18 (squash),
+then post-merge doc sync.** If a cloud cycle 2 appears, `/coderabbit` → `/fullpush` → `/replycoderabbit`
+(3-cycle ceiling). Then the queued **empty-state hints** slice.
 
 - **10 agents** in `.claude/agents/` (phase-aware, advisory): plan-critic, db-security-reviewer
   (= the `security-auditor` role), implementation-critic, semantic-reviewer, code-reviewer, red-team,
@@ -19,9 +23,9 @@ fleet's CR-local converged over **4 rounds (26 findings, all applied)**; the `/w
   `/wrapup` gained an Agent-pipeline check. Built via `/plan` + 3 `plan-critic` rounds (dogfood) +
   8 parallel authors + a consistency review + 5 reviewer smoke-tests. The fleet caught a real
   day-one `.coderabbit.yaml` drift (unconditional `auth.uid()`), fixed in the PR.
-- **Follow-up flagged (not yet an issue):** red-team recommended two `backend/README.md` curl checks
-  (soft-delete persistence via a privileged read; soft-deleted-type → embed-null) — disposition next
-  session (DEFER→issue or SKIP).
+- **Follow-ups filed this session:** **#19** (red-team's two `backend/README.md` curl checks —
+  soft-delete persistence via a privileged read + soft-deleted-type → embed-null); **#3** commented
+  (the `search_path` → `pg_temp` hardening, deferred from the cloud review).
 
 **Status: EVENT TYPES (colour-as-data, Decision 19) — SHIPPED, MERGED & DEPLOYED (Slices 1–3).**
 PRs **#13 → #14 → #15** all squash-merged to `main` in order (`9873585` / `44c230a` / `9a0ca28`);

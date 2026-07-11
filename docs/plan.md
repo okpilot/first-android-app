@@ -36,8 +36,9 @@ reviewer fleet, Flutter-adapted (Decision 22, revised 2026-07-11 to the full por
 `.claude/agents/` + `.claude/rules/agent-workflow.md`/`agent-memory.md` + a `.githooks/post-commit`
 nudge + a CLAUDE.md fleet section + a fleet-aware `/wrapup`. Gate green (analyze · 52 tests · web
 build); fleet CR-local converged (4 rounds); `/wrapup` change had 2 critics + 2 clean CR-local
-rounds. **RESUME = triage the 9 cloud CodeRabbit findings on PR #18** (`/coderabbit` → `/fullpush` →
-`/replycoderabbit`), then merge #18.
+rounds. **Cloud CR cycle 1 answered** (9 findings → 8 fixed `f80bc5e`/`870ba1d`, 1 deferred → #3).
+**RESUME = check CR's re-review of the last push on PR #18; if clean → merge #18 (squash)**, then
+post-merge sync. (red-team curl recs → #19.)
 **Then the queued slice (Decision 21):** in-app **empty-state hints** — a small Flutter slice (help
 copy where the user needs it, e.g. the "No contacts yet" state). Then: **auth (GoTrue)** logins +
 owner-based RLS (unblocks DB-hardening issue #3), or search/filter on Contacts.
