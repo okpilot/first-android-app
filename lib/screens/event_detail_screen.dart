@@ -421,6 +421,8 @@ class _CommentsSectionState extends State<_CommentsSection> {
   /// Runs a mutation, then reloads. Captures the messenger before the await and re-checks
   /// `mounted` after it (the `_confirmDelete` idiom used elsewhere in this file).
   Future<void> _run(String errorMessage, Future<void> Function() op) async {
+    // re-entrancy guard: a double-tap can't fire the op twice
+    if (_busy) return;
     setState(() => _busy = true);
     final messenger = ScaffoldMessenger.of(context);
     try {

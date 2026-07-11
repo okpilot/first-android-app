@@ -15,13 +15,14 @@ project: First Android App (learning CRM)
 1. **Atomic multi-table writes = one function.** Any operation touching 2+ tables goes in a single Postgres `SECURITY DEFINER` function (RPC), never multi-step client calls. Atomic rollback on failure.
 2. **RPC for what matters; direct-under-RLS for the rest.** Multi-table / immutable / sensitive writes → RPC. Ordinary reads and simple own-row writes → direct table/view access enforced by RLS. (This is the *corrected* rule — NOT "everything is RPC".)
 3. **Idempotency.** Retryable writes use `ON CONFLICT DO NOTHING / DO UPDATE`.
-4. **Soft-delete by default.** Mutable tables get `deleted_at timestamptz NULL` (+ optionally `deleted_by`). No hard `DELETE` except explicitly-annotated exceptions (ephemeral / immutable-fact tables). Read policies filter `deleted_at IS NULL`.
+4. **Soft-delete by default.** Mutable tables get `deleted_at timestamptz NULL` (+ optionally `deleted_by`). No hard `DELETE` except explicitly-annotated exceptions (ephemeral / immutable-fact tables). Read policies filter `deleted_at IS NULL`. **Exception — `event_comments`:** its SELECT policy is `using (true)`, not `using (deleted_at is null)`, so archived comments stay readable under a UI toggle. This breaks the usual soft-delete-means-hidden rule *because* archived comments are a feature, not a bug, and the archive/unarchive/edit are plain direct UPDATEs (no SECURITY DEFINER RPC) because the archived row survives PostgREST's RETURNING re-check (see Decision 23).
 5. **RLS on every table**, enabled in the SAME migration as `CREATE TABLE`. `USING` for reads; `WITH CHECK` on write policies.
 6. **SECURITY DEFINER functions** always `SET search_path = public`, and client-facing ones check `auth.uid()`.
 7. **Standard columns** (usual, not dogma): `id uuid primary key default gen_random_uuid()`, `created_at timestamptz not null default now()`, `updated_at` only where rows mutate.
 8. **Constraints live in the DB**, not just the app: FK / NOT NULL / CHECK / UNIQUE.
 9. **Pagination = LIMIT/OFFSET, default page size 10**, total via `count(*) OVER()`. (Keyset only later, if a list proves it needs it.)
 10. **Migrations are forward-only**, timestamped `YYYYMMDDHHMMSS_description.sql` (Supabase CLI format). Never edit a pushed migration — add a new one.
+11. **Record the linchpin verification curl(s).** Any RLS / soft-delete-touching slice records the curl(s) that prove its non-destructive-delete behaviour (the row survives with `deleted_at` set / the embed reads back null / the archived row stays selectable) in `backend/README.md`, as part of the slice — so "verified" is durable, not a one-off run.
 
 ## Naming
 - RPC functions: `verb_noun` snake_case — `get_*`, `list_*`, `create_*`, `upsert_*`, `soft_delete_*`, `submit_*`. Internal helpers: `_leading_underscore`.

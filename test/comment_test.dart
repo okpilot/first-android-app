@@ -43,6 +43,31 @@ void main() {
       expect(c.deletedAt, isNull);
       expect(c.isArchived, isFalse);
     });
+
+    test('empty-string timestamps parse to null (not the epoch)', () {
+      final c = Comment.fromJson({
+        'id': 'c4',
+        'event_id': 'e1',
+        'body': 'Hi',
+        'created_at': '',
+        'updated_at': '',
+        'deleted_at': '',
+      });
+      expect(c.createdAt, isNull);
+      expect(c.updatedAt, isNull);
+      expect(c.deletedAt, isNull);
+      expect(c.isArchived, isFalse); // '' deleted_at must not read as archived
+    });
+
+    test('an unparseable timestamp yields null rather than throwing', () {
+      final c = Comment.fromJson({
+        'id': 'c5',
+        'event_id': 'e1',
+        'body': 'Hi',
+        'created_at': 'not-a-date',
+      });
+      expect(c.createdAt, isNull);
+    });
   });
 
   group('Comment.toWrite', () {

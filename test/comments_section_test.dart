@@ -224,4 +224,102 @@ void main() {
     expect(find.text('Tentative — confirming.'), findsOneWidget);
     expect(find.text('No comments yet.'), findsNothing);
   });
+
+  testWidgets(
+    'a failed initial load shows the inline error and Retry recovers',
+    (tester) async {
+      final repo = _FakeCommentsRepo([_live('c1', 'Loaded on retry.')])
+        ..throwOnFetch = true;
+      await tester.pumpWidget(_detail(repo));
+      await tester.pumpAndSettle();
+
+      // No cached data yet → the inline error + Retry, not a silent empty list.
+      expect(find.text("Couldn't load comments."), findsOneWidget);
+      expect(find.widgetWithText(TextButton, 'Retry'), findsOneWidget);
+      expect(find.text('Loaded on retry.'), findsNothing);
+
+      // The next fetch succeeds; Retry loads the comment.
+      repo.throwOnFetch = false;
+      await tester.tap(find.widgetWithText(TextButton, 'Retry'));
+      await tester.pumpAndSettle();
+
+      expect(find.text("Couldn't load comments."), findsNothing);
+      expect(find.text('Loaded on retry.'), findsOneWidget);
+    },
+  );
+
+  testWidgets('a refresh that throws keeps cached comments and surfaces it', (
+    tester,
+  ) async {
+    final repo = _FakeCommentsRepo([_live('c1', 'Still here.')]);
+    await tester.pumpWidget(_detail(repo));
+    await tester.pumpAndSettle();
+    expect(find.text('Still here.'), findsOneWidget);
+
+    // Archive succeeds, but the reload it triggers throws. The cached list must
+    // stay on screen (not crash, not blank) and the failure must be surfaced.
+    repo.throwOnFetch = true;
+    await tester.ensureVisible(find.text('Archive'));
+    await tester.tap(find.text('Archive'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Still here.'), findsOneWidget);
+    expect(
+      find.text("Couldn't refresh comments — showing saved data"),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+    'Comment is disabled until the composer has non-whitespace text',
+    (tester) async {
+      await tester.pumpWidget(_detail(_FakeCommentsRepo()));
+      await tester.pumpAndSettle();
+
+      FilledButton commentButton() => tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Comment'),
+      );
+
+      // Empty composer → disabled.
+      expect(commentButton().onPressed, isNull);
+
+      // Whitespace only → still disabled (body would be empty after trim).
+      await tester.enterText(find.byType(TextField).first, '   ');
+      await tester.pump();
+      expect(commentButton().onPressed, isNull);
+
+      // Real text → enabled.
+      await tester.enterText(find.byType(TextField).first, 'Ready');
+      await tester.pump();
+      expect(commentButton().onPressed, isNotNull);
+    },
+  );
+
+  testWidgets('Save is disabled when the inline editor is emptied', (
+    tester,
+  ) async {
+    final repo = _FakeCommentsRepo([_live('c1', 'Original')]);
+    await tester.pumpWidget(_detail(repo));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Edit'));
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+
+    FilledButton saveButton() =>
+        tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Save'));
+
+    // Prefilled with the body → enabled.
+    expect(saveButton().onPressed, isNotNull);
+
+    // Cleared / whitespace only → disabled.
+    await tester.enterText(find.byType(TextField).last, '   ');
+    await tester.pump();
+    expect(saveButton().onPressed, isNull);
+
+    // Text again → enabled.
+    await tester.enterText(find.byType(TextField).last, 'Revised');
+    await tester.pump();
+    expect(saveButton().onPressed, isNotNull);
+  });
 }

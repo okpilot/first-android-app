@@ -196,6 +196,15 @@ round 2 caught 2 consistency gaps, round 3 clean).
 subset — but keep it Flutter-honest (phase-aware, no cargo-culted TS/Next rules) and advisory
 (the human `/fullpush` approval remains the only real gate).
 
+## Decision 23: Event comments — viewable soft-delete (2026-07-11)
+**Context:** Adding comments on events so users can track metadata / decisions / follow-ups. Single-user, no author yet (auth lands later with issue #3). Comments should stay readable even when archived — the UI shows a "Show archived" toggle to reveal them.
+**Decided:**
+- **Viewable soft-delete:** Unlike every other soft-deletable table, `event_comments`' SELECT policy is `using (true)`, NOT `using (deleted_at is null)`. Archived rows (`deleted_at IS NOT NULL`) stay READABLE so the app can surface them under a toggle.
+- **No soft-delete RPC needed.** The normal pattern for soft-delete is a SECURITY DEFINER RPC (like `soft_delete_contact` / `soft_delete_event_type`) because a direct UPDATE of `deleted_at` fails PostgREST's RETURNING re-check against `using (deleted_at is null)` (42501 — row is gone after the mutation, so it can't pass the SELECT policy). Here, the SELECT policy is `using (true)`, so an archived row *survives* the re-check → **archive / unarchive / edit are all plain direct UPDATEs**, no RPC overhead. This is the *only* table with this SELECT-always policy; it is a deliberate, documented exception (database.md #4 amendment).
+- **Why safe:** Because archived comments stay readable, the UI's visibility is unconditional (no "you've hidden this row" surprise). The `deleted_at` column is never written by the client directly (only via the repository's `archive` / `unarchive` helpers). Queries always fetch by event (so access is bounded by event RLS, not global), and the column is present so queries can filter client-side if needed.
+- **Implementation:** `event_comments` table (id, event_id FK, body, created_at, updated_at, deleted_at) under RLS. Single migration, direct-CRUD repository (CommentsRepository), self-contained UI section (_CommentsSection) on event detail. Comment model reads `deleted_at` back (unlike other models) so the UI can distinguish archived.
+**Principle:** Soft-delete is a convention with documented exceptions — this table's exception is justified by its read-always-archived design.
+
 ---
 
 ## OPEN QUESTIONS

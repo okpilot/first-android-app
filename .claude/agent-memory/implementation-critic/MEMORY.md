@@ -14,7 +14,13 @@ _First run pending. Seed watch-items carried from the project's conventions:_
 - `FutureBuilder` screens keep the `_lastData` stale-guard (failed refresh keeps stale data)?
 
 ## Positive signals
-_None yet._
+- Event-comments slice (2026-07-11): clean pre-commit review, 0 blocking. `_CommentsSection`
+  faithfully mirrored the `event_types_screen.dart` `_load`/`_lastData`/`identical(future,_future)`
+  stale-guard; `_run` captured `ScaffoldMessenger` before every await + re-checked `mounted`;
+  `edit` sent `toWrite()` (event_id+body only, deleted_at untouched → can't accidentally
+  (un)archive); migration matched plan (`select using(true)`, no delete grant, trigger reuse).
+  When a new stateful list/section copies an existing green screen's load pattern verbatim, the
+  stale-guard/mounted checks tend to be right — verify the copy is faithful rather than re-deriving.
 
 ## Known false-positive traps (do not flag these)
 - Missing `auth.uid()` / login checks are expected pre-auth (issue #3) — not a defect.

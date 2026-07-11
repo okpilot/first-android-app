@@ -16,6 +16,8 @@ disposable vehicle for learning app development end to end.
   contacts.
 - **Event types** — define your own colour-coded categories. The colour is used as
   data throughout the calendar, so you can tell events apart at a glance.
+- **Event comments** — attach notes and decisions to an event. Archive old comments to
+  keep them but hide them by default; unarchive to show them again.
 
 Your data lives on a backend you host yourself (Postgres behind a REST layer), not a
 third-party cloud.
