@@ -61,6 +61,37 @@ curl -s -o /dev/null -w '%{http_code}\n' -X DELETE -H "apikey: $ANON" -H "Author
   "$REST/event_comments?id=eq.$CID"                                # -> 401 (no delete grant)
 ```
 
+## Verify: contact write RPCs (Decision 26, Slice 1)
+`create_contact` / `update_contact` are the RPC write path for contacts. These curls prove the
+server-side normalization, and — the one genuinely new guard — that `update_contact` refuses a
+soft-deleted / absent row (`no_data_found`) rather than silently mutating a hidden row:
+```bash
+ANON=$(grep SUPABASE_ANON_KEY .env | cut -d= -f2)
+REST=http://localhost:8000/rest/v1
+# create: padded name trimmed, empty email nullified server-side -> returns the new uuid
+NID=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_contact" \
+  -d '{"p_name":"  Ada  ","p_dob":null,"p_email":"   ","p_phone":"123","p_company":null,"p_remarks":null}' \
+  | tr -d '"')
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/contacts?id=eq.$NID&select=name,email,phone"             # -> name "Ada", email null, phone "123"
+# update: fields change, returns the same id
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/update_contact" \
+  -d "{\"p_id\":\"$NID\",\"p_name\":\"Bob\",\"p_dob\":null,\"p_email\":\"b@x.io\",\"p_phone\":null,\"p_company\":null,\"p_remarks\":null}"
+# blank name -> check violation (contacts_name_check)
+curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_contact" \
+  -d '{"p_name":"   ","p_dob":null,"p_email":null,"p_phone":null,"p_company":null,"p_remarks":null}'  # -> 400
+# the new guard: soft-delete the row, then update_contact on it -> no_data_found (row not resurrected)
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/soft_delete_contact" -d "{\"p_id\":\"$NID\"}"
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/update_contact" \
+  -d "{\"p_id\":\"$NID\",\"p_name\":\"X\",\"p_dob\":null,\"p_email\":null,\"p_phone\":null,\"p_company\":null,\"p_remarks\":null}"
+  # -> {"code":"P0002", ... "contact <uuid> not found or already deleted"} — the guard rolled back
+```
+
 ## Layout
 ```text
 docker-compose.yml   db + rest + gateway

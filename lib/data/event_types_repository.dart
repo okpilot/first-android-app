@@ -12,10 +12,12 @@ abstract interface class EventTypesRepository {
   Future<void> softDelete(String id);
 }
 
-/// Talks to PostgREST under RLS via `supabase_flutter` — never raw Postgres. Single-table
-/// CRUD goes direct (per docs/database.md, like contacts); only the delete is routed
-/// through the `soft_delete_event_type` RPC (a direct REST UPDATE of deleted_at fails the
-/// SELECT policy's RETURNING re-check, 42501).
+/// Talks to PostgREST under RLS via `supabase_flutter` — never raw Postgres. Reads go direct;
+/// create/update still write direct while only the delete is routed through the
+/// `soft_delete_event_type` RPC (a direct REST UPDATE of deleted_at fails the SELECT policy's
+/// RETURNING re-check, 42501). **Pending Slice 2 of Decision 26** (all writes → RPC): the
+/// create/update here convert to `create_event_type` / `update_event_type`, as contacts did in
+/// Slice 1.
 class SupabaseEventTypesRepository implements EventTypesRepository {
   SupabaseEventTypesRepository(this._client);
 

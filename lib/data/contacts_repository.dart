@@ -13,8 +13,10 @@ abstract interface class ContactsRepository {
 }
 
 /// Talks to PostgREST under RLS via `supabase_flutter` — never raw Postgres.
-/// Single-table CRUD goes direct (per docs/database.md); the delete is the one
-/// exception, routed through the `soft_delete_contact` RPC.
+/// Reads go direct (a plain `select`); all writes go through SECURITY DEFINER RPCs
+/// (`create_contact` / `update_contact` / `soft_delete_contact`) per docs/database.md
+/// (Decision 26). Each write RPC returns the id; we re-`select` the full row so callers
+/// get a Contact with the server-populated timestamps.
 class SupabaseContactsRepository implements ContactsRepository {
   SupabaseContactsRepository(this._client);
 
@@ -32,26 +34,25 @@ class SupabaseContactsRepository implements ContactsRepository {
 
   @override
   Future<Contact> create(Contact draft) async {
-    final row = await _client
-        .from(_table)
-        .insert(draft.toWrite())
-        .select()
-        .single();
-    return Contact.fromJson(row);
+    final id = await _client.rpc('create_contact', params: draft.toRpcParams());
+    return _fetchOne(id as String);
   }
 
   @override
   Future<Contact> update(Contact contact) async {
-    final row = await _client
-        .from(_table)
-        .update(contact.toWrite())
-        .eq('id', contact.id)
-        .select()
-        .single();
-    return Contact.fromJson(row);
+    await _client.rpc(
+      'update_contact',
+      params: {'p_id': contact.id, ...contact.toRpcParams()},
+    );
+    return _fetchOne(contact.id);
   }
 
   @override
   Future<void> softDelete(String id) =>
       _client.rpc('soft_delete_contact', params: {'p_id': id});
+
+  Future<Contact> _fetchOne(String id) async {
+    final row = await _client.from(_table).select().eq('id', id).single();
+    return Contact.fromJson(row);
+  }
 }

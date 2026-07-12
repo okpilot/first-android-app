@@ -32,6 +32,22 @@ _First run pending. Seed watch-items carried from the project's conventions:_
   appended (not rewritten). For infra/bash slices, trace the quoting through every shell hop and
   confirm the NOTIFY channel/payload against PostgREST's contract rather than eyeballing it.
 
+- Contacts write-RPCs slice (2026-07-12, `feat/contacts-write-rpcs`, Decision 26 Slice 1): clean
+  pre-commit review, 0 blocking. Straight port of the `20260709120200_event_write_rpcs.sql` /
+  `SupabaseEventsRepository` template to contacts. Verified the port matched rather than re-deriving:
+  `create_contact`/`update_contact` are `security definer` + `set search_path = public`, server-side
+  `trim(p_name)` + `nullif(trim(...),'')`, update guards `deleted_at is null` + raises `no_data_found`,
+  fully-typed grants — byte-for-byte posture of the event RPCs. Repo `id as String` cast + `_fetchOne`
+  re-select mirror the events repo exactly (server timestamps via `Contact.fromJson`). `toRpcParams`
+  matches `Event.toRpcParams` posture (p_name trimmed, optional fields raw → server normalizes);
+  `ymd` still imported/used for p_dob; `_emptyToNull` + `toWrite` fully removed with no orphaned
+  `Contact` caller (grep: remaining `toWrite` hits are `EventType`/`Comment`, the not-yet-converted
+  Slice 2/3 entities). Migration is a genuinely NEW function (single def, no CREATE OR REPLACE chain).
+  docs rule #2 re-reversal is dated + scoped with the migration-in-progress caveat; `event_types`
+  doc-comment correctly dropped "like contacts" and now cites the completed conversion. Lesson: when a
+  slice is an explicit port of a green template, diff the two side-by-side and confirm the divergences
+  are only the entity-specific ones (no attendees array, no all_day CASE) — the rest should match.
+
 - App-icon/name slice (2026-07-11, `slice/app-icon-and-name`): clean pre-commit review, 0 blocking.
   Config/asset-only (no Dart). Verified the way that actually catches the trap: decode the PNG alpha,
   don't trust colortype. Adaptive foreground (`crm-plus-dark-fg-1024.png` + generated

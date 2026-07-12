@@ -24,8 +24,10 @@ reviews:
         credentials on the client (must go through PostgREST/GoTrue under RLS).
     - path: "**/*.sql"
       instructions: >
-        Postgres migrations (Supabase). Enforce docs/database.md: enable RLS in the
-        SAME migration as CREATE TABLE; soft-delete via deleted_at (no hard DELETE
+        Postgres migrations (Supabase). Enforce docs/database.md: all writes
+        (INSERT / UPDATE / soft-delete) go through SECURITY DEFINER RPCs, reads go
+        direct-under-RLS (rule #2, Decision 26 — flag a new table whose writes bypass an
+        RPC); enable RLS in the SAME migration as CREATE TABLE; soft-delete via deleted_at (no hard DELETE
         except explicitly-annotated exceptions); SELECT policies on mutable tables
         filter deleted_at IS NULL, except event_comments (which uses SELECT USING (true)
         for archived comments — docs/database.md #4); SECURITY DEFINER functions must
