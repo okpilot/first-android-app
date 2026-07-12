@@ -2,11 +2,13 @@
 -- Event types (categories) with a colour. Forward-only; never edit after it has run
 -- somewhere — add a new migration instead. Conventions: docs/database.md.
 --
--- Single-table entity, so writes go DIRECT under RLS (like contacts), NOT through an
--- RPC: create / rename / recolor are plain insert/update. Only the soft-delete needs a
--- SECURITY DEFINER RPC (a direct REST UPDATE of deleted_at fails PostgREST's RETURNING
--- re-check against the SELECT policy, 42501 — same reason soft_delete_contact exists).
--- That delete RPC ships in a later migration, with the manage slice.
+-- When this shipped, create/rename/recolor were plain direct-under-RLS insert/update and
+-- only the soft-delete used a SECURITY DEFINER RPC. Decision 26 (2026-07-12) since routed
+-- ALL writes through RPCs: create_event_type / update_event_type (migration
+-- 20260712140000) replaced the direct writes; the insert/update policies + grants below are
+-- left in place (closing the direct path is auth hardening, issue #3). The soft-delete RPC
+-- (a direct REST UPDATE of deleted_at fails PostgREST's RETURNING re-check, 42501) ships in
+-- a later migration.
 --
 -- Colour is a 6-digit #RRGGBB hex (DB-authoritative, portable); the client maps it to a
 -- Flutter Color. Non-destructive delete: a soft-deleted type is hidden by the SELECT

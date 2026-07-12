@@ -12,12 +12,11 @@ abstract interface class EventTypesRepository {
   Future<void> softDelete(String id);
 }
 
-/// Talks to PostgREST under RLS via `supabase_flutter` — never raw Postgres. Reads go direct;
-/// create/update still write direct while only the delete is routed through the
-/// `soft_delete_event_type` RPC (a direct REST UPDATE of deleted_at fails the SELECT policy's
-/// RETURNING re-check, 42501). **Pending Slice 2 of Decision 26** (all writes → RPC): the
-/// create/update here convert to `create_event_type` / `update_event_type`, as contacts did in
-/// Slice 1.
+/// Talks to PostgREST under RLS via `supabase_flutter` — never raw Postgres.
+/// Reads go direct (a plain `select`); all writes go through SECURITY DEFINER RPCs
+/// (`create_event_type` / `update_event_type` / `soft_delete_event_type`) per docs/database.md
+/// (Decision 26). Each write RPC returns the id; we re-`select` the full row so callers get an
+/// EventType built from the persisted values.
 class SupabaseEventTypesRepository implements EventTypesRepository {
   SupabaseEventTypesRepository(this._client);
 
@@ -36,26 +35,32 @@ class SupabaseEventTypesRepository implements EventTypesRepository {
 
   @override
   Future<EventType> create(EventType draft) async {
-    final row = await _client
-        .from(_table)
-        .insert(draft.toWrite())
-        .select(_columns)
-        .single();
-    return EventType.fromJson(row);
+    final id = await _client.rpc(
+      'create_event_type',
+      params: draft.toRpcParams(),
+    );
+    return _fetchOne(id as String);
   }
 
   @override
   Future<EventType> update(EventType type) async {
-    final row = await _client
-        .from(_table)
-        .update(type.toWrite())
-        .eq('id', type.id)
-        .select(_columns)
-        .single();
-    return EventType.fromJson(row);
+    await _client.rpc(
+      'update_event_type',
+      params: {'p_id': type.id, ...type.toRpcParams()},
+    );
+    return _fetchOne(type.id);
   }
 
   @override
   Future<void> softDelete(String id) =>
       _client.rpc('soft_delete_event_type', params: {'p_id': id});
+
+  Future<EventType> _fetchOne(String id) async {
+    final row = await _client
+        .from(_table)
+        .select(_columns)
+        .eq('id', id)
+        .single();
+    return EventType.fromJson(row);
+  }
 }

@@ -53,8 +53,18 @@ _Seed watch-items carried from the project's conventions:_
   valid because the RPC `returns uuid` (scalar → JSON string); (4) `_fetchOne`'s `.single()` is
   correct (NOT a `maybeSingle` case): the just-written live row is visible under
   `contacts_select using (deleted_at is null)`, so 0 rows means something went wrong and SHOULD
-  throw. Mirrors `SupabaseEventsRepository` byte-for-byte. When reviewing Slice 2/3, diff the new
+  throw. Mirrors `SupabaseEventsRepository` byte-for-byte. When reviewing Slice 3, diff the new
   port against this shape and confirm the same 4 hold.
+- **Event-types write-RPC port (commit 20970ea, Decision 26 Slice 2) — CONFIRMED, all 4 checks hold.**
+  `create_event_type(p_name,p_color)` / `update_event_type(p_id,p_name,p_color)` are a single-def NEW
+  migration (no CREATE OR REPLACE chain). Repo/model/screen structurally identical to contacts:
+  `id as String` cast valid (RPC `returns uuid`); `update` refetches by input `type.id` not the RPC
+  return; `_fetchOne` selects `_columns='id, name, color'` == `EventType.fromJson` field set exactly;
+  `_save` catches → mounted-guard → `_saving=false` → snackbar, so `no_data_found` on a soft-deleted
+  update row surfaces sensibly. Entity-specific deltas vs contacts (all legitimate): fewer params, no
+  `nullif`/`_emptyToNull` normalization (event_types has no optional text fields), explicit column
+  list vs contacts' bare `.select()`. `toWrite`→`toRpcParams` swept; only remaining `toWrite` is
+  `Comment` (Slice 3, unconverted). Third straight clean port — reinforce the shape for Slice 3.
 - **Non-atomic re-fetch is by-design, not a race bug** — RPC-then-`_fetchOne` is two round-trips
   (vs the old single `insert…returning`). A concurrent soft-delete between the two would make
   `.single()` throw instead of returning the row — but that is the correct error signal, matches
