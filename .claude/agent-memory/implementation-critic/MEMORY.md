@@ -13,102 +13,33 @@ _First run pending. Seed watch-items carried from the project's conventions:_
 - Fallbacks match sibling code (`EventType` bad-hex → `#888888`; `toWrite()` empty → null)?
 - `FutureBuilder` screens keep the `_lastData` stale-guard (failed refresh keeps stale data)?
 
-## Positive signals
-- Event-comments slice (2026-07-11): clean pre-commit review, 0 blocking. `_CommentsSection`
-  faithfully mirrored the `event_types_screen.dart` `_load`/`_lastData`/`identical(future,_future)`
-  stale-guard; `_run` captured `ScaffoldMessenger` before every await + re-checked `mounted`;
-  `edit` sent `toWrite()` (event_id+body only, deleted_at untouched → can't accidentally
-  (un)archive); migration matched plan (`select using(true)`, no delete grant, trigger reuse).
-  When a new stateful list/section copies an existing green screen's load pattern verbatim, the
-  stale-guard/mounted checks tend to be right — verify the copy is faithful rather than re-deriving.
-
-- PostgREST reload-after-migrate slice (2026-07-12, `fix/postgrest-reload-after-migrate`): clean
-  pre-commit review, 0 blocking. Bash + docs only (no Dart). `deploy-homebase.sh` sends
-  `notify pgrst, 'reload schema';` piped over STDIN through `psql_remote` (docker exec -i), guarded
-  `applied > 0`. Verified: single quotes survive inside the double-quoted `printf` arg; `pgrst`
-  channel + `reload schema` payload is PostgREST's documented schema-cache signal; STDIN pipe dodges
-  the ssh→docker→psql `-c` word-split the file already warns about (lines 32-40); NOTIFY commits at
-  DB regardless of LISTEN so `set -euo pipefail`+`ON_ERROR_STOP=1` can't abort the deploy. Decision 25
-  appended (not rewritten). For infra/bash slices, trace the quoting through every shell hop and
-  confirm the NOTIFY channel/payload against PostgREST's contract rather than eyeballing it.
-
-- Contacts write-RPCs slice (2026-07-12, `feat/contacts-write-rpcs`, Decision 26 Slice 1): clean
-  pre-commit review, 0 blocking. Straight port of the `20260709120200_event_write_rpcs.sql` /
-  `SupabaseEventsRepository` template to contacts. Verified the port matched rather than re-deriving:
-  `create_contact`/`update_contact` are `security definer` + `set search_path = public`, server-side
-  `trim(p_name)` + `nullif(trim(...),'')`, update guards `deleted_at is null` + raises `no_data_found`,
-  fully-typed grants — byte-for-byte posture of the event RPCs. Repo `id as String` cast + `_fetchOne`
-  re-select mirror the events repo exactly (server timestamps via `Contact.fromJson`). `toRpcParams`
-  matches `Event.toRpcParams` posture (p_name trimmed, optional fields raw → server normalizes);
-  `ymd` still imported/used for p_dob; `_emptyToNull` + `toWrite` fully removed with no orphaned
-  `Contact` caller (grep: remaining `toWrite` hits are `EventType`/`Comment`, the not-yet-converted
-  Slice 2/3 entities). Migration is a genuinely NEW function (single def, no CREATE OR REPLACE chain).
-  docs rule #2 re-reversal is dated + scoped with the migration-in-progress caveat; `event_types`
-  doc-comment correctly dropped "like contacts" and now cites the completed conversion. Lesson: when a
-  slice is an explicit port of a green template, diff the two side-by-side and confirm the divergences
-  are only the entity-specific ones (no attendees array, no all_day CASE) — the rest should match.
-
-- Event-types write-RPCs slice (2026-07-12, `feat/event-type-write-rpcs`, Decision 26 Slice 2): clean
-  pre-commit review, 0 blocking. Third straight port of the same template (events→contacts→event_types).
-  Verified by side-by-side diff vs Slice 1: `create_event_type(p_name,p_color)` /
-  `update_event_type(p_id,p_name,p_color)` are `security definer` + `set search_path = public`,
-  server-side `trim(p_name)`, update guards `deleted_at is null` + raises `no_data_found`; grant
-  signatures `(text,text)` / `(uuid,text,text)` match the function param lists exactly. Genuinely NEW
-  function (single def, no CREATE OR REPLACE chain to resolve). Repo: interface unchanged (fakes in
-  `event_types_screen_test.dart` untouched, correct), `id as String` cast + `_fetchOne` re-select
-  mirror contacts, `_fetchOne` selects `_columns='id, name, color'` (event_types keeps an explicit
-  column list vs contacts' bare `.select()` — pre-existing, correct). `toWrite`→`toRpcParams` rename
-  fully swept: only remaining `toWrite` hits are `Comment` (the not-yet-converted Slice 3 entity).
-  Rule-reversal-sync honoured: database.md rule #2 parenthetical + BOTH stale headers
-  (`create_event_types.sql`, `soft_delete_event_type_rpc.sql`) corrected in-slice, README verify curl
-  added. Lesson reinforced: for an explicit template port, diff the two files side-by-side and confirm
-  divergences are only entity-specific (fewer params, no nullif normalization needed since event_types
-  has no optional text fields) — the security posture must be byte-for-byte.
-
-- Comment write-RPCs slice (2026-07-12, Decision 26 Slice 3 — the DIVERGENT slice): clean pre-commit
-  review, 0 blocking. NOT a byte-for-byte port like Slices 1/2 — verified the per-entity divergences:
-  `update_comment` is body-only (`{p_id,p_body}`, no `p_event_id`) and the repo `edit()` builds that map
-  EXPLICITLY rather than spreading `toRpcParams()` (which carries `p_event_id` → would PGRST202 against
-  a fn lacking it) — correct; `soft_delete_comment`/`restore_comment` `returns uuid` + `_fetchOne`
-  re-select (not `void` like contacts' `softDelete`) because `using(true)` keeps the archived row
-  selectable and the interface returns `Comment`; `restore_comment` guards `deleted_at is NOT null`
-  (inverse of the others' `is null`). All 4 fns `security definer`+`set search_path=public`, grant
-  signatures match param lists exactly, all NEW fns (no CREATE OR REPLACE chain). `_columns` includes
-  `deleted_at` so an archived `_fetchOne` round-trips `isArchived`. Interface UNCHANGED (fakes in
-  `calendar_screen_test`/`widget_test`/`comments_section_test` + `event_detail_screen` untouched, correct).
-  Rule-reversal-sync (the promoted CLAUDE.md rule's first real test) — PASSED the completeness sweep:
-  database.md #2 (migration complete) + #4 (reads-only exception), create_event_comments.sql header,
-  .coderabbit.yaml exception clause dropped, README BOTH surfaces (Verify block + Conventions bullet),
-  and Decision 23 got a DATED IN-PLACE AMENDMENT (one appended sub-bullet, original text intact — NOT a
-  rewrite, ledger-append-only honoured). Residual "direct write" grep hits are all correct historical/
-  explanatory prose ("a direct write would have worked", "when this shipped… direct") or plan.md/
-  HANDOVER.md shipped-state history (doc-updater/wrapup domain, not this slice's sweep). Lesson: on a
-  DIVERGENT (rule-reversing) slice, the win condition is the doc sweep completeness + the per-entity
-  divergences (body-only edit, uuid-return soft-delete) — NOT template-match.
-
-- App-icon/name slice (2026-07-11, `slice/app-icon-and-name`): clean pre-commit review, 0 blocking.
-  Config/asset-only (no Dart). Verified the way that actually catches the trap: decode the PNG alpha,
-  don't trust colortype. Adaptive foreground (`crm-plus-dark-fg-1024.png` + generated
-  `ic_launcher_foreground.png`) had corner alpha=0 = transparent glyph; legacy tile
-  (`crm-plus-dark-1024.png`) corner alpha=255 rgb(10,10,10)=#0a0a0a opaque — correct split. colors.xml
-  `#0a0a0a` matched `adaptive_icon_background`; anydpi-v26 refs resolved. For icon slices, pixel-sample
-  corner-vs-center alpha rather than reading the SVG or PNG header alone.
-
-- PostgREST DDL-watch triggers slice (2026-07-12, `slice/pgrst-ddl-watch`): clean pre-commit review,
-  0 blocking. SQL-only migration (`20260712120000_pgrst_ddl_watch.sql`). Verified: `notify pgrst,
-  'reload schema'` on `ddl_command_end` + `sql_drop` event triggers is the canonical Supabase
-  auto-reload mechanism; `execute function` (not `execute procedure`) is valid PG11+ / correct on
-  homebase's postgres:16; one shared `returns event_trigger` function on both triggers is valid;
-  `create or replace` + `drop event trigger if exists; create event trigger` applies cleanly on a
-  fresh DB and re-applies safely; `set search_path = ''` (not `= public`) is right here because the
-  body only NOTIFYs and references zero schema objects — rule #6's `= public` governs SECURITY
-  DEFINER *client-facing* fns, not an internal non-definer event trigger. Timestamp orders after
-  20260711120000. Plan honoured: triggers ONLY; manual reload in `backend/deploy-homebase.sh` left
-  intact (removal deferred to follow-up). Only runtime caveat = PostgREST needs `db-channel-enabled`
-  (default true) + channel `pgrst` — that's config, not a migration defect, and the plan already
-  gates the deploy-script change on verifying auto-reload on homebase first. For event-trigger
-  migrations: confirm `returns event_trigger`, `execute function`, and that `search_path=''` is safe
-  only when the body touches no objects.
+## Positive signals (all clean pre-commit, 0 blocking — distilled lessons)
+- **Template-port slices** (contacts/event_types write-RPCs = Decision 26 Slices 1–2; event-comments
+  section): when a slice ports a green template, diff the two side-by-side and confirm the divergences
+  are only entity-specific — the security posture (`security definer`+`set search_path=public`,
+  `deleted_at` guard + `no_data_found`, grant signatures matching param lists, NEW fn = no CREATE OR
+  REPLACE chain) must be byte-for-byte. A verbatim copy of an existing green load pattern's
+  `_lastData`/mounted checks tends to be right — verify the copy is faithful, don't re-derive.
+- **Divergent (rule-reversing) slice** (comment write-RPCs = Decision 26 Slice 3): win condition is
+  doc-sweep completeness + per-entity divergences, NOT template-match — body-only `update` builds its
+  param map EXPLICITLY (never spreads `toRpcParams()`, which would carry an extra arg → PGRST202);
+  uuid-return soft-delete + `_fetchOne` (because `using(true)` keeps the archived row selectable);
+  `restore` guards `deleted_at is NOT null` (inverse). Rule-reversal-sync sweep = every doc surface
+  (database.md #2+#4, migration header, .coderabbit.yaml, README both surfaces, dated in-place
+  Decision amendment).
+- **New-entity-from-scratch slice** (Tasks v0 = Decision 27): even not-a-port, the win condition is the
+  SAME per-project trap list — toRpcParams↔RPC arity (spread only the create shape; `update` builds
+  params explicitly), mounted-after-await, `_lastData` stale-guard (initially copied contacts WITHOUT
+  the `identical(future,_future)` guard; cloud-CR PR #30 flagged it → guard ADDED, now matches
+  `event_types_screen`), nested-gesture (circle `InkResponse` inside row `InkWell`; archived rows `onToggle:null`),
+  migration `using(true)`+no-delete-grant. Not novel logic.
+- **Infra / bash / SQL-only slices** (postgrest reload-after-migrate; DDL-watch triggers): trace quoting
+  through every shell hop; confirm the NOTIFY channel/payload against PostgREST's contract; for event
+  triggers confirm `returns event_trigger` + `execute function` + that `search_path=''` is safe ONLY when
+  the body touches no objects. When a slice removes a "redundant" reload, check the cold-start/first-load
+  path, not just steady state.
+- **Config / asset slices** (app-icon): pixel-sample corner-vs-center alpha rather than trusting the
+  PNG colortype / SVG header — that's what catches the transparent-glyph-vs-opaque-tile split.
 
 ## Durable, verified facts (load-bearing)
 - **`CREATE EVENT TRIGGER` does NOT fire `ddl_command_end`** (proven locally on postgres:15/16:

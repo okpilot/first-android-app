@@ -139,6 +139,43 @@ curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   # -> {"code":"P0002", ... "event type <uuid> not found or already deleted"} — the guard rolled back
 ```
 
+## Verify: task write RPCs (Decision 27)
+`create_task` / `update_task` / `soft_delete_task` / `restore_task` are the RPC write path for
+tasks. Like `event_comments`, `tasks` uses a `using (true)` SELECT policy so archived tasks stay
+readable (the "view archived" section) — these curls prove the four RPCs, the archived-readable
+behaviour, and the guards:
+```bash
+ANON=$(grep SUPABASE_ANON_KEY .env | cut -d= -f2)
+REST=http://localhost:8000/rest/v1
+# create: padded title trimmed server-side -> returns the new uuid; is_done defaults false
+TID=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_task" \
+  -d '{"p_title":"  Buy milk  "}' | tr -d '"')
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/tasks?id=eq.$TID&select=title,is_done,deleted_at"        # -> title "Buy milk", is_done false, deleted_at null
+# update: rename + mark done (one path serves the form save AND the list complete-toggle)
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/update_task" \
+  -d "{\"p_id\":\"$TID\",\"p_title\":\"Buy oat milk\",\"p_is_done\":true}"
+# archive: sets deleted_at; the row is STILL selectable (using(true)) — the feature
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/soft_delete_task" -d "{\"p_id\":\"$TID\"}"
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/tasks?id=eq.$TID&select=id,is_done,deleted_at"           # -> row present, deleted_at non-null
+# update refuses an archived task -> no_data_found (P0002)
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/update_task" \
+  -d "{\"p_id\":\"$TID\",\"p_title\":\"x\",\"p_is_done\":false}"  # -> {"code":"P0002", ... "not found or already archived"}
+# restore (unarchive): clears deleted_at back to null
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/restore_task" -d "{\"p_id\":\"$TID\"}"
+# guards: blank title -> check violation; no hard-delete grant
+curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_task" -d '{"p_title":"   "}'  # -> 400
+curl -s -o /dev/null -w '%{http_code}\n' -X DELETE -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/tasks?id=eq.$TID"                                        # -> 401 (no delete grant)
+```
+
 ## Layout
 ```text
 docker-compose.yml   db + rest + gateway
@@ -156,8 +193,9 @@ caddy/Caddyfile      /rest/v1 -> PostgREST, + permissive CORS for the Flutter we
   `soft_delete_contact(uuid)` `SECURITY DEFINER` RPC (a direct UPDATE of `deleted_at`
   fails the SELECT policy via PostgREST's RETURNING — that's why the RPC exists).
 - `updated_at` is bumped by a trigger on every update.
-- **`event_comments` is the exception to "soft-deleted = hidden":** its SELECT policy is
-  `using (true)` so archived comments stay readable (the "show archived" toggle). Its **writes**
+- **`event_comments` and `tasks` are the exceptions to "soft-deleted = hidden":** their SELECT
+  policy is `using (true)` so archived rows stay readable (the "view archived" toggle/section;
+  tasks: Decision 27). `event_comments`' **writes**
   are no longer an exception — as of Decision 26 / Slice 3 they route through
   `create_comment` / `update_comment` / `soft_delete_comment` / `restore_comment` RPCs like every
   other table (for uniformity; the `using (true)` policy means there was never a 42501 forcing a

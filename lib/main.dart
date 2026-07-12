@@ -7,6 +7,7 @@ import 'data/comments_repository.dart';
 import 'data/contacts_repository.dart';
 import 'data/event_types_repository.dart';
 import 'data/events_repository.dart';
+import 'data/tasks_repository.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +26,7 @@ Future<void> main() async {
         eventsRepository: SupabaseEventsRepository(client),
         eventTypesRepository: SupabaseEventTypesRepository(client),
         commentsRepository: SupabaseCommentsRepository(client),
+        tasksRepository: SupabaseTasksRepository(client),
       ),
     );
   } catch (error) {

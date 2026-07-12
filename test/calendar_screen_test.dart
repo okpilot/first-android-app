@@ -6,10 +6,12 @@ import 'package:first_android_app/data/comments_repository.dart';
 import 'package:first_android_app/data/contacts_repository.dart';
 import 'package:first_android_app/data/event_types_repository.dart';
 import 'package:first_android_app/data/events_repository.dart';
+import 'package:first_android_app/data/tasks_repository.dart';
 import 'package:first_android_app/models/comment.dart';
 import 'package:first_android_app/models/contact.dart';
 import 'package:first_android_app/models/event.dart';
 import 'package:first_android_app/models/event_type.dart';
+import 'package:first_android_app/models/task.dart';
 import 'package:first_android_app/screens/calendar_screen.dart';
 import 'package:first_android_app/theme.dart';
 import 'package:first_android_app/widgets/type_label.dart';
@@ -75,6 +77,19 @@ class _FakeCommentsRepo implements CommentsRepository {
   @override
   Future<Comment> unarchive(String id) async =>
       Comment.draft(eventId: '', body: '');
+}
+
+class _FakeTasksRepo implements TasksRepository {
+  @override
+  Future<List<Task>> fetchAll() async => const [];
+  @override
+  Future<Task> create(Task draft) async => draft;
+  @override
+  Future<Task> update(Task task) async => task;
+  @override
+  Future<Task> archive(String id) async => const Task(id: '', title: 'x');
+  @override
+  Future<Task> restore(String id) async => const Task(id: '', title: 'x');
 }
 
 Widget _wrap(Widget child) => MaterialApp(theme: AppTheme.light, home: child);
@@ -249,6 +264,7 @@ void main() {
         eventsRepository: _FakeEventsRepo(),
         eventTypesRepository: _FakeEventTypesRepo(),
         commentsRepository: _FakeCommentsRepo(),
+        tasksRepository: _FakeTasksRepo(),
       ),
     );
     await tester.pumpAndSettle();

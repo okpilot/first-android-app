@@ -18,6 +18,9 @@ disposable vehicle for learning app development end to end.
   data throughout the calendar, so you can tell events apart at a glance.
 - **Event comments** — attach notes and decisions to an event. Archive old comments to
   keep them but hide them by default; unarchive to show them again.
+- **Tasks** — a lightweight to-do list: add a task, tick it complete, edit it, and archive
+  ones you're done with. Completed and archived tasks tuck into their own sections so your
+  active list stays clean, and nothing is ever hard-deleted.
 
 Your data lives on a backend you host yourself (Postgres behind a REST layer), not a
 third-party cloud.

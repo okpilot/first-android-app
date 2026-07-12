@@ -241,6 +241,18 @@ subset — but keep it Flutter-honest (phase-aware, no cargo-culted TS/Next rule
 
 ---
 
+## Decision 27: Tasks (v0) — a lightweight to-do list (2026-07-12)
+**Context:** The user wanted a simple tasks feature — add a task, mark it complete, edit it, archive it (never hard-delete), and view both completed and archived. It's the same CRUD shape already shipped for Contacts and Event Comments, so it introduced no new concept — a good emergent slice for learning. Interaction was explored in a clickable mono-theme prototype before any Flutter code (prototype-first).
+**Decided:**
+- **New `tasks` table** (`id`, `title`, `is_done`, `created_at`, `updated_at`, `deleted_at`) with full CRUD from day one: add / complete / edit / archive / restore.
+- **Viewable soft-delete, reusing Decision 23's pattern:** the SELECT policy is `using (true)` (not `using (deleted_at is null)`), so archived tasks stay readable under a "view archived" section. This makes `tasks` the **second** viewable-soft-delete table alongside `event_comments` (see database.md rule #4). No hard `DELETE` grant.
+- **Writes via RPC (Decision 26):** `create_task(p_title)` · `update_task(p_id, p_title, p_is_done)` — one path carries both title and done, so the form save and the list complete-toggle share it · `soft_delete_task(p_id)` · `restore_task(p_id)`. `SECURITY DEFINER` for **uniformity** here (not to dodge a 42501 — `using (true)` means a direct write would pass the RETURNING re-check), same rationale as the comment RPCs. Reads stay direct.
+- **UI:** a 4th nav destination (Contacts · Calendar · **Tasks** · Settings); active tasks up top, then collapsible **Completed** / **Archived** sections. Row tap is split — the circle toggles complete; the rest of the row opens the edit form (form + FAB, consistent with Contacts). No separate detail screen (tasks are lightweight).
+- **Scope / stated skips:** the complete-toggle re-sends the unchanged title (a dedicated `set_task_done` RPC wasn't warranted for a single-user v0). Out of scope for v0: due dates, priority/ordering, linking a task to a contact/event, reminders, optimistic checkbox.
+**Principle:** Repeat a proven pattern deliberately — reusing Decision 23's viewable soft-delete and Decision 26's RPC writes made this slice low-risk and fast, which is exactly what an emergent learning slice should be.
+
+---
+
 ## OPEN QUESTIONS
 - [x] Backend hosting: **self-host trimmed on homebase** (vs Supabase cloud). Settled 2026-07-07; revisit only if homebase load becomes a problem.
 - [x] First walking-skeleton slice entity: **`contacts`** (name, dob, email, phone, company, remarks). Settled 2026-07-08 — Slice 1.

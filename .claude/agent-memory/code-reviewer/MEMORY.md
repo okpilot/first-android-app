@@ -37,6 +37,13 @@
   not hand-authored — never flag them.
 - **Legit `StatefulWidget`** — a screen that owns a `Future`/`_lastData`/`setState` is correct; only
   flag a `State` with no mutable field and no lifecycle.
+- **Hand-rolled private `_ErrorState` per list screen is the CONVENTION, not a re-implemented atom.**
+  Every list screen (`contacts_list_screen`, `calendar_screen`, `event_types_screen`,
+  `tasks_list_screen`) declares its own private `_ErrorState` (64px `cloud_off_outlined`, "Couldn't
+  load X", Retry). There is NO shared error atom (only `EmptyState`/`TypeLabel`/`InitialsAvatar` in
+  `lib/widgets/`). The `error` field is passed-but-unused in ALL of them (contacts included) — a
+  codebase-wide convention, not new dead code. Do NOT flag a new list screen's `_ErrorState` as
+  "re-implementing a shared atom" or the unused `error` field as a task-slice finding.
 - **Out of scope** — DB/RLS/SQL/secrets (`db-security-reviewer`), deep logic correctness
   (`semantic-reviewer`), lints `flutter analyze` already reports.
 
@@ -66,7 +73,23 @@
   `Comment` and `using(true)` keeps the archived row selectable so `_fetchOne` succeeds post-delete.
   `_setDeletedAt` cleanly retired → `_fetchOne`; no orphaned helper/dartdoc; model `[toWrite]`→
   `[toRpcParams]` dartdoc + test group renamed in-slice. Divergences from the template are EXPECTED
-  on a per-entity RPC port — verify they're correct, don't flag them as drift.
+  on a per-entity RPC port — verify they're correct, don't flag them as drift. Slice "Tasks (v0)"
+  (58b2b5d, Decision 27) — NEW table adopting the same RPC-write shape by choice ("for uniformity,
+  not necessity" — `using(true)` means a direct write would've worked). `SupabaseTasksRepository`
+  reviewed CLEAN: `create` spreads `toRpcParams()` ({p_title} only, matches `create_task`);
+  `update` builds explicit `{p_id,p_title,p_is_done}` (one write path serves both the form save AND
+  the list complete-toggle — a correct, flagged divergence like comments' body-only `edit`);
+  `archive`/`restore` return `Task` via `_fetchOne`. Model `task.dart` = pure-Dart mirror of
+  `comment.dart` (isArchived, copyWith, toRpcParams, Task.draft).
+- **`tasks_list_screen.dart`** (58b2b5d) — reference-quality list screen with collapsible sections.
+  `build()` composes; `_buildBody` does light snapshot partition (`where` on the fetched list into
+  active/completed/archived — trivial derived view-state, NOT a heavy transform). `_lastData`
+  stale-guard + `mounted` guards after every await (`_openForm`, `_toggleDone`); `initState` marks
+  `unawaited(_load())`; `_toggleDone` captures messenger before the await. `EmptyState` for the
+  whole-screen empty; hand-rolls `_ErrorState` (the convention). Mono `_CheckCircle` (accent = ink,
+  no colour-as-data). `task_form_screen.dart` mirrors `event_form_screen`/`ContactFormScreen`:
+  messenger+navigator captured before await, `_runMutation` helper for archive/restore, `_saving`
+  gate via `AbsorbPointer`. All four new files tested in-slice.
 - **`_CommentsSection` in `event_detail_screen.dart`** — reference-quality inline stateful
   sub-section. `build()` is a `FutureBuilder` composing `_header`/`_composerRow`/`_liveTile`/
   `_archivedSection` helpers (method-extraction, which item #1 allows alongside StatelessWidgets).

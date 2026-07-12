@@ -4,6 +4,7 @@ import 'data/comments_repository.dart';
 import 'data/contacts_repository.dart';
 import 'data/event_types_repository.dart';
 import 'data/events_repository.dart';
+import 'data/tasks_repository.dart';
 import 'screens/home_shell.dart';
 import 'theme.dart';
 
@@ -16,12 +17,14 @@ class ContactsApp extends StatelessWidget {
     required this.eventsRepository,
     required this.eventTypesRepository,
     required this.commentsRepository,
+    required this.tasksRepository,
   });
 
   final ContactsRepository repository;
   final EventsRepository eventsRepository;
   final EventTypesRepository eventTypesRepository;
   final CommentsRepository commentsRepository;
+  final TasksRepository tasksRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +40,7 @@ class ContactsApp extends StatelessWidget {
         eventsRepository: eventsRepository,
         eventTypesRepository: eventTypesRepository,
         commentsRepository: commentsRepository,
+        tasksRepository: tasksRepository,
       ),
     );
   }
