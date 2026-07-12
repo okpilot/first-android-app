@@ -22,6 +22,16 @@ _First run pending. Seed watch-items carried from the project's conventions:_
   When a new stateful list/section copies an existing green screen's load pattern verbatim, the
   stale-guard/mounted checks tend to be right — verify the copy is faithful rather than re-deriving.
 
+- PostgREST reload-after-migrate slice (2026-07-12, `fix/postgrest-reload-after-migrate`): clean
+  pre-commit review, 0 blocking. Bash + docs only (no Dart). `deploy-homebase.sh` sends
+  `notify pgrst, 'reload schema';` piped over STDIN through `psql_remote` (docker exec -i), guarded
+  `applied > 0`. Verified: single quotes survive inside the double-quoted `printf` arg; `pgrst`
+  channel + `reload schema` payload is PostgREST's documented schema-cache signal; STDIN pipe dodges
+  the ssh→docker→psql `-c` word-split the file already warns about (lines 32-40); NOTIFY commits at
+  DB regardless of LISTEN so `set -euo pipefail`+`ON_ERROR_STOP=1` can't abort the deploy. Decision 25
+  appended (not rewritten). For infra/bash slices, trace the quoting through every shell hop and
+  confirm the NOTIFY channel/payload against PostgREST's contract rather than eyeballing it.
+
 - App-icon/name slice (2026-07-11, `slice/app-icon-and-name`): clean pre-commit review, 0 blocking.
   Config/asset-only (no Dart). Verified the way that actually catches the trap: decode the PNG alpha,
   don't trust colortype. Adaptive foreground (`crm-plus-dark-fg-1024.png` + generated
