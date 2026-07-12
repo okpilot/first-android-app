@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="fade" cx="50%" cy="50%" r="62%">
+      <stop offset="55%" stop-color="#fff"></stop>
+      <stop offset="92%" stop-color="#000"></stop>
+    </radialGradient>
+    <mask id="gridmask"><rect width="512" height="512" fill="url(#fade)"></rect></mask>
+    <pattern id="grid" width="64" height="64" patternUnits="userSpaceOnUse" patternTransform="translate(256,256)">
+      <path d="M64 0 H0 V64" fill="none" stroke="#ffffff" stroke-opacity="0.07" stroke-width="2.5"></path>
+    </pattern>
+    <clipPath id="round"><rect width="512" height="512" rx="20"></rect></clipPath>
+  </defs>
+  <g clip-path="url(#round)">
+    <rect width="512" height="512" fill="#0a0a0a"></rect>
+    <rect width="512" height="512" fill="url(#grid)" mask="url(#gridmask)"></rect>
+    <path d="M256 359.680L256 359.680Q236.370 359.680 221.993 352.353Q207.616 345.027 199.736 331.617Q191.857 318.208 191.857 299.960L191.857 299.960L191.857 212.040Q191.857 193.792 199.736 180.383Q207.616 166.973 221.993 159.647Q236.370 152.320 256 152.320L256 152.320Q275.354 152.320 289.731 159.647Q304.108 166.973 312.125 180.383Q320.143 193.792 320.143 212.040L320.143 212.040L285.307 212.040Q285.307 197.939 277.704 190.336Q270.100 182.733 256 182.733L256 182.733Q241.900 182.733 234.158 190.336Q226.417 197.939 226.417 212.040L226.417 212.040L226.417 299.960Q226.417 314.061 234.158 321.664Q241.900 329.267 256 329.267L256 329.267Q270.100 329.267 277.704 321.664Q285.307 314.061 285.307 299.960L285.307 299.960L320.143 299.960Q320.143 318.208 312.125 331.617Q304.108 345.027 289.731 352.353Q275.354 359.680 256 359.680Z" fill="#ffffff"></path>
+    <path d="M390.166 186.890L376.834 186.890L376.834 167.536L357.588 167.536L357.588 155.064L376.834 155.064L376.834 135.710L390.166 135.710L390.166 155.064L409.412 155.064L409.412 167.536L390.166 167.536L390.166 186.890Z" fill="#ffffff"></path>
+    <rect x="1.25" y="1.25" width="509.5" height="509.5" rx="19" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="2.5"></rect>
+  </g>
+</svg>
