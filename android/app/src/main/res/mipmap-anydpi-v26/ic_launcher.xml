@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
   <background android:drawable="@color/ic_launcher_background"/>
-  <!-- No inset: the C⁺ glyph already sits inside the 72dp adaptive safe zone at full
-       size, so the adaptive icon matches the legacy tile's framing exactly. If a future
-       `dart run flutter_launcher_icons` re-adds an <inset>, drop it again. -->
-  <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+  <foreground>
+      <inset
+          android:drawable="@drawable/ic_launcher_foreground"
+          android:inset="0%" />
+  </foreground>
 </adaptive-icon>

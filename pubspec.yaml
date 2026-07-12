@@ -64,6 +64,9 @@ flutter_launcher_icons:
   min_sdk_android: 21
   adaptive_icon_background: "#0a0a0a"
   adaptive_icon_foreground: "assets/icon/crm-plus-dark-fg-1024.png"
+  # 0 = no inset: the C⁺ glyph already sits inside the 72dp adaptive safe circle,
+  # so the adaptive icon matches the legacy tile's framing (default would be 16%).
+  adaptive_icon_foreground_inset: 0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
