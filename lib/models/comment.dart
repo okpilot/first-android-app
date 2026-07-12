@@ -2,7 +2,9 @@
 ///
 /// Pure Dart (no Flutter import) so it unit-tests without a widget tree. The server owns
 /// `id`, `created_at`, `updated_at`, and `deleted_at`; the client writes only `event_id` +
-/// `body` (see [toWrite]). Archive / unarchive set `deleted_at` directly in the repository.
+/// `body` (see [toRpcParams]). All writes — add / edit / archive / unarchive — go through
+/// SECURITY DEFINER RPCs (Decision 26); `deleted_at` is set server-side by the archive /
+/// restore RPCs, never by the client.
 ///
 /// Unlike every other model, this one reads `deleted_at` back: archived comments
 /// (`deleted_at != null`) stay visible under a "Show archived" toggle rather than being
@@ -40,9 +42,14 @@ class Comment {
     deletedAt: _parseDate(json['deleted_at']),
   );
 
-  /// Only the client-writable fields. The server owns id/timestamps; `deleted_at` is set
-  /// directly by the repository's archive/unarchive, never here.
-  Map<String, dynamic> toWrite() => {'event_id': eventId, 'body': body.trim()};
+  /// Params for the `create_comment` RPC (Decision 26 — all writes go through RPCs). Only the
+  /// client-writable fields: `p_body` is trimmed here (belt-and-suspenders with the server,
+  /// which also trims). Edits go through `update_comment` with `{p_id, p_body}` — body-only, so
+  /// an edit can't move a comment to another event — and never re-send `p_event_id`.
+  Map<String, dynamic> toRpcParams() => {
+    'p_event_id': eventId,
+    'p_body': body.trim(),
+  };
 
   /// Archived == soft-deleted. NULL `deleted_at` means a live comment.
   bool get isArchived => deletedAt != null;

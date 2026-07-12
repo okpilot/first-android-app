@@ -70,13 +70,13 @@ void main() {
     });
   });
 
-  group('Comment.toWrite', () {
-    test('writes only event_id + trimmed body (never server-owned fields)', () {
-      final w = Comment.draft(eventId: 'e1', body: '  hello  ').toWrite();
-      expect(w, {'event_id': 'e1', 'body': 'hello'});
-      expect(w.containsKey('id'), isFalse);
-      expect(w.containsKey('created_at'), isFalse);
-      expect(w.containsKey('deleted_at'), isFalse);
+  group('Comment.toRpcParams', () {
+    test('maps to p_event_id + trimmed p_body (never server-owned fields)', () {
+      final p = Comment.draft(eventId: 'e1', body: '  hello  ').toRpcParams();
+      expect(p, {'p_event_id': 'e1', 'p_body': 'hello'});
+      expect(p.containsKey('p_id'), isFalse);
+      expect(p.containsKey('created_at'), isFalse);
+      expect(p.containsKey('deleted_at'), isFalse);
     });
   });
 

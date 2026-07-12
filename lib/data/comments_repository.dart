@@ -14,10 +14,13 @@ abstract interface class CommentsRepository {
   Future<Comment> unarchive(String id); // clear deleted_at
 }
 
-/// Talks to PostgREST under RLS via `supabase_flutter` — never raw Postgres. All writes go
-/// DIRECT (single table): unlike the other tables, `event_comments`' SELECT policy is
-/// `using (true)`, so a just-archived row survives PostgREST's RETURNING re-check —
-/// archive/unarchive/edit are plain UPDATEs, no soft-delete RPC needed.
+/// Talks to PostgREST under RLS via `supabase_flutter` — never raw Postgres.
+/// Reads go direct (a plain `select`); all writes go through SECURITY DEFINER RPCs
+/// (`create_comment` / `update_comment` / `soft_delete_comment` / `restore_comment`) per
+/// docs/database.md (Decision 26). Those RPCs are for uniformity, not necessity — this table's
+/// `using (true)` SELECT policy means a direct write would have worked (no 42501 to dodge).
+/// Each write RPC returns the id; we re-`select` the full row so callers get a Comment with the
+/// server-populated timestamps (and the `deleted_at` the archive/restore RPCs set).
 class SupabaseCommentsRepository implements CommentsRepository {
   SupabaseCommentsRepository(this._client);
 
@@ -39,42 +42,38 @@ class SupabaseCommentsRepository implements CommentsRepository {
 
   @override
   Future<Comment> add(Comment draft) async {
-    final row = await _client
-        .from(_table)
-        .insert(draft.toWrite())
-        .select(_columns)
-        .single();
-    return Comment.fromJson(row);
+    final id = await _client.rpc('create_comment', params: draft.toRpcParams());
+    return _fetchOne(id as String);
   }
 
   @override
   Future<Comment> edit(Comment comment) async {
-    // Body-only on purpose — never re-send event_id, so an edit can't move a
-    // comment to another event (toWrite() is for inserts, where event_id is set).
-    final row = await _client
-        .from(_table)
-        .update({'body': comment.body.trim()})
-        .eq('id', comment.id)
-        .select(_columns)
-        .single();
-    return Comment.fromJson(row);
+    // Body-only on purpose — update_comment takes no p_event_id, so an edit can't
+    // move a comment to another event.
+    await _client.rpc(
+      'update_comment',
+      params: {'p_id': comment.id, 'p_body': comment.body.trim()},
+    );
+    return _fetchOne(comment.id);
   }
 
   @override
-  Future<Comment> archive(String id) =>
-      _setDeletedAt(id, DateTime.now().toUtc().toIso8601String());
+  Future<Comment> archive(String id) async {
+    await _client.rpc('soft_delete_comment', params: {'p_id': id});
+    return _fetchOne(id);
+  }
 
   @override
-  Future<Comment> unarchive(String id) => _setDeletedAt(id, null);
+  Future<Comment> unarchive(String id) async {
+    await _client.rpc('restore_comment', params: {'p_id': id});
+    return _fetchOne(id);
+  }
 
-  /// Direct UPDATE of `deleted_at` (safe here because the SELECT policy is `using (true)`,
-  /// so the mutated row survives the RETURNING re-check).
-  Future<Comment> _setDeletedAt(String id, String? value) async {
+  Future<Comment> _fetchOne(String id) async {
     final row = await _client
         .from(_table)
-        .update({'deleted_at': value})
-        .eq('id', id)
         .select(_columns)
+        .eq('id', id)
         .single();
     return Comment.fromJson(row);
   }
