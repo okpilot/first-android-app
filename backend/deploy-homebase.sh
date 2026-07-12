@@ -51,17 +51,22 @@ for f in migrations/*.sql; do
   applied=$((applied + 1))
 done
 
-# Tell PostgREST to reload its schema cache. PostgREST reads the schema ONCE at startup;
-# a migration that adds/alters a table is invisible to it until it reloads — the symptom is
-# a live table that GETs fine but 404s on INSERT (PostgREST auto-refreshes reads via its DDL
-# watch, but a long-running instance can miss the writable set until told). We hit exactly this
-# after event_comments shipped (PostgREST had been up since before the migration): adds 404'd
-# while the DB, RLS and grants were all correct. Piped over STDIN, not `-c`, for the same
-# ssh→docker→psql word-split reason as the exists-check above. If PostgREST ever has its LISTEN
-# channel disabled, the fallback is `docker restart firstapp-postgrest`.
-if [ "$applied" -gt 0 ]; then
-  echo "reloading PostgREST schema cache…"
-  printf "notify pgrst, 'reload schema';" | psql_remote -q
-fi
+# Ensure PostgREST's schema cache matches what we just applied.
+#
+# The PRIMARY reload mechanism is now the pgrst_ddl_watch / pgrst_drop_watch event triggers
+# (migration 20260712120000_pgrst_ddl_watch.sql): they fire `NOTIFY pgrst, 'reload schema'` on
+# every DDL against a *running* PostgREST — including ad-hoc `psql` DDL applied outside this
+# script, which this one-shot reload never covered. Verified live on homebase (a freshly-created
+# function was callable via /rpc/ with no manual NOTIFY, and 404'd once dropped).
+#
+# This single unconditional NOTIFY stays as a cold-start safety net the triggers CANNOT cover:
+# on a from-scratch homebase, migrations 1..N build the schema *before* the trigger migration
+# installs the triggers, and installing an event trigger does not itself fire ddl_command_end
+# (nor does the ledger INSERT) — so a fresh deploy emits zero NOTIFY of its own. Without this
+# line a brand-new PostgREST that started with an empty cache would 404 every endpoint until a
+# `docker restart firstapp-postgrest`. Piped over STDIN, not `-c`, for the ssh→docker→psql
+# word-split reason as the exists-check above. See Decision 25.
+echo "reloading PostgREST schema cache (cold-start net; triggers cover the running case)…"
+printf "notify pgrst, 'reload schema';" | psql_remote -q
 
 echo "done — ${applied} migration(s) applied to homebase (seed NOT applied; prod starts empty)."

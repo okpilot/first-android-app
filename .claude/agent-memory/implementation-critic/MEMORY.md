@@ -56,6 +56,18 @@ _First run pending. Seed watch-items carried from the project's conventions:_
   migrations: confirm `returns event_trigger`, `execute function`, and that `search_path=''` is safe
   only when the body touches no objects.
 
+## Durable, verified facts (load-bearing)
+- **`CREATE EVENT TRIGGER` does NOT fire `ddl_command_end`** (proven locally on postgres:15/16:
+  creating a second event trigger while `pgrst_ddl_watch` was active emitted no NOTICE; only
+  `CREATE TABLE` did). Consequence: the `20260712120000_pgrst_ddl_watch.sql` migration emits ZERO
+  `NOTIFY pgrst` during its OWN application. On a FRESH homebase where PostgREST is already up with
+  an empty cache, applying all migrations does not reload it — every endpoint 404s until a
+  `docker restart firstapp-postgrest` (or the next DDL). This is why `deploy-homebase.sh` keeps a
+  single UNCONDITIONAL `notify pgrst` at the end as a cold-start net (the triggers own the
+  running/steady-state + ad-hoc-psql case; the script one-liner owns fresh-DB cold start). General
+  lesson: when a slice removes a "redundant" reload/refresh, check the cold-start/first-load path,
+  not just the steady state.
+
 ## Known false-positive traps (do not flag these)
 - An internal event-trigger / NOTIFY-only function pinning `set search_path = ''` (not `= public`)
   is CORRECT — rule #6's `= public` is for SECURITY DEFINER client-facing RPCs. Don't demand `=
