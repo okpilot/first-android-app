@@ -74,16 +74,15 @@ _First run pending. Seed watch-items from conventions:_
   `toRpcParams`/`toWrite` map, assert the **full key set** and every optional passthrough — a dropped
   or mis-keyed field (e.g. `p_phone`) otherwise slips through.
 
-## `tasks_list_screen` lacks the `identical`-future stale-guard (no `_OrderedRepo` test written)
-- Unlike `event_types_screen`, `TasksListScreen._load` has **no `identical(future, _future)` guard**:
-  it `setState(_future=future)` then unconditionally `_lastData = await future`. A late older load
-  CAN overwrite `_lastData` — but the visible resolved list always reflects `_future` (the latest),
-  so the corruption only surfaces as a one-frame flash during the NEXT refresh's waiting branch.
-  Copying the `event_types` `_OrderedRepo` test here would go **RED** (screen doesn't keep stale on
-  a failed refresh — a failed refresh shows the FULL `_ErrorState`, not a "showing saved data"
-  banner; there is NO refresh banner on this screen). So: no `_OrderedRepo`/`_RefreshFailsRepo` test
-  written for tasks. Flagged as a minor consistency gap, not written (would assert non-existent
-  behaviour). If a stale-guard is added later, port the `event_types` test then.
+## `tasks_list_screen` stale-guard — RESOLVED (cloud-CR PR #30, 2026-07-12)
+- `TasksListScreen._load` now HAS the `identical(future, _future)` guard (`if (identical(future,
+  _future)) _lastData = data;`), matching `event_types_screen` — added in response to a cloud
+  CodeRabbit finding (the fleet had it as log-&-watch; CR pushed it to FIX). A late older load can
+  no longer overwrite `_lastData`.
+- Note the screen still has NO "showing saved data" refresh banner: a failed refresh shows the FULL
+  `_ErrorState` (unlike `event_types`, which keeps stale + snackbars). So the `event_types`
+  `_RefreshFailsRepo` test would still go RED here — do NOT port it. Only the success-path
+  `_OrderedRepo` stale-guard test is now portable, if coverage of the guard is wanted later.
 
 ## Known false-positive traps (do not flag / do not do)
 - Pure presenter widgets in `lib/widgets/` (`EmptyState`, `TypeLabel`, `InitialsAvatar`) need no

@@ -29,9 +29,9 @@ _First run pending. Seed watch-items carried from the project's conventions:_
   Decision amendment).
 - **New-entity-from-scratch slice** (Tasks v0 = Decision 27): even not-a-port, the win condition is the
   SAME per-project trap list — toRpcParams↔RPC arity (spread only the create shape; `update` builds
-  params explicitly), mounted-after-await, `_lastData` stale-guard (PARTIAL: like contacts, no
-  `identical(future,_future)` guard — a late older load can overwrite `_lastData`; known gap,
-  log-&-watch), nested-gesture (circle `InkResponse` inside row `InkWell`; archived rows `onToggle:null`),
+  params explicitly), mounted-after-await, `_lastData` stale-guard (initially copied contacts WITHOUT
+  the `identical(future,_future)` guard; cloud-CR PR #30 flagged it → guard ADDED, now matches
+  `event_types_screen`), nested-gesture (circle `InkResponse` inside row `InkWell`; archived rows `onToggle:null`),
   migration `using(true)`+no-delete-grant. Not novel logic.
 - **Infra / bash / SQL-only slices** (postgrest reload-after-migrate; DDL-watch triggers): trace quoting
   through every shell hop; confirm the NOTIFY channel/payload against PostgREST's contract; for event

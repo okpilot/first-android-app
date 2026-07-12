@@ -42,7 +42,10 @@ class _TasksListScreenState extends State<TasksListScreen> {
       _future = future;
     });
     try {
-      _lastData = await future;
+      final data = await future;
+      // Ignore a stale fetch a newer _load() has superseded, so an older in-flight
+      // request can't roll the list back to outdated data (matches event_types_screen).
+      if (identical(future, _future)) _lastData = data;
     } catch (_) {
       // The error is surfaced by the FutureBuilder's error branch.
     }
@@ -55,7 +58,7 @@ class _TasksListScreenState extends State<TasksListScreen> {
             TaskFormScreen(repository: widget.repository, existing: existing),
       ),
     );
-    if (changed == true && mounted) _load();
+    if (changed == true && mounted) unawaited(_load());
   }
 
   /// Toggle a task's done state from the list (the circle tap). Reuses the one update path
