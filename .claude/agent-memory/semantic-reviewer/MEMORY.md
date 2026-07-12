@@ -36,6 +36,27 @@ _Seed watch-items carried from the project's conventions:_
   `soft_delete_*`; check `toRpcParams()` passes the params the RPC signature expects.
 
 ## Positive signals
+- **Contacts master-detail extraction (`contact_detail_screen.dart` + `contacts_list_screen.dart`,
+  commit 16ed89e, Decision 28 Slice B) — CLEAN.** `ContactDetailScreen` split into a thin phone
+  Scaffold+PopScope wrapper (owns `_dirty`, pops) + a Scaffold-less `ContactDetailView` body that
+  NEVER pops and reports up via `onChanged`/`onDeleted`. Load-bearing invariants all hold: (1)
+  `key: ValueKey(selected.id)` keyed by the RESOLVED-selected id → parent selection swap remounts
+  the pane (initState re-seeds `_contact`/`_deleting`), while an in-place `_edit` keeps the same id
+  → no remount → view's `_contact` is the pane's single source of truth (no double-source vs the
+  reloaded list). (2) id-resolution `where(id==_selectedId).isEmpty ? first : first` is total —
+  `_EmptyState` guards empty before it; null/stale id both fall back to first (correct). (3)
+  snackbar shown ONCE in `_confirmDelete` on the ROOT messenger before `onDeleted`; both hosts'
+  `onDeleted` navigate only → no double/missing toast; survives host close. (4) `_lastData`
+  stale-guard preserved — waiting branch routes through `_loaded(_lastData!)`, panes render from
+  cache, no spinner flash. (5) `mounted`-after-`await` present on every await path incl. the newly
+  guarded `_edit`. Phone imperative `pop(true)` after delete is safe under `canPop:false` because
+  `onPopInvokedWithResult`'s `if(didPop)return` short-circuits the imperative pop.
+  **Known transient (SUGGESTION, non-blocking, consistent-by-design):** after a desktop delete,
+  `onDeleted` sets `_selectedId=null` + reloads; during the reload window `_lastData` still holds
+  the deleted row, so IF the deleted contact was `contacts.first` the pane briefly re-shows it
+  (delete spinner still up) until the fetch resolves and the row drops out. This exactly mirrors the
+  list's own documented `_lastData` linger and self-heals — do NOT escalate to ISSUE on a
+  master-detail slice; it is the price of the no-spinner-flash stale-guard, same as the phone list.
 - **Desktop sidebar pure-UI slice (`home_shell.dart` `_Sidebar`, commit 4679504, Decision 28 Slice A)**
   — CLEAN. `NavigationRail` → stateless `_Sidebar`; `_index`/`_select` and the `IndexedStack` bodies
   are untouched, so tab state still round-trips (IndexedStack still owns the bodies). Selection index

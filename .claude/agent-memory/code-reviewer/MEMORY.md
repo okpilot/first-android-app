@@ -97,6 +97,22 @@
   occurrence, not duplicated → no shared-widget extraction warranted yet. Widget test shipped
   in-slice. Only nit: the inline nav record type `({IconData icon, IconData selected, String label})`
   is repeated in 3 spots — a `typedef` would DRY it (SUGGESTION, idiom).
+- **`ContactDetailView` extraction in `contact_detail_screen.dart`** (16ed89e, Decision 28 Slice B)
+  — reference-quality body-widget extraction for master-detail. `ContactDetailScreen` becomes a thin
+  `Scaffold`+`PopScope` host owning the changed/delete back-signal; the shared body `ContactDetailView`
+  (no Scaffold, NEVER pops, reports via `onChanged`/`onDeleted`) renders identically full-screen and in
+  the desktop pane. `build()` composes (`Align`→`ConstrainedBox(maxWidth:720)`→`_body`); `_body` is a
+  method-extraction (allowed by item #1). Both widgets legit `StatefulWidget` (`_contact`/`_deleting`/
+  `_dirty` + lifecycle). List screen's `_loaded(contacts)` extracts the LayoutBuilder one-pane/two-pane
+  branch; selection resolved by id via `where(...).isEmpty ? first : first` (dependency-free, light
+  snapshot filter — NOT a heavy transform); `ContactDetailView(key: ValueKey(selected.id))` remounts on
+  swap. Selection highlight uses theme tokens (`primaryContainer`/`onSurface`) = chrome, not
+  colour-as-data. `kTwoPaneBreakpoint=640` const extracted + documented; hand-rolled `_ErrorState` = the
+  convention; `EmptyState`/`InitialsAvatar` reused; new `_MetaLine` (muted date footer, no atom exists).
+  `_edit` GAINED `if(!mounted)return` before its post-`await` setState (improvement). Widget test shipped
+  in-slice. Only nit (low-value SUGGESTION): the list-pane width `320` is a bare literal semantically
+  coupled to `640` (breakpoint comment says "640 = 320 + ≥320") — a `kListPaneWidth` const would make a
+  future width change refactor-safe; `720` reading-cap is fine as a single commented use.
 - **`_CommentsSection` in `event_detail_screen.dart`** — reference-quality inline stateful
   sub-section. `build()` is a `FutureBuilder` composing `_header`/`_composerRow`/`_liveTile`/
   `_archivedSection` helpers (method-extraction, which item #1 allows alongside StatelessWidgets).

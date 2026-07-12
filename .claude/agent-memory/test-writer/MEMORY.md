@@ -22,6 +22,8 @@
 ## Verified literals (READ source before asserting — extend this list, never re-guess)
 - `EventType` invalid-hex fallback: **`#888888`**.
 - Calendar initial-load error copy: **`"Couldn't load events"`**; Retry is an `OutlinedButton`.
+- Contacts initial-load error copy: **`"Couldn't load contacts"`**; Retry `OutlinedButton`.
+- Empty contact-detail field placeholder: **`"Not added"`** (rendered per empty field, both layouts).
 - Refresh-failure banner (list screens): **`"Couldn't refresh — showing saved data"`**.
 - `_CommentsSection` (event_detail_screen.dart) inline load error: **`"Couldn't load comments."`**
   (note trailing period); Retry is a `TextButton` (inline, not the list-screen `OutlinedButton`).
@@ -96,6 +98,24 @@ _First run pending. Seed watch-items from conventions:_
 - Adequate coverage for this UI-chrome slice = wide-shows-sidebar+switch, narrow-shows-NavigationBar,
   pinned-Settings-selects. The `primaryContainer` selected-state fill is pure styling — do NOT assert
   it (DO NOT #4); a Calendar tap is redundant with Tasks (same loop path) — do NOT pad with it.
+
+## `contacts` master-detail (Decision 28 Slice B) — testing notes
+- Two panes keyed off content width `kTwoPaneBreakpoint` (640). Drive layout with
+  `tester.binding.setSurfaceSize(const Size(1100, 800))` (wide) / `Size(360, 800)` (narrow) +
+  `addTearDown(() => tester.binding.setSurfaceSize(null))`. Wide = in-place `ContactDetailView`
+  (no Scaffold, reports up via `onChanged`/`onDeleted`); narrow = tap pushes `ContactDetailScreen`
+  (thin Scaffold+PopScope wrapper around the same `ContactDetailView`). Disambiguate: assert
+  `find.byType(ContactDetailView)` (embedded pane present) vs `find.byType(ContactDetailScreen)`
+  (route pushed).
+- Identity trap: a contact's **name** and **company** render in BOTH the list tile (subtitle =
+  `company · email`) and the pane, so they can't prove WHICH contact the pane shows. Use a
+  **detail-only** field — e.g. `remarks` ("Bombe.") only renders in the pane. Absence of contact #2's
+  remark on load pins auto-select to `contacts.first`; presence after tapping #2 pins the keyed
+  remount (`ValueKey(selected.id)` → `_contact` re-seeded in initState).
+- Adequate coverage = wide-auto-select-first + wide-in-place-swap-no-push + wide-"Not added" +
+  narrow-push. The `ListTile.selected`/`selectedTileColor` row highlight is pure styling — do NOT
+  assert it (DO NOT #4). "Selecting a different contact updates the pane" is already covered by the
+  in-place-swap test — do NOT add a second remount test.
 
 ## Known false-positive traps (do not flag / do not do)
 - Pure presenter widgets in `lib/widgets/` (`EmptyState`, `TypeLabel`, `InitialsAvatar`) need no

@@ -79,6 +79,12 @@ slice**, design responsive + adaptive with real teeth:
 - **Honor `MediaQuery.textScaler`** — never hardcode font sizes past scaling.
 - **Desktop affordances are first-class**: hover (`MouseRegion`), keyboard shortcuts
   (`Shortcuts`/`Actions`), visible focus, a sensible **Linux minimum window size**.
+- **Testing a breakpoint-driven layout**: drive width via `tester.binding.setSurfaceSize(...)`
+  (or `view.physicalSize` **with** `view.devicePixelRatio` pinned — `LayoutBuilder` sees
+  logical px = physical/DPR), and always `addTearDown` a reset (`setSurfaceSize(null)`) so the
+  fake surface size doesn't leak into sibling tests. The default test viewport is already
+  **800×600 logical** (≥600 → wide branch), so it's the *narrow* case that needs the override.
+  (Decision 28; learner-promoted after `home_shell_test` + `contacts_master_detail_test`.)
 - **Material-everywhere carve-out.** The UI doc says "honor native platform conventions
   (iOS HIG vs Material)." We resolve that by standardizing on **Material across Android +
   web + Linux** — one design language (Decisions 8 & 13), not GTK/Cupertino per platform. Revisit

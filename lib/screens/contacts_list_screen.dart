@@ -9,8 +9,18 @@ import '../widgets/initials_avatar.dart';
 import 'contact_detail_screen.dart';
 import 'contact_form_screen.dart';
 
+/// The fixed width of the master (list) pane in the two-pane layout.
+const double kListPaneWidth = 320;
+
+/// Content-area width at/above which Contacts shows a two-pane master-detail
+/// (list + in-place detail) instead of the phone's push-to-detail flow.
+/// = [kListPaneWidth] beside a ≥320dp detail. Measured on the LayoutBuilder
+/// content area (not the whole window), so it composes with the nav sidebar.
+const double kTwoPaneBreakpoint = kListPaneWidth + 320;
+
 /// The primary screen: the list of contacts. Owns loading / empty / error states
-/// and the entry points to add and open a contact.
+/// and the entry points to add and open a contact. On a wide content area it becomes
+/// a master-detail: the list on the left, an in-place [ContactDetailView] on the right.
 class ContactsListScreen extends StatefulWidget {
   const ContactsListScreen({super.key, required this.repository});
 
@@ -25,6 +35,10 @@ class _ContactsListScreenState extends State<ContactsListScreen> {
   // Last successful data — kept so a refresh/reload shows the current list instead
   // of flashing back to a full-screen spinner while the new fetch is in flight.
   List<Contact>? _lastData;
+
+  // The contact shown in the desktop detail pane, tracked by id so a list reload
+  // can't strand a stale object. Unused in the narrow (push) layout.
+  String? _selectedId;
 
   @override
   void initState() {
@@ -54,7 +68,11 @@ class _ContactsListScreenState extends State<ContactsListScreen> {
         ),
       ),
     );
-    if (saved != null && mounted) _load();
+    if (saved != null && mounted) {
+      // Show the just-saved contact in the pane (harmless in the narrow layout).
+      setState(() => _selectedId = saved.id);
+      _load();
+    }
   }
 
   Future<void> _openDetail(Contact contact) async {
@@ -67,6 +85,49 @@ class _ContactsListScreenState extends State<ContactsListScreen> {
       ),
     );
     if (changed == true && mounted) _load();
+  }
+
+  /// The loaded state — one pane on a narrow content area, two panes on a wide one.
+  Widget _loaded(List<Contact> contacts) {
+    if (contacts.isEmpty) return _EmptyState(onAdd: () => _openForm());
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < kTwoPaneBreakpoint) {
+          return _ContactsList(contacts: contacts, onTap: _openDetail);
+        }
+        // Resolve the selection by id (no package:collection extension — keeps
+        // flutter analyze clean). Auto-select the first contact when none is chosen.
+        final matches = contacts.where((c) => c.id == _selectedId);
+        final selected = matches.isEmpty ? contacts.first : matches.first;
+        return Row(
+          children: [
+            SizedBox(
+              width: kListPaneWidth,
+              child: _ContactsList(
+                contacts: contacts,
+                onTap: (c) => setState(() => _selectedId = c.id),
+                selectedId: selected.id,
+              ),
+            ),
+            const VerticalDivider(width: 1),
+            Expanded(
+              // Key by id so swapping the selected contact remounts the view
+              // (its _contact is seeded once in initState).
+              child: ContactDetailView(
+                key: ValueKey(selected.id),
+                repository: widget.repository,
+                contact: selected,
+                onChanged: (_) => _load(),
+                onDeleted: (_) {
+                  setState(() => _selectedId = null);
+                  unawaited(_load());
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -85,13 +146,10 @@ class _ContactsListScreenState extends State<ContactsListScreen> {
           builder: (context, snapshot) {
             switch (snapshot.connectionState) {
               case ConnectionState.waiting:
-                // Keep showing the current list while refreshing; only show a
+                // Keep showing the current list/panes while refreshing; only show a
                 // full-screen spinner on the very first load.
                 if (_lastData != null) {
-                  return _ContactsList(
-                    contacts: _lastData!,
-                    onTap: _openDetail,
-                  );
+                  return _loaded(_lastData!);
                 }
                 return const Center(child: CircularProgressIndicator());
               default:
@@ -99,11 +157,7 @@ class _ContactsListScreenState extends State<ContactsListScreen> {
                   debugPrint('CONTACTS_LOAD_FAILED: ${snapshot.error}');
                   return _ErrorState(error: snapshot.error!, onRetry: _load);
                 }
-                final contacts = snapshot.data ?? const <Contact>[];
-                if (contacts.isEmpty) {
-                  return _EmptyState(onAdd: () => _openForm());
-                }
-                return _ContactsList(contacts: contacts, onTap: _openDetail);
+                return _loaded(snapshot.data ?? const <Contact>[]);
             }
           },
         ),
@@ -113,13 +167,23 @@ class _ContactsListScreenState extends State<ContactsListScreen> {
 }
 
 class _ContactsList extends StatelessWidget {
-  const _ContactsList({required this.contacts, required this.onTap});
+  const _ContactsList({
+    required this.contacts,
+    required this.onTap,
+    this.selectedId,
+  });
 
   final List<Contact> contacts;
   final ValueChanged<Contact> onTap;
 
+  /// When non-null, the list is a master pane: the matching row is highlighted and
+  /// the push-affordance chevron is dropped (tapping selects, it doesn't navigate).
+  final String? selectedId;
+
   @override
   Widget build(BuildContext context) {
+    final twoPane = selectedId != null;
+    final scheme = Theme.of(context).colorScheme;
     // AlwaysScrollable so pull-to-refresh works even when the list is short.
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -133,10 +197,13 @@ class _ContactsList extends StatelessWidget {
           c.email,
         ].where((s) => s != null && s.isNotEmpty).join(' · ');
         return ListTile(
+          selected: c.id == selectedId,
+          selectedTileColor: scheme.primaryContainer,
+          selectedColor: scheme.onSurface,
           leading: InitialsAvatar(name: c.name),
           title: Text(c.name),
           subtitle: subtitle.isEmpty ? null : Text(subtitle),
-          trailing: const Icon(Icons.chevron_right),
+          trailing: twoPane ? null : const Icon(Icons.chevron_right),
           onTap: () => onTap(c),
         );
       },
