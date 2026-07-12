@@ -13,8 +13,9 @@ not a re-mention. Read columns by header, not position.
 | Issue Type | Count | Last Seen | Status (→ rule loc) |
 |---|---|---|---|
 | `setState(() => …)` arrow returns a Future (async work discarded; not caught by analyze, only by tests). First: Contacts slice `fa4fc45`. | 2 | 3a87cc8 | PROMOTED → `analysis_options.yaml` `discarded_futures` enabled (`0e4a7af`) |
-| RLS/soft-delete slice's linchpin verification curl run live but not recorded in `backend/README.md` (red-team re-raises). First: event-types #13 → follow-up #19. | 2 | 20970ea | PROMOTED → `docs/database.md` #11 (`4911243`); WORKING — held again at `20970ea` (event_types Slice 2: red-team's create/update_event_type curl already covered by README curls, INFO-only, no re-raise). |
-| A slice that reverses/rewrites a rule mid-multi-slice migration leaves a contradictory **sibling doc-comment / migration header** citing the old rule; a reviewer must catch it each time. First: Decision-25 amendment conditional/unconditional mismatch (caught by crlocal). | 2 | 20970ea | PROMOTED → `CLAUDE.md` "How we work" ("A rule reversal isn't done until its contradictions are gone", cites learner count 2). HELD at `20970ea` (event_types Slice 2: doc-updater NO-OP, all doc surfaces synced in-commit — no stale contradiction). Slice 3 (event_comments) is the rule's real test: comments-repo doc-comments still say "direct, no RPC needed". |
+| RLS/soft-delete slice's linchpin verification curl run live but not recorded in `backend/README.md` (red-team re-raises). First: event-types #13 → follow-up #19. | 2 | 3296258 | PROMOTED → `docs/database.md` #11 (`4911243`); held clean across the rest of Decision 26 — `20970ea` (event_types Slice 2) and `3296258` (event_comments Slice 3: red-team 0/0, 2 INFO only, recommended curls, no re-raise). Convention held for the full migration; RESOLVED-WATCH. |
+| A slice that reverses/rewrites a rule mid-multi-slice migration leaves a contradictory **sibling doc-comment / migration header** citing the old rule; a reviewer must catch it each time. First: Decision-25 amendment conditional/unconditional mismatch (caught by crlocal). | 2 | 3296258 | PROMOTED → `CLAUDE.md` "How we work" ("A rule reversal isn't done until its contradictions are gone", cites learner count 2). **First real divergent-slice test PASSED at `3296258`** (event_comments Slice 3, Decision 26 COMPLETE): all contradictions caught in-cycle — nothing reached main stale. Leaky-but-caught: 3 stale spots hid in NON-OBVIOUS locations (README "Conventions in play" bullet, D23 main bullet, D23 *Implementation* subsection) — plan-critic caught 2 pre-impl, doc-updater caught the subsection post-commit. See "subsection/summary hiding place" watch below. |
+| **Refinement:** stale citations in a rule reversal hide in secondary summaries & decision-entry SUBSECTIONS (Implementation/Why-safe/Principle), not just the obvious rule line. First (only) sighting: `3296258`. | 1 | 3296258 | WATCHING — single commit, do NOT sharpen `CLAUDE.md` yet (over-fitting risk). doc-updater already recorded the mechanical lesson in its own tracker ("grep the WHOLE of each touched file + every subsection"). If a FUTURE rule reversal leaks the same way → RULE CANDIDATE (sharpen the CLAUDE.md sweep line to name subsections/summaries). |
 
 ## Durable cross-agent lessons (edit in place; don't stack)
 - **`setState(() => Future)` is invisible to `flutter analyze`** (arrow returning a value in a void
@@ -34,19 +35,26 @@ not a re-mention. Read columns by header, not position.
   citing the OLD rule (the event_types "…like contacts" comment; the Decision-25 conditional/
   unconditional mismatch). Now PROMOTED to a `CLAUDE.md` standing convention (+ `plan-critic` greps
   at plan time) so it's covered even on <10-line changes that skip `plan-critic`. Not double-gated
-  (no hook/lint/CodeRabbit instruction catches a stale doc-comment). Held clean at event_types
-  Slice 2. **Slice 3 (event_comments) is the first real test:** its repo doc-comments still assert
-  "direct, no RPC needed" and rule #4 in `docs/database.md` gets rewritten — watch that every such
-  sibling flips in the SAME slice.
-- **A faithful RPC-write template port is a proven low-risk shape (positive signal).** The
-  events→contacts→event_types ports (Slice 1 `2370fcf`, Slice 2 `20970ea`) came back three-in-a-row
-  clean across the whole fan-out (impl-critic APPROVED, code/semantic CLEAN, test GREEN, doc-updater
-  NO-OP). When the next slice is a genuine template port, treat the boilerplate (drop+recreate RPC,
-  `SET search_path`, revoke-from-public, repo method swap) as low-risk and spend attention on the
-  **per-entity deltas** instead. Slice 3 (event_comments) is NOT a faithful port — it diverges:
-  `using(true)` open SELECT (no owner scope, so **no 42501 to route around** like contacts/
-  event_types had), the `docs/database.md` rule #4 rewrite lands here, and the "direct, no RPC
-  needed" doc-comments must be flipped. Give Slice 3 full scrutiny, not template-port confidence.
+  (no hook/lint/CodeRabbit instruction catches a stale doc-comment). **First real divergent-slice
+  test PASSED at `3296258`** (event_comments Slice 3): nothing stale reached main. But the sweep is
+  *leaky at the plan stage* — 3 stale spots hid in non-obvious places (README "Conventions" bullet,
+  D23 main bullet, D23 *Implementation* subsection); the fleet's layered gates caught all three
+  (plan-critic 2, doc-updater 1 post-commit) but the initial plan grep missed them. Refinement now
+  WATCHING (count 1): stale citations concentrate in **secondary summaries & decision-entry
+  subsections**, not the obvious rule line. Do NOT sharpen `CLAUDE.md` on this single sighting —
+  if the next reversal leaks the same way, promote the sharpening then.
+- **Decision 26 (RPC for all writes) is COMPLETE — 4/4 slices came back clean, including the
+  divergent one (positive signal, RESOLVED).** events→contacts→event_types→event_comments
+  (`2370fcf`, `20970ea`, `3296258`, + earlier) all cleared the whole fan-out (impl-critic APPROVED,
+  code/semantic CLEAN, test GREEN). The RPC-write boilerplate (drop+recreate RPC, `SET search_path`,
+  revoke-from-public, model `toRpcParams`, repo `.rpc()`+re-select) is a **proven low-risk shape** —
+  spend attention on per-entity deltas, not the template. The divergence prediction was correct and
+  benign: event_comments' `using(true)` open SELECT means a direct write never hit the 42501
+  RETURNING re-check, so the RPC is for UNIFORMITY not necessity, and semantic-reviewer noted the
+  RPC-then-refetch is *strictly safer* there (row can't vanish mid-op). Lesson for the NEXT
+  cross-entity migration: a well-templated port stays clean even when one entity diverges, provided
+  the divergence is documented in the migration header (it was, so no reviewer mis-flagged the
+  missing 42501 guard).
 
 Watch-items carried from project conventions:
 - Promotion threshold is **2× across different commits**. First sighting = log & watch, not a rule.

@@ -65,6 +65,24 @@ _Seed watch-items carried from the project's conventions:_
   `nullif`/`_emptyToNull` normalization (event_types has no optional text fields), explicit column
   list vs contacts' bare `.select()`. `toWrite`→`toRpcParams` swept; only remaining `toWrite` is
   `Comment` (Slice 3, unconverted). Third straight clean port — reinforce the shape for Slice 3.
+- **Comments write-RPC port (commit 3296258, Decision 26 Slice 3 — FINAL) — CONFIRMED clean, all 4
+  checks hold, fourth straight clean port.** `create_comment(p_event_id,p_body)` /
+  `update_comment(p_id,p_body)` (body-only, no `p_event_id` → an edit can't move a comment) /
+  `soft_delete_comment(p_id)` / `restore_comment(p_id)` — all single-def NEW migration
+  (`20260712150000`), no CREATE OR REPLACE chain. `id as String` cast valid (create_comment
+  `returns uuid`); `_fetchOne` selects `_columns='id, event_id, body, created_at, updated_at,
+  deleted_at'` == `Comment.fromJson` field set exactly (incl. `deleted_at` → `isArchived`); screen
+  (`event_detail_screen.dart`) NOT in diff — interface unchanged, UI + fakes untouched. Guards match
+  UI exactly: update/soft_delete guard `deleted_at is null` (UI edits/archives live tiles only),
+  restore guards `deleted_at is not null` (UI unarchives archived tiles only); `no_data_found` raised
+  before `_fetchOne` runs → thrown → surfaced by `_run`'s catch→snackbar.
+- **KEY DELTA vs contacts/event_types (why `.single()` is safe here for a DIFFERENT reason):** under
+  event_comments' `using (true)` SELECT policy an archived row STAYS selectable, so `_fetchOne`
+  round-trips `isArchived` correctly on archive/unarchive AND the row can never vanish from
+  `_fetchOne`'s view — strictly safer than the contacts/event_types ports (where a concurrent
+  soft-delete could make `.single()` throw). So the "non-atomic re-fetch could throw on a concurrent
+  soft-delete" caveat does NOT apply to comments — under `using(true)` no concurrent soft/restore can
+  hide the just-written row from the re-select. Do NOT flag `.single()` here.
 - **Non-atomic re-fetch is by-design, not a race bug** — RPC-then-`_fetchOne` is two round-trips
   (vs the old single `insert…returning`). A concurrent soft-delete between the two would make
   `.single()` throw instead of returning the row — but that is the correct error signal, matches

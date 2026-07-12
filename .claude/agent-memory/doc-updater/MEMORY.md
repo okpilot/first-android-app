@@ -18,6 +18,7 @@
 
 ## Recurring drift / doc-link patterns
 - **Slice-series (like RPC-for-all-writes, multi-slice Decision):** when Slice N lands on a branch (not merged yet), update `plan.md` *Current status* bullet to show Slice N on-branch + "pending /fullpush/PR/merge/deploy", AND update *Next slice* section to list Slice N as done + point at next actionable (Slice N+1). Same pass for `HANDOVER.md` Status headline + RESUME line. Pattern: "BUILT ON BRANCH (commit hash, branch name), pending /fullpush/PR/merge/deploy → then Slice N+1". Both docs together — partial updates cause extra commits.
+- **Rule-reversal sweep (Decision 26 Slice 3):** in a reversal, **grep the WHOLE of each touched file + every subsection of the decisions ledger** (not just main bullets). Implementation/Why safe/Principle sections can have factual statements contradicted by code. Decision 23's "Implementation" still said "direct-CRUD repository" when code now uses RPCs — caught as DRIFT post-commit, fixed with dated amendment. The in-commit sweep may miss these subsections.
 
 ## Known false-positive traps (do NOT record as DRIFT)
 - Missing `auth.uid()` / owner-scoping in an RPC → **expected pre-auth** (issue #3), not a

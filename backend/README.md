@@ -64,6 +64,12 @@ curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
 curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/rpc/create_comment" \
   -d "{\"p_event_id\":\"$EID\",\"p_body\":\"   \"}"                # -> 400
+# edit refuses an archived comment: archive it, then update_comment -> no_data_found (P0002)
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/soft_delete_comment" -d "{\"p_id\":\"$CID\"}"
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/update_comment" \
+  -d "{\"p_id\":\"$CID\",\"p_body\":\"x\"}"                        # -> {"code":"P0002", ... "not found or already archived"}
 curl -s -o /dev/null -w '%{http_code}\n' -X DELETE -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   "$REST/event_comments?id=eq.$CID"                                # -> 401 (no delete grant)
 ```

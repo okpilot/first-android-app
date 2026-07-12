@@ -49,8 +49,8 @@
   / `TypeLabel` / `TypeDot` (colour-as-data honoured). 581 lines = one cohesive concern, NOT a
   cap violation. Use as the pattern to compare other form screens against.
 - **RPC-write repository pattern** (`SupabaseEventsRepository`, `SupabaseContactsRepository`
-  after Slice 1, now `SupabaseEventTypesRepository` after Slice 2 of Decision 26 — event_comments
-  is the only remaining direct-write repo) — reference shape for routing writes through SECURITY DEFINER
+  after Slice 1, `SupabaseEventTypesRepository` after Slice 2, `SupabaseCommentsRepository` after
+  Slice 3 — Decision 26 migration now COMPLETE, no remaining direct-write repos) — reference shape for routing writes through SECURITY DEFINER
   RPCs: `create`/`update` call `_client.rpc('create_x', params: model.toRpcParams())`, cast the
   returned id `as String`, then re-`select` via a private `_fetchOne(id)` so callers get
   server-populated timestamps; `update` spreads `{'p_id': id, ...toRpcParams()}`. Model exposes
@@ -58,8 +58,15 @@
   text sent raw for the DB's `nullif(trim())` to normalize in one place). Slice 2 (event_types)
   landed 20970ea as a byte-faithful mirror (create → `.rpc('create_event_type')` + `id as String`
   + `_fetchOne`; update spreads `{'p_id': id, ...toRpcParams()}`; model `toRpcParams()` with
-  `p_name`/`p_color`, name trimmed client-side) — reviewed CLEAN. When reviewing the final
-  Decision-26 slice (event_comments), compare against this shape; a faithful mirror is CLEAN.
+  `p_name`/`p_color`, name trimmed client-side) — reviewed CLEAN. Slice 3 (event_comments) landed
+  3296258, reviewed CLEAN — a faithful mirror WITH two flagged-and-correct per-entity divergences:
+  (a) `edit()` builds `{p_id, p_body}` EXPLICITLY rather than spreading `toRpcParams()` (which
+  carries `p_event_id` → a body-only `update_comment` lacks it); (b) `archive`/`unarchive` refetch
+  and return `Comment` (not `void` like contacts' `softDelete`) because the interface returns
+  `Comment` and `using(true)` keeps the archived row selectable so `_fetchOne` succeeds post-delete.
+  `_setDeletedAt` cleanly retired → `_fetchOne`; no orphaned helper/dartdoc; model `[toWrite]`→
+  `[toRpcParams]` dartdoc + test group renamed in-slice. Divergences from the template are EXPECTED
+  on a per-entity RPC port — verify they're correct, don't flag them as drift.
 - **`_CommentsSection` in `event_detail_screen.dart`** — reference-quality inline stateful
   sub-section. `build()` is a `FutureBuilder` composing `_header`/`_composerRow`/`_liveTile`/
   `_archivedSection` helpers (method-extraction, which item #1 allows alongside StatelessWidgets).
