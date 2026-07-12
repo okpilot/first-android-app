@@ -43,6 +43,23 @@ _Seed watch-items carried from the project's conventions:_
   here (archive/unarchive just re-set `deleted_at`), so low risk. Watch for a non-idempotent mutation
   that takes this shape. (WATCHING, count 1, first seen 3a87cc8.)
 
+## Positive signals (write-RPC ports)
+- **Contacts write-RPC port (commit 1988e26, Decision 26 Slice 1)** — direct INSERT/UPDATE →
+  `create_contact`/`update_contact` RPCs, verified behaviorally equivalent to the old `toWrite`
+  path, not just structurally a port. The load-bearing checks for future `event_types`/`comments`
+  ports: (1) server `nullif(trim(...),'')` reproduces the old client `_emptyToNull` **exactly** —
+  both store the trimmed value or NULL, so no field silently changed normalization; (2) the RPC
+  inserts/updates all 6 human columns the old map wrote — none dropped; (3) `id as String` cast is
+  valid because the RPC `returns uuid` (scalar → JSON string); (4) `_fetchOne`'s `.single()` is
+  correct (NOT a `maybeSingle` case): the just-written live row is visible under
+  `contacts_select using (deleted_at is null)`, so 0 rows means something went wrong and SHOULD
+  throw. Mirrors `SupabaseEventsRepository` byte-for-byte. When reviewing Slice 2/3, diff the new
+  port against this shape and confirm the same 4 hold.
+- **Non-atomic re-fetch is by-design, not a race bug** — RPC-then-`_fetchOne` is two round-trips
+  (vs the old single `insert…returning`). A concurrent soft-delete between the two would make
+  `.single()` throw instead of returning the row — but that is the correct error signal, matches
+  the events repo, and is deliberate. Do NOT flag it as a stale-load/race finding.
+
 ## Known false-positive traps (do not flag these)
 - Missing `auth.uid()` / `with check (true)` is expected pre-auth (issue #3) — not a semantic defect,
   and DB-security is `db-security-reviewer`'s lane, not yours.

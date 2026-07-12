@@ -53,6 +53,20 @@ _First run pending. Seed watch-items from conventions:_
   success-branch out-of-order overwrite is already covered on the shared pattern in
   `event_types_screen_test.dart`. Not a gap — do not flag it.
 
+## Repo internals are NOT faked at the SupabaseClient level (do not force a test)
+- Repos (`Supabase*Repository`) are faked at the **interface** for screen tests, never at the
+  `SupabaseClient` level. So an RPC-write swap inside a real repo impl (e.g. `create`/`update` →
+  `_client.rpc(...)` + a `_fetchOne` re-select, as in `contacts_repository.dart` commit `1988e26`)
+  has **no in-convention unit test** — the `_fetchOne` re-select path can only be exercised against
+  real Postgres (done in the migration verification), not `flutter test`. Correct to say "out of
+  convention, not written" rather than invent a SupabaseClient fake. Interface unchanged → existing
+  screen/`widget_test.dart` fakes still hold and need no edit.
+- `Contact.toRpcParams()` (replaced `toWrite()`): trims `p_name` client-side; sends `p_email`/
+  `p_phone`/`p_company`/`p_remarks` **raw** (server `nullif(trim(...))` owns empty→null); `p_dob` via
+  `ymd()` or null; omits id + server timestamps (repo adds `p_id` for updates). When testing a
+  `toRpcParams`/`toWrite` map, assert the **full key set** and every optional passthrough — a dropped
+  or mis-keyed field (e.g. `p_phone`) otherwise slips through.
+
 ## Known false-positive traps (do not flag / do not do)
 - Pure presenter widgets in `lib/widgets/` (`EmptyState`, `TypeLabel`, `InitialsAvatar`) need no
   tests — do not flag them as missing coverage.

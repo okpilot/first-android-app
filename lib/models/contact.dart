@@ -3,7 +3,7 @@ import '../util/format.dart';
 /// A CRM contact — mirrors the `public.contacts` table.
 ///
 /// The server owns `id`, `created_at`, `updated_at`, and `deleted_at`; the client
-/// only ever writes the human fields (see [toWrite]). `dob` is a real date.
+/// only ever writes the human fields (see [toRpcParams]). `dob` is a real date.
 class Contact {
   final String id;
   final String name;
@@ -51,15 +51,18 @@ class Contact {
     updatedAt: _parseDate(json['updated_at']),
   );
 
-  /// Only the client-writable fields; empty strings normalize to null so the DB
-  /// stores NULL rather than "".
-  Map<String, dynamic> toWrite() => {
-    'name': name.trim(),
-    'dob': dob == null ? null : ymd(dob!),
-    'email': _emptyToNull(email),
-    'phone': _emptyToNull(phone),
-    'company': _emptyToNull(company),
-    'remarks': _emptyToNull(remarks),
+  /// Params for the `create_contact` / `update_contact` RPCs (Decision 26 — all writes go
+  /// through RPCs). `p_name` is trimmed here (belt-and-suspenders with the server, mirroring
+  /// `Event.toRpcParams`); the optional text fields are sent raw and the RPC normalizes
+  /// empty→null via `nullif(trim(...))`, so that logic lives in one place (the DB). The repo
+  /// adds `p_id` for updates.
+  Map<String, dynamic> toRpcParams() => {
+    'p_name': name.trim(),
+    'p_dob': dob == null ? null : ymd(dob!),
+    'p_email': email,
+    'p_phone': phone,
+    'p_company': company,
+    'p_remarks': remarks,
   };
 
   Contact copyWith({
@@ -81,11 +84,6 @@ class Contact {
     createdAt: createdAt,
     updatedAt: updatedAt,
   );
-
-  static String? _emptyToNull(String? v) {
-    final t = v?.trim();
-    return (t == null || t.isEmpty) ? null : t;
-  }
 
   static DateTime? _parseDate(Object? v) =>
       v is String && v.isNotEmpty ? DateTime.tryParse(v) : null;

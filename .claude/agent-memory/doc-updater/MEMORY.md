@@ -16,11 +16,8 @@
 - **A file is renamed** → grep `docs/*.md`, `HANDOVER.md`, `README.md`, `CLAUDE.md`,
   `.claude/rules/*.md`, `.claude/agent-memory/**/MEMORY.md` for the old path; fix every hit.
 
-## Recurring drift / doc-link patterns (none logged yet)
-_First run pending. Seed watch-items from the project's conventions:_
-- A commit that adds a Decision usually also needs the `docs/plan.md` decision count bumped — check
-  both together (partial updates cause extra commits).
-- A shipped slice usually needs `plan.md` **and** `HANDOVER.md` in the same pass — don't do one.
+## Recurring drift / doc-link patterns
+- **Slice-series (like RPC-for-all-writes, multi-slice Decision):** when Slice N lands on a branch (not merged yet), update `plan.md` *Current status* bullet to show Slice N on-branch + "pending /fullpush/PR/merge/deploy", AND update *Next slice* section to list Slice N as done + point at next actionable (Slice N+1). Same pass for `HANDOVER.md` Status headline + RESUME line. Pattern: "BUILT ON BRANCH (commit hash, branch name), pending /fullpush/PR/merge/deploy → then Slice N+1". Both docs together — partial updates cause extra commits.
 
 ## Known false-positive traps (do NOT record as DRIFT)
 - Missing `auth.uid()` / owner-scoping in an RPC → **expected pre-auth** (issue #3), not a
