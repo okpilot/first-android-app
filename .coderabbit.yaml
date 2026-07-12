@@ -26,7 +26,7 @@ reviews:
       instructions: >
         Postgres migrations (Supabase). Enforce docs/database.md: all writes
         (INSERT / UPDATE / soft-delete) go through SECURITY DEFINER RPCs (exception:
-        event_comments writes direct until Slice 3 — issue #3), reads go
+        event_comments writes direct until Slice 3), reads go
         direct-under-RLS (rule #2, Decision 26 — flag a new table whose writes bypass an
         RPC); enable RLS in the SAME migration as CREATE TABLE; soft-delete via deleted_at (no hard DELETE
         except explicitly-annotated exceptions); SELECT policies on mutable tables
