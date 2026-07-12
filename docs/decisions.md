@@ -217,6 +217,15 @@ subset — but keep it Flutter-honest (phase-aware, no cargo-culted TS/Next rule
 - **Adaptive foreground inset = 0** via `adaptive_icon_foreground_inset: 0` in the `flutter_launcher_icons` config (so the generator emits `android:inset="0%"` itself — not a hand-edit of the XML): the `C⁺` already sits inside the 72dp adaptive safe circle (the `⁺` at ~158px vs the ~170px safe radius on a 512 grid), so the default 16% inset only shrank the mark below the chosen framing for no clip-safety gain. At 0 the adaptive icon matches the legacy tile, and re-running the generator reproduces it. (Cloud CodeRabbit caught the original hand-edit — config is the source of truth.)
 **Principle:** Store the reproducible icon *source* (SVG + PNG) in the repo, generate the platform variants with a tool — never hand-drop density PNGs. Adaptive foregrounds must be transparent glyphs, not opaque tiles.
 
+## Decision 25: Reload PostgREST's schema cache after every migration deploy (2026-07-12)
+**Context:** Adding a comment failed on the S23+ ("Couldn't add comment"). Root-caused live: the `event_comments` migration *was* applied to homebase (table present, `is_insertable_into = YES`, `anon` has INSERT, RLS `with check (true)`), and the DB accepted the exact insert in a rolled-back `psql` test — yet `POST /rest/v1/event_comments` returned **404** (from `server: postgrest/12.2.3`) while `GET` returned `200`. Cause: **PostgREST reads the schema once at startup and caches it.** The homebase PostgREST had been running since *before* the migration; its DDL-watch had picked up the table for reads but not the writable set, so inserts 404'd. `deploy-homebase.sh` applied migrations but never told PostgREST to reload. Direct writes to older tables (contacts) worked; events dodged it by writing via RPC.
+**Decided:**
+- **`deploy-homebase.sh` sends `notify pgrst, 'reload schema';` after applying ≥1 migration** (piped over STDIN, not `-c`, to survive the ssh→docker→psql word-split — same reason as the exists-check). Zero-downtime. Fallback if PostgREST's LISTEN channel is ever disabled: `docker restart firstapp-postgrest`.
+- **Immediate remediation** was the same `NOTIFY` run by hand against homebase; verified `POST` then returns a real `400` check-constraint error (route reaches the table) instead of `404`.
+- **Diagnosis discipline that paid off:** verify the layer, don't trust the ledger — the migration ledger said "deployed", but the bug lived one layer up in PostgREST's cache. Reading the `server:` response header is what proved PostgREST (not Caddy) owned the 404.
+**Related:** Exposed our error-handling blind spot — `catch (_)` discards the exception, so the phone logged nothing until a temporary `debugPrint` was added; proper fix tracked in **issue #23** (graceful for users, logged for us).
+**Principle:** A migration isn't "deployed" until the layer that serves it knows about it. Schema-cache reload is part of the deploy, not an afterthought.
+
 ---
 
 ## OPEN QUESTIONS
