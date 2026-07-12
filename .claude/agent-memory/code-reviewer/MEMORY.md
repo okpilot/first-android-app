@@ -48,15 +48,18 @@
   `ScaffoldMessenger`/`Navigator` captured before the await in `_save`. Reuses `InitialsAvatar`
   / `TypeLabel` / `TypeDot` (colour-as-data honoured). 581 lines = one cohesive concern, NOT a
   cap violation. Use as the pattern to compare other form screens against.
-- **RPC-write repository pattern** (`SupabaseEventsRepository`, now `SupabaseContactsRepository`
-  after Slice 1 of Decision 26) — reference shape for routing writes through SECURITY DEFINER
+- **RPC-write repository pattern** (`SupabaseEventsRepository`, `SupabaseContactsRepository`
+  after Slice 1, now `SupabaseEventTypesRepository` after Slice 2 of Decision 26 — event_comments
+  is the only remaining direct-write repo) — reference shape for routing writes through SECURITY DEFINER
   RPCs: `create`/`update` call `_client.rpc('create_x', params: model.toRpcParams())`, cast the
   returned id `as String`, then re-`select` via a private `_fetchOne(id)` so callers get
   server-populated timestamps; `update` spreads `{'p_id': id, ...toRpcParams()}`. Model exposes
   `toRpcParams()` with `p_`-prefixed keys (name trimmed client-side belt-and-suspenders, optional
-  text sent raw for the DB's `nullif(trim())` to normalize in one place). When reviewing the
-  remaining Decision-26 slices (event_types = Slice 2), compare against this shape; a faithful
-  mirror is CLEAN, not a finding.
+  text sent raw for the DB's `nullif(trim())` to normalize in one place). Slice 2 (event_types)
+  landed 20970ea as a byte-faithful mirror (create → `.rpc('create_event_type')` + `id as String`
+  + `_fetchOne`; update spreads `{'p_id': id, ...toRpcParams()}`; model `toRpcParams()` with
+  `p_name`/`p_color`, name trimmed client-side) — reviewed CLEAN. When reviewing the final
+  Decision-26 slice (event_comments), compare against this shape; a faithful mirror is CLEAN.
 - **`_CommentsSection` in `event_detail_screen.dart`** — reference-quality inline stateful
   sub-section. `build()` is a `FutureBuilder` composing `_header`/`_composerRow`/`_liveTile`/
   `_archivedSection` helpers (method-extraction, which item #1 allows alongside StatelessWidgets).

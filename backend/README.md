@@ -113,6 +113,10 @@ curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
 curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/rpc/create_event_type" \
   -d '{"p_name":"   ","p_color":"#4E7BC9"}'                        # -> 400
+# malformed colour -> check violation (color ~ '^#[0-9A-Fa-f]{6}$', fires through the RPC)
+curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_event_type" \
+  -d '{"p_name":"Bad","p_color":"red"}'                            # -> 400
 # the new guard: soft-delete the row, then update_event_type on it -> no_data_found
 curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/rpc/soft_delete_event_type" -d "{\"p_id\":\"$TID\"}"
