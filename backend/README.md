@@ -31,32 +31,39 @@ curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   "http://localhost:8000/rest/v1/contacts?select=name&order=name"
 ```
 
-## Verify: event comments (viewable soft-delete, no RPC)
-`event_comments` is the one table whose SELECT policy is `using (true)`, so archived
-(`deleted_at IS NOT NULL`) rows stay readable — that's the "show archived" feature, and it's
-also why archive/edit/unarchive are plain direct UPDATEs (the archived row survives PostgREST's
-RETURNING re-check, so no `soft_delete_*` RPC is needed here). These curls prove archiving is
-**non-destructive** and that there's no hard-delete surface:
+## Verify: event comment write RPCs (Decision 26, Slice 3)
+As of Slice 3, comment writes route through `create_comment` / `update_comment` /
+`soft_delete_comment` / `restore_comment` RPCs (for uniformity — this table's `using (true)`
+SELECT means a direct write would also work; there's no 42501 to dodge). These curls prove the
+RPC write path AND that archiving stays **non-destructive** with no hard-delete surface — the
+archived row remains selectable (the "show archived" feature) because SELECT is `using (true)`:
 ```bash
 ANON=$(grep SUPABASE_ANON_KEY .env | cut -d= -f2)
 REST=http://localhost:8000/rest/v1
 EID=$(curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   "$REST/events?select=id&limit=1" | python3 -c 'import sys,json;print(json.load(sys.stdin)[0]["id"])')
-# insert a comment (direct, no RPC)
+# create: padded body trimmed server-side -> returns the new uuid
 CID=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
-  -H "Content-Type: application/json" -H "Prefer: return=representation" \
-  "$REST/event_comments" -d "{\"event_id\":\"$EID\",\"body\":\"hello\"}" \
-  | python3 -c 'import sys,json;print(json.load(sys.stdin)[0]["id"])')
-# archive (set deleted_at) — the row comes back (no 42501), proving the direct UPDATE works
-curl -s -X PATCH -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
-  -H "Content-Type: application/json" -H "Prefer: return=representation" \
-  "$REST/event_comments?id=eq.$CID" -d '{"deleted_at":"2026-07-11T12:00:00Z"}'
-# the archived row is STILL selectable with deleted_at set (not erased) — the feature
+  -H "Content-Type: application/json" "$REST/rpc/create_comment" \
+  -d "{\"p_event_id\":\"$EID\",\"p_body\":\"  hello  \"}" | tr -d '"')
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/event_comments?id=eq.$CID&select=body"                   # -> body "hello" (trimmed)
+# edit (body only): returns the same id
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/update_comment" \
+  -d "{\"p_id\":\"$CID\",\"p_body\":\"edited\"}"
+# archive: sets deleted_at; the row is STILL selectable (using(true)) — the feature
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/soft_delete_comment" -d "{\"p_id\":\"$CID\"}"
 curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   "$REST/event_comments?id=eq.$CID&select=id,body,deleted_at"     # -> row present, deleted_at non-null
-# guards: empty body rejected, and anon has no hard-delete grant
+# restore (unarchive): clears deleted_at back to null
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/restore_comment" -d "{\"p_id\":\"$CID\"}"
+# guards: blank body -> check violation; edit of an archived row -> no_data_found; no hard-delete grant
 curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
-  -H "Content-Type: application/json" "$REST/event_comments" -d "{\"event_id\":\"$EID\",\"body\":\"   \"}"  # -> 400
+  -H "Content-Type: application/json" "$REST/rpc/create_comment" \
+  -d "{\"p_event_id\":\"$EID\",\"p_body\":\"   \"}"                # -> 400
 curl -s -o /dev/null -w '%{http_code}\n' -X DELETE -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   "$REST/event_comments?id=eq.$CID"                                # -> 401 (no delete grant)
 ```
@@ -144,9 +151,11 @@ caddy/Caddyfile      /rest/v1 -> PostgREST, + permissive CORS for the Flutter we
   fails the SELECT policy via PostgREST's RETURNING — that's why the RPC exists).
 - `updated_at` is bumped by a trigger on every update.
 - **`event_comments` is the exception to "soft-deleted = hidden":** its SELECT policy is
-  `using (true)` so archived comments stay readable (the "show archived" toggle). Because the
-  archived row survives the RETURNING re-check, archive/unarchive/edit are plain direct UPDATEs —
-  no `soft_delete_*` RPC (see the verify block above). Still no hard-`DELETE` grant.
+  `using (true)` so archived comments stay readable (the "show archived" toggle). Its **writes**
+  are no longer an exception — as of Decision 26 / Slice 3 they route through
+  `create_comment` / `update_comment` / `soft_delete_comment` / `restore_comment` RPCs like every
+  other table (for uniformity; the `using (true)` policy means there was never a 42501 forcing a
+  direct write). Still no hard-`DELETE` grant.
 
 ## To homebase (later)
 Move this stack into `okpilot/selfhost/stacks/`, drop the local Caddy gateway (the

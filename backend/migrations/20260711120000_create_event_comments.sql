@@ -2,16 +2,19 @@
 -- Comments on an event. Forward-only; never edit after it has run somewhere — add a new
 -- migration instead. Conventions: docs/database.md.
 --
--- Single-table entity, so writes go DIRECT under RLS (like contacts / event_types), NOT
--- through an RPC. Soft-delete only ("archive") per database.md #4 — no hard DELETE.
+-- When this shipped, writes went DIRECT under RLS and there was no soft-delete RPC. Decision 26
+-- (2026-07-12, Slice 3) since routed ALL writes through RPCs: create_comment / update_comment /
+-- soft_delete_comment / restore_comment (migration 20260712150000) replaced the direct writes;
+-- the insert/update policies + grants below are left in place (closing the direct path is auth
+-- hardening, issue #3). Soft-delete only ("archive") per database.md #4 — no hard DELETE.
 --
--- The one deliberate divergence from every other table: the SELECT policy is `using (true)`,
--- NOT `using (deleted_at is null)`. Archived (deleted_at IS NOT NULL) comments stay READABLE
--- — that is the feature ("see archived comments"). A happy consequence: because an archived
--- row survives PostgREST's RETURNING re-check against this SELECT policy, archive / unarchive /
--- edit are all plain direct UPDATEs — no SECURITY DEFINER soft-delete RPC is needed here (the
--- reason soft_delete_event_type / soft_delete_contact needed one — a 42501 on the RETURNING
--- re-check against `using (deleted_at is null)` — does not apply).
+-- The one deliberate divergence from every other table is a READ policy, and it still holds:
+-- the SELECT policy is `using (true)`, NOT `using (deleted_at is null)`. Archived
+-- (deleted_at IS NOT NULL) comments stay READABLE — that is the feature ("see archived
+-- comments"). NOTE: that `using (true)` also means an archived row survives PostgREST's RETURNING
+-- re-check, so the comment write RPCs above are for UNIFORMITY, not to dodge a 42501 (unlike
+-- soft_delete_contact / soft_delete_event_type, which genuinely need SECURITY DEFINER) — a direct
+-- write would have worked here.
 
 create table public.event_comments (
   id          uuid        primary key default gen_random_uuid(),

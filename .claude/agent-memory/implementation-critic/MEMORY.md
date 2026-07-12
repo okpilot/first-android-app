@@ -65,6 +65,27 @@ _First run pending. Seed watch-items carried from the project's conventions:_
   divergences are only entity-specific (fewer params, no nullif normalization needed since event_types
   has no optional text fields) — the security posture must be byte-for-byte.
 
+- Comment write-RPCs slice (2026-07-12, Decision 26 Slice 3 — the DIVERGENT slice): clean pre-commit
+  review, 0 blocking. NOT a byte-for-byte port like Slices 1/2 — verified the per-entity divergences:
+  `update_comment` is body-only (`{p_id,p_body}`, no `p_event_id`) and the repo `edit()` builds that map
+  EXPLICITLY rather than spreading `toRpcParams()` (which carries `p_event_id` → would PGRST202 against
+  a fn lacking it) — correct; `soft_delete_comment`/`restore_comment` `returns uuid` + `_fetchOne`
+  re-select (not `void` like contacts' `softDelete`) because `using(true)` keeps the archived row
+  selectable and the interface returns `Comment`; `restore_comment` guards `deleted_at is NOT null`
+  (inverse of the others' `is null`). All 4 fns `security definer`+`set search_path=public`, grant
+  signatures match param lists exactly, all NEW fns (no CREATE OR REPLACE chain). `_columns` includes
+  `deleted_at` so an archived `_fetchOne` round-trips `isArchived`. Interface UNCHANGED (fakes in
+  `calendar_screen_test`/`widget_test`/`comments_section_test` + `event_detail_screen` untouched, correct).
+  Rule-reversal-sync (the promoted CLAUDE.md rule's first real test) — PASSED the completeness sweep:
+  database.md #2 (migration complete) + #4 (reads-only exception), create_event_comments.sql header,
+  .coderabbit.yaml exception clause dropped, README BOTH surfaces (Verify block + Conventions bullet),
+  and Decision 23 got a DATED IN-PLACE AMENDMENT (one appended sub-bullet, original text intact — NOT a
+  rewrite, ledger-append-only honoured). Residual "direct write" grep hits are all correct historical/
+  explanatory prose ("a direct write would have worked", "when this shipped… direct") or plan.md/
+  HANDOVER.md shipped-state history (doc-updater/wrapup domain, not this slice's sweep). Lesson: on a
+  DIVERGENT (rule-reversing) slice, the win condition is the doc sweep completeness + the per-entity
+  divergences (body-only edit, uuid-return soft-delete) — NOT template-match.
+
 - App-icon/name slice (2026-07-11, `slice/app-icon-and-name`): clean pre-commit review, 0 blocking.
   Config/asset-only (no Dart). Verified the way that actually catches the trap: decode the PNG alpha,
   don't trust colortype. Adaptive foreground (`crm-plus-dark-fg-1024.png` + generated
