@@ -1,11 +1,11 @@
-> Cross-session work tracker. Update in place. Last updated: 2026-07-12.
+> Cross-session work tracker. Update in place. Last updated: 2026-07-12 (app icon + `CRM+` rename merged).
 
 # Handover
 
-**Status: APP IDENTITY — launcher `CRM+` + dark `C⁺` icon (Decision 24) — PR #22 OPEN, pending on-device QA + merge.**
+**Status: APP IDENTITY — launcher `CRM+` + dark `C⁺` icon (Decision 24) — SHIPPED & MERGED (PR #22 → squash `343bcdc`).**
 Renamed `android:label` `first_android_app` → **`CRM+`**; generated all mipmap densities + a modern adaptive icon via `flutter_launcher_icons` from the user's dark `C⁺` mark (dark chosen over light). Reproducible sources (2 SVG + 2 PNG) committed under `assets/icon/`: legacy `image_path` = the full designed tile; adaptive foreground = a clean **transparent glyph** on a `#0a0a0a` background (the opaque tile makes a bad adaptive foreground — its border/rounded corners read as a card-outline under the mask); `adaptive_icon_foreground_inset: 0` in the config so the C⁺ matches the legacy framing (still inside the 72dp safe circle). Android-only (iOS/web/Linux untouched). SVG→PNG via a throwaway `cairosvg` venv (no system SVG tools on the box). Commits **`0e312f9`** (feat) + **`1fff1ee`** (cloud-CR fix). Gate green (analyze · **69 tests** · web build); `/crlocal` 2 clean rounds. **Cloud-CR cycle 1 answered:** 1 finding → **1 FIX** (`1fff1ee`, config-driven inset); triage + reply comments on #22.
-**⚠️ NOT merged — `main` stays green until the C⁺ is eyeballed on the physical S23+** (`/updatephone`, light+dark launcher). Process note: `implementation-critic` ran on `0e312f9` (APPROVED, its 1 inset suggestion fixed) but was **not** re-run on the trivial CR-fix `1fff1ee` (stated deviation — one-line config change, analyze+test verified); the `/fullpush` gate's `/crlocal` was also skipped on the final push at the user's "just push directly".
-**RESUME = `/updatephone` on the S23+ → eyeball icon + `CRM+` name (light+dark) → if good, merge PR #22 & delete branch.** Then the queued **in-app empty-state hints** slice — issue #21.
+**⚠️ On-device QA still owed** — merged *before* the S23+ launcher check (user's call). Run `/updatephone` and eyeball the C⁺ icon + `CRM+` name in light + dark; if the glyph reads too small it's a one-line regen (bump the foreground scale — inset is already 0). Branch deleted (local + remote); `main` clean & synced. Process note: `implementation-critic` ran on `0e312f9` (APPROVED, its 1 inset suggestion fixed) but was **not** re-run on the trivial CR-fix `1fff1ee`, and `/crlocal` was skipped on the final pushes at the user's "just push directly" — all stated deviations.
+**RESUME = (optional) `/updatephone` icon QA on the S23+, then** the queued **in-app empty-state hints** slice — issue #21.
 
 ---
 
