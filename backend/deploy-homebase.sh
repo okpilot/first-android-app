@@ -51,4 +51,17 @@ for f in migrations/*.sql; do
   applied=$((applied + 1))
 done
 
+# Tell PostgREST to reload its schema cache. PostgREST reads the schema ONCE at startup;
+# a migration that adds/alters a table is invisible to it until it reloads — the symptom is
+# a live table that GETs fine but 404s on INSERT (PostgREST auto-refreshes reads via its DDL
+# watch, but a long-running instance can miss the writable set until told). We hit exactly this
+# after event_comments shipped (PostgREST had been up since before the migration): adds 404'd
+# while the DB, RLS and grants were all correct. Piped over STDIN, not `-c`, for the same
+# ssh→docker→psql word-split reason as the exists-check above. If PostgREST ever has its LISTEN
+# channel disabled, the fallback is `docker restart firstapp-postgrest`.
+if [ "$applied" -gt 0 ]; then
+  echo "reloading PostgREST schema cache…"
+  printf "notify pgrst, 'reload schema';" | psql_remote -q
+fi
+
 echo "done — ${applied} migration(s) applied to homebase (seed NOT applied; prod starts empty)."
