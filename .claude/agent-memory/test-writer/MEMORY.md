@@ -29,6 +29,13 @@
   (distinct copy from the list screens — has the word "comments").
 - Comment composer/edit buttons are `FilledButton` labelled **`Comment`** / **`Save`**; both gate on
   `!_busy && controller.text.trim().isNotEmpty` → assert `.onPressed == null` when empty/whitespace.
+- **Tasks (v0)** literals: list load-error copy **`"Couldn't load tasks"`** + Retry `OutlinedButton`;
+  list toggle-failure snackbar **`"Couldn't update — please try again"`**; active-empty-with-history
+  inline note **`"All clear — no active tasks."`** (only when `completed`/`archived` non-empty — full
+  `EmptyState` "No tasks yet" only when ALL three groups empty). Form titles: `New task` /
+  `Edit task` / `Archived task`; form snackbars `"Couldn't save — please try again"` /
+  `"Couldn't archive — please try again"` / `"Couldn't restore — please try again"`. Archived tile
+  `onToggle:null` (not completable) — tap the row title → form in Restore mode.
 
 ## Recurring coverage gaps (none logged yet)
 _First run pending. Seed watch-items from conventions:_
@@ -66,6 +73,17 @@ _First run pending. Seed watch-items from conventions:_
   `ymd()` or null; omits id + server timestamps (repo adds `p_id` for updates). When testing a
   `toRpcParams`/`toWrite` map, assert the **full key set** and every optional passthrough — a dropped
   or mis-keyed field (e.g. `p_phone`) otherwise slips through.
+
+## `tasks_list_screen` lacks the `identical`-future stale-guard (no `_OrderedRepo` test written)
+- Unlike `event_types_screen`, `TasksListScreen._load` has **no `identical(future, _future)` guard**:
+  it `setState(_future=future)` then unconditionally `_lastData = await future`. A late older load
+  CAN overwrite `_lastData` — but the visible resolved list always reflects `_future` (the latest),
+  so the corruption only surfaces as a one-frame flash during the NEXT refresh's waiting branch.
+  Copying the `event_types` `_OrderedRepo` test here would go **RED** (screen doesn't keep stale on
+  a failed refresh — a failed refresh shows the FULL `_ErrorState`, not a "showing saved data"
+  banner; there is NO refresh banner on this screen). So: no `_OrderedRepo`/`_RefreshFailsRepo` test
+  written for tasks. Flagged as a minor consistency gap, not written (would assert non-existent
+  behaviour). If a stale-guard is added later, port the `event_types` test then.
 
 ## Known false-positive traps (do not flag / do not do)
 - Pure presenter widgets in `lib/widgets/` (`EmptyState`, `TypeLabel`, `InitialsAvatar`) need no

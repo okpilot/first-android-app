@@ -35,7 +35,13 @@ disposable. Built emergently — thin slices, one at a time.
 4. **Next candidates:** DB security hardening (issue #3 — RPC `auth.uid()`, revoke PUBLIC execute, column-level write grants) · **auth (GoTrue)** logins + owner-based RLS · search/filter on the list · run on the physical S23+ · full 7-column week (wide-screen adaptive).
 
 ## Next slice
-**RPC-for-all-writes — Decision 26 — ✅ COMPLETE (all 4 slices merged & deployed).** Every write goes through a SECURITY DEFINER RPC; reads
+**Tasks (v0) — Decision 27 — 🔨 BUILT on branch `feat/tasks-v0`; push gate + deploy + phone QA owed.** A lightweight to-do list:
+add (form + FAB) · complete (tap the circle) · edit · archive · restore · view Completed + Archived (collapsible sections). New `tasks`
+table + 4 write RPCs (Decision 26); **viewable soft-delete** reusing Decision 23's `using (true)` policy (2nd such table). Client: `Task`
+model + `TasksRepository` + list/form screens + a 4th nav destination. **analyze clean · 94 tests green · local curl verify passed.**
+Plan: `~/.local/share/claude-config/claude/plans/smooth-splashing-avalanche.md`. Resume = fleet → `/fullpush` → PR → deploy (ledger 14→15) → phone QA.
+
+**Prior: RPC-for-all-writes — Decision 26 — ✅ COMPLETE (all 4 slices merged & deployed).** Every write goes through a SECURITY DEFINER RPC; reads
 stay direct. Plan (done): `~/.local/share/claude-config/claude/plans/stuck-lazy-sutton.md`.
 **Resume next = phone QA of the RPC write paths** (`/updatephone` → S23+: add/edit a contact + an event type + a comment against homebase), then the
 next feature slice: **in-app empty-state hints — issue #21 (Decision 21)**, or the meatier **auth (GoTrue) + DB hardening — issue #3**.

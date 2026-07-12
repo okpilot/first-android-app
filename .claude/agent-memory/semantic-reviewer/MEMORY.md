@@ -12,6 +12,17 @@
   block body `setState(() { … })` and `await`/`unawaited` the call outside. Still worth a semantic
   flag on any new `setState(() => …)` whose callee returns a Future (belt-and-braces with the lint).
 
+- **Form declares an entity read-only but leaves the write affordance live** (RESOLVED-WATCH,
+  count 1, first seen Tasks `58b2b5d`; fixed & re-verified `258cb6c`). `TaskFormScreen` for an
+  archived task used to hide the "Mark complete" toggle + swap in Restore but keep the title field
+  editable and BOTH Save affordances (appBar + FilledButton) enabled → Save → `update_task` guarded
+  to `deleted_at is null` → `no_data_found` → misleading "Couldn't save" (retry always fails). FIX
+  (verified in `258cb6c`): both Save affordances gated `if (!_isArchived)`, title `readOnly:
+  _isArchived`, `onFieldSubmitted` null when archived → `_save()` is now unreachable for an archived
+  task, only Restore remains; test "an archived task is read-only…" asserts it. Keep watching new
+  edit/detail forms that gate ONE affordance on a read-only flag but not the siblings (Save button +
+  input field). Fix = gate ALL write affordances on the same flag.
+
 _Seed watch-items carried from the project's conventions:_
 - **`mounted`-after-`await`** — a new `await` in a `State` method that then touches `context` /
   `setState` must be followed by `if (!mounted) return;`. Watch every new await path.
