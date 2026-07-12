@@ -40,7 +40,26 @@ _First run pending. Seed watch-items carried from the project's conventions:_
   `#0a0a0a` matched `adaptive_icon_background`; anydpi-v26 refs resolved. For icon slices, pixel-sample
   corner-vs-center alpha rather than reading the SVG or PNG header alone.
 
+- PostgREST DDL-watch triggers slice (2026-07-12, `slice/pgrst-ddl-watch`): clean pre-commit review,
+  0 blocking. SQL-only migration (`20260712120000_pgrst_ddl_watch.sql`). Verified: `notify pgrst,
+  'reload schema'` on `ddl_command_end` + `sql_drop` event triggers is the canonical Supabase
+  auto-reload mechanism; `execute function` (not `execute procedure`) is valid PG11+ / correct on
+  homebase's postgres:16; one shared `returns event_trigger` function on both triggers is valid;
+  `create or replace` + `drop event trigger if exists; create event trigger` applies cleanly on a
+  fresh DB and re-applies safely; `set search_path = ''` (not `= public`) is right here because the
+  body only NOTIFYs and references zero schema objects — rule #6's `= public` governs SECURITY
+  DEFINER *client-facing* fns, not an internal non-definer event trigger. Timestamp orders after
+  20260711120000. Plan honoured: triggers ONLY; manual reload in `backend/deploy-homebase.sh` left
+  intact (removal deferred to follow-up). Only runtime caveat = PostgREST needs `db-channel-enabled`
+  (default true) + channel `pgrst` — that's config, not a migration defect, and the plan already
+  gates the deploy-script change on verifying auto-reload on homebase first. For event-trigger
+  migrations: confirm `returns event_trigger`, `execute function`, and that `search_path=''` is safe
+  only when the body touches no objects.
+
 ## Known false-positive traps (do not flag these)
+- An internal event-trigger / NOTIFY-only function pinning `set search_path = ''` (not `= public`)
+  is CORRECT — rule #6's `= public` is for SECURITY DEFINER client-facing RPCs. Don't demand `=
+  public` on a non-definer function that references no schema objects.
 - Missing `auth.uid()` / login checks are expected pre-auth (issue #3) — not a defect.
 - `with check (true)` policies and RPCs granted to `anon` are intentional pre-auth.
 - `drop function if exists …; create or replace …` to change an RPC signature is the **correct**
