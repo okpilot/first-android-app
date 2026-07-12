@@ -25,6 +25,13 @@
     `using (true)` as a missing `deleted_at` filter.
 - `FORCE ROW LEVEL SECURITY` is deliberately NOT used (would break the SECURITY-DEFINER soft-delete
   bypass) — do not require it.
+- **Event-trigger functions** (`returns event_trigger`, e.g. `public.pgrst_watch`, Decision 25):
+  do NOT flag the two headline checks. (a) `revoke execute … from public` is N/A — Postgres
+  forbids calling an event-trigger function directly ("cannot be called directly"), it's fired only
+  by the trigger mechanism and is not RPC-exposed. (b) `set search_path = ''` (not `= public`) is
+  CORRECT, not a rule-#6 miss — rule #6's `= public` is scoped to SECURITY DEFINER; these are
+  SECURITY INVOKER, reference no schema objects, so empty search_path is stronger (zero injection
+  surface). Not-SECURITY-DEFINER is the right choice — NOTIFY needs no elevated privilege.
 
 ## False positives raised (none yet)
 _None._
