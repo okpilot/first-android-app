@@ -33,6 +33,18 @@ _First run pending. Seed watch-items carried from the project's conventions:_
   the `identical(future,_future)` guard; cloud-CR PR #30 flagged it → guard ADDED, now matches
   `event_types_screen`), nested-gesture (circle `InkResponse` inside row `InkWell`; archived rows `onToggle:null`),
   migration `using(true)`+no-delete-grant. Not novel logic.
+- **Pure-UI / adaptive-layout slices** (desktop sidebar = Decision 28 Slice A): no async → `mounted`/
+  `_lastData` traps are N/A; the win condition is theme-token fidelity, not repo/SQL posture. Checklist:
+  (1) every colour from `Theme.of(context).colorScheme` (no ad-hoc hex; `Colors.transparent` is fine) and
+  it's chrome, not entity data (colour-as-data is only about EventType colours); (2) selection styling
+  matches the sibling shipped theme tokens it claims to mirror — for the sidebar, `navigationRailTheme`:
+  primaryContainer chip + onSurface/onSurfaceVariant + w600/w500; (3) no fixed height around a
+  textScaler-growing Text (padding + `Flexible`+ellipsis is the pattern; a fixed square is OK ONLY with
+  `TextScaler.noScaling` inside, as the `C⁺` brand glyph does); watch for a non-`Flexible` Text in a
+  fixed-width Row (e.g. the `CRM+` wordmark) as a latent extreme-textScaler horizontal overflow —
+  SUGGESTION, not a gate. (4) index assumptions (Settings = `length-1`) safe vs the real `_destinations`
+  order + the `IndexedStack` body order. Passing a static-const list as a widget param instead of the
+  plan's literal 2-arg ctor is a harmless decoupling, not an item-10 signature break (no repo fake).
 - **Infra / bash / SQL-only slices** (postgrest reload-after-migrate; DDL-watch triggers): trace quoting
   through every shell hop; confirm the NOTIFY channel/payload against PostgREST's contract; for event
   triggers confirm `returns event_trigger` + `execute function` + that `search_path=''` is safe ONLY when

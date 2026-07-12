@@ -84,6 +84,19 @@ _First run pending. Seed watch-items from conventions:_
   `_RefreshFailsRepo` test would still go RED here — do NOT port it. Only the success-path
   `_OrderedRepo` stale-guard test is now portable, if coverage of the guard is wanted later.
 
+## `home_shell` sidebar (Decision 28, adaptive nav) — testing notes
+- `HomeShell` puts all four screens in an `IndexedStack`; finders skip the non-selected children
+  (treated as offstage), so a screen's own content text (e.g. `ContactsListScreen` "New contact",
+  `SettingsScreen` "Event types") is `findsNothing` until that destination is selected. Use that to
+  disambiguate a sidebar label from the destination's own AppBar/content of the same word.
+- The `_Sidebar` renders the **first N-1 destinations in a loop** but **Settings (last) separately**
+  after a `Spacer()`, wired to `onSelect(lastIndex)`. That pinned-at-bottom index math is a DISTINCT
+  code path from the looped items — a Tasks/Calendar tap does NOT cover it. Worth its own test:
+  tap the "Settings" sidebar label → assert the Settings screen's "Event types" row appears. (Added.)
+- Adequate coverage for this UI-chrome slice = wide-shows-sidebar+switch, narrow-shows-NavigationBar,
+  pinned-Settings-selects. The `primaryContainer` selected-state fill is pure styling — do NOT assert
+  it (DO NOT #4); a Calendar tap is redundant with Tasks (same loop path) — do NOT pad with it.
+
 ## Known false-positive traps (do not flag / do not do)
 - Pure presenter widgets in `lib/widgets/` (`EmptyState`, `TypeLabel`, `InitialsAvatar`) need no
   tests — do not flag them as missing coverage.

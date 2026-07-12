@@ -90,6 +90,13 @@
   no colour-as-data). `task_form_screen.dart` mirrors `event_form_screen`/`ContactFormScreen`:
   messenger+navigator captured before await, `_runMutation` helper for archive/restore, `_saving`
   gate via `AbsorbPointer`. All four new files tested in-slice.
+- **`_Sidebar` / `_SidebarItem` in `home_shell.dart`** (4679504, Decision 28) — reference-quality
+  UI-chrome extraction. Two small `StatelessWidget`s (correctly stateless — no state/lifecycle);
+  parent `build()` composes a `Row`, no logic/async. Const applied where eligible (subtree pulls
+  `scheme.*` so the brand `Container`/`Text` can't be const — correct). C⁺ mark is a single
+  occurrence, not duplicated → no shared-widget extraction warranted yet. Widget test shipped
+  in-slice. Only nit: the inline nav record type `({IconData icon, IconData selected, String label})`
+  is repeated in 3 spots — a `typedef` would DRY it (SUGGESTION, idiom).
 - **`_CommentsSection` in `event_detail_screen.dart`** — reference-quality inline stateful
   sub-section. `build()` is a `FutureBuilder` composing `_header`/`_composerRow`/`_liveTile`/
   `_archivedSection` helpers (method-extraction, which item #1 allows alongside StatelessWidgets).

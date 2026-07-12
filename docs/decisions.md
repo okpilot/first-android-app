@@ -251,6 +251,15 @@ subset — but keep it Flutter-honest (phase-aware, no cargo-culted TS/Next rule
 - **Scope / stated skips:** the complete-toggle re-sends the unchanged title (a dedicated `set_task_done` RPC wasn't warranted for a single-user v0). Out of scope for v0: due dates, priority/ordering, linking a task to a contact/event, reminders, optimistic checkbox.
 **Principle:** Repeat a proven pattern deliberately — reusing Decision 23's viewable soft-delete and Decision 26's RPC writes made this slice low-risk and fast, which is exactly what an emergent learning slice should be.
 
+## Decision 28: Desktop-adaptive UI — labelled sidebar + Contacts master-detail (2026-07-12)
+**Context:** The app has run on Android, web, and Linux desktop, but still uses a compact `NavigationRail` on wide screens — a design that was fine for phone-first but reads as cramped and out of place when the window widens. Wanted a desktop-worthy sidebar layout that reuses the mono theme (Decision 13) and feels like the same app, just laid out for a mouse.
+**Decided (Slice A — committed):**
+- **Wide screens (≥600dp)** render a labelled **`_Sidebar`** (CRM+ mark, named destinations under a "WORKSPACE" label, Settings pinned to the bottom) **instead of the compact `NavigationRail`.** Phone bottom `NavigationBar` (<600dp) is unchanged. Chrome only — no data, no counts, no user chip (yet).
+- **Selection styling mirrors the shipped `navigationRailTheme`** tokens (primaryContainer chip, onSurface w600, onSurfaceVariant) so it reads as the same mono app (Decision 13), just laid out for a mouse. The C⁺ brand glyph opts out of textScaler to stay crisp under large text sizes; nav labels + wordmark use Flexible+ellipsis to survive textScaler without overflow.
+- **Built in thin slices:** Slice A (the sidebar chrome) is DONE/committed on branch `feat/desktop-sidebar` (not yet pushed/merged, `46795044`); **Slice B** (Contacts master-detail panel, the meatier half) is next and will bring data into the wide layout.
+- **Test coverage:** added `test/home_shell_test.dart` — the suite's first width-parameterized widget test, using `setSurfaceSize` to exercise the sidebar at ≥600dp and the navbar at <600dp.
+**Principle:** Adaptive layout follows the platform (Material design window classes) — earn each breakpoint as the app matures. A sidebar is chrome (no new data, no business logic), so it's a pure-UI slice; Contacts master-detail (Slice B) brings the interaction.
+
 ---
 
 ## OPEN QUESTIONS

@@ -36,6 +36,18 @@ _Seed watch-items carried from the project's conventions:_
   `soft_delete_*`; check `toRpcParams()` passes the params the RPC signature expects.
 
 ## Positive signals
+- **Desktop sidebar pure-UI slice (`home_shell.dart` `_Sidebar`, commit 4679504, Decision 28 Slice A)**
+  — CLEAN. `NavigationRail` → stateless `_Sidebar`; `_index`/`_select` and the `IndexedStack` bodies
+  are untouched, so tab state still round-trips (IndexedStack still owns the bodies). Selection index
+  maps 1:1: `_destinations` order == `IndexedStack` child order (Contacts0·Calendar1·Tasks2·Settings3);
+  Settings pinned via `lastIndex = length-1`, loop `for(i<lastIndex)` renders 0..2 then Settings —
+  every `onSelect(i)` passes the right index. All colour from `colorScheme` (chrome, not entity data).
+  No async → `mounted`/`_lastData` traps N/A. **Finder note (load-bearing, not a bug):** the test taps
+  `find.text('Tasks')` while `TasksListScreen`'s AppBar title is ALSO `'Tasks'` — it works because that
+  screen is the offstage `IndexedStack` child and `find.text` default `skipOffstage:true` drops it
+  (verified: test passes). Correct but fragile — if a future test uses `skipOffstage:false` or the
+  layout stops making non-selected children offstage, the tap breaks with "matched 2 widgets". Seeding
+  one contact (avoids the empty-state button duplicating the FAB's 'New contact') is the right dedup.
 - **Comments slice (`_CommentsSection`, commit 3a87cc8)** — the `_lastData` stale-guard
   (`identical(future, _future)`) holds even in the tricky initState-fetch-vs-user-add race (composer
   is enabled during the initial spinner, so a load can start before the first fetch resolves); the
