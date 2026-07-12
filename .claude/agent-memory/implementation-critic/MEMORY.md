@@ -48,6 +48,23 @@ _First run pending. Seed watch-items carried from the project's conventions:_
   slice is an explicit port of a green template, diff the two side-by-side and confirm the divergences
   are only the entity-specific ones (no attendees array, no all_day CASE) — the rest should match.
 
+- Event-types write-RPCs slice (2026-07-12, `feat/event-type-write-rpcs`, Decision 26 Slice 2): clean
+  pre-commit review, 0 blocking. Third straight port of the same template (events→contacts→event_types).
+  Verified by side-by-side diff vs Slice 1: `create_event_type(p_name,p_color)` /
+  `update_event_type(p_id,p_name,p_color)` are `security definer` + `set search_path = public`,
+  server-side `trim(p_name)`, update guards `deleted_at is null` + raises `no_data_found`; grant
+  signatures `(text,text)` / `(uuid,text,text)` match the function param lists exactly. Genuinely NEW
+  function (single def, no CREATE OR REPLACE chain to resolve). Repo: interface unchanged (fakes in
+  `event_types_screen_test.dart` untouched, correct), `id as String` cast + `_fetchOne` re-select
+  mirror contacts, `_fetchOne` selects `_columns='id, name, color'` (event_types keeps an explicit
+  column list vs contacts' bare `.select()` — pre-existing, correct). `toWrite`→`toRpcParams` rename
+  fully swept: only remaining `toWrite` hits are `Comment` (the not-yet-converted Slice 3 entity).
+  Rule-reversal-sync honoured: database.md rule #2 parenthetical + BOTH stale headers
+  (`create_event_types.sql`, `soft_delete_event_type_rpc.sql`) corrected in-slice, README verify curl
+  added. Lesson reinforced: for an explicit template port, diff the two files side-by-side and confirm
+  divergences are only entity-specific (fewer params, no nullif normalization needed since event_types
+  has no optional text fields) — the security posture must be byte-for-byte.
+
 - App-icon/name slice (2026-07-11, `slice/app-icon-and-name`): clean pre-commit review, 0 blocking.
   Config/asset-only (no Dart). Verified the way that actually catches the trap: decode the PNG alpha,
   don't trust colortype. Adaptive foreground (`crm-plus-dark-fg-1024.png` + generated

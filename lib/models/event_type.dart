@@ -23,9 +23,14 @@ class EventType {
   /// A not-yet-persisted type. Empty id — the DB assigns the real one.
   const EventType.draft({required this.name, required this.colorHex}) : id = '';
 
-  /// Only the client-writable fields, for the direct-under-RLS insert/update. Name is
-  /// trimmed here (server doesn't normalise it); colour is already a clean `#RRGGBB`.
-  Map<String, dynamic> toWrite() => {'name': name.trim(), 'color': colorHex};
+  /// Params for the `create_event_type` / `update_event_type` RPCs (Decision 26 — all writes
+  /// go through RPCs). `p_name` is trimmed here (belt-and-suspenders with the server, which also
+  /// trims); `p_color` is already a clean `#RRGGBB` built from the palette. The repo adds `p_id`
+  /// for updates.
+  Map<String, dynamic> toRpcParams() => {
+    'p_name': name.trim(),
+    'p_color': colorHex,
+  };
 
   EventType copyWith({String? name, String? colorHex}) => EventType(
     id: id,

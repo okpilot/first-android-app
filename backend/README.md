@@ -92,6 +92,36 @@ curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   # -> {"code":"P0002", ... "contact <uuid> not found or already deleted"} — the guard rolled back
 ```
 
+## Verify: event type write RPCs (Decision 26, Slice 2)
+`create_event_type` / `update_event_type` are the RPC write path for event types. Same shape as
+the contact RPCs — server-side name trim, and `update_event_type` refuses a soft-deleted / absent
+row (`no_data_found`):
+```bash
+ANON=$(grep SUPABASE_ANON_KEY .env | cut -d= -f2)
+REST=http://localhost:8000/rest/v1
+# create: padded name trimmed -> returns the new uuid
+TID=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_event_type" \
+  -d '{"p_name":"  Focus  ","p_color":"#4E7BC9"}' | tr -d '"')
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/event_types?id=eq.$TID&select=name,color"                # -> name "Focus", color "#4E7BC9"
+# update: rename + recolor, returns the same id
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/update_event_type" \
+  -d "{\"p_id\":\"$TID\",\"p_name\":\"Deep work\",\"p_color\":\"#22A06B\"}"
+# blank name -> check violation (event_types name check)
+curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_event_type" \
+  -d '{"p_name":"   ","p_color":"#4E7BC9"}'                        # -> 400
+# the new guard: soft-delete the row, then update_event_type on it -> no_data_found
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/soft_delete_event_type" -d "{\"p_id\":\"$TID\"}"
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/update_event_type" \
+  -d "{\"p_id\":\"$TID\",\"p_name\":\"X\",\"p_color\":\"#4E7BC9\"}"
+  # -> {"code":"P0002", ... "event type <uuid> not found or already deleted"} — the guard rolled back
+```
+
 ## Layout
 ```text
 docker-compose.yml   db + rest + gateway

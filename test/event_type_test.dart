@@ -26,4 +26,24 @@ void main() {
       expect(noKey.colorHex, '#888888');
     });
   });
+
+  group('EventType.toRpcParams', () {
+    test('maps to p_-prefixed params and trims the name', () {
+      final params = const EventType.draft(
+        name: '  Focus  ',
+        colorHex: '#4E7BC9',
+      ).toRpcParams();
+      expect(params, {'p_name': 'Focus', 'p_color': '#4E7BC9'});
+    });
+
+    test('does not include the id — the repo adds p_id for updates', () {
+      final params = const EventType(
+        id: 't1',
+        name: 'Work',
+        colorHex: '#22A06B',
+      ).toRpcParams();
+      expect(params.containsKey('p_id'), isFalse);
+      expect(params.containsKey('id'), isFalse);
+    });
+  });
 }

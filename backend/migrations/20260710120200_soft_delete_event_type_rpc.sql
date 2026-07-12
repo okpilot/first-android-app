@@ -4,7 +4,8 @@
 -- A single-table write, but still a SECURITY DEFINER function for the same reason as
 -- soft_delete_contact / soft_delete_event: a direct REST UPDATE that sets deleted_at
 -- fails PostgREST's RETURNING re-check against the SELECT policy (42501). Create/rename/
--- recolor stay as plain direct-under-RLS writes (create_event_types migration).
+-- recolor were plain direct-under-RLS writes when this shipped; Decision 26 later routed
+-- them through create_event_type / update_event_type (migration 20260712140000).
 --
 -- Non-destructive: events keep their type_id, but the type is now hidden by its SELECT
 -- policy, so the events -> event_types embed comes back NULL and those events read as
