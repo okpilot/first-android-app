@@ -77,6 +77,10 @@ slice**, design responsive + adaptive with real teeth:
 - **Adaptive nav**: `NavigationBar` (compact) → `NavigationRail` (medium/expanded) →
   `NavigationDrawer` (large). List+detail = single-pane push on compact, **two-pane** on expanded.
 - **Honor `MediaQuery.textScaler`** — never hardcode font sizes past scaling.
+- **No unbounded `Text` in a header / nav `Row`.** Wrap it in `Flexible` + `TextOverflow.ellipsis`;
+  a fixed-size brand glyph opts out via `TextScaler.noScaling`. A `RenderFlex` overflow is a *runtime*
+  layout error — `flutter analyze` never catches it, only tests / visual QA do. (Decision 28;
+  learner-promoted after the sidebar wordmark guards and a real 8.4px overflow in the Contacts header.)
 - **Desktop affordances are first-class**: hover (`MouseRegion`), keyboard shortcuts
   (`Shortcuts`/`Actions`), visible focus, a sensible **Linux minimum window size**.
 - **Testing a breakpoint-driven layout**: drive width via `tester.binding.setSurfaceSize(...)`

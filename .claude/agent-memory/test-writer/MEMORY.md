@@ -117,6 +117,24 @@ _First run pending. Seed watch-items from conventions:_
   assert it (DO NOT #4). "Selecting a different contact updates the pane" is already covered by the
   in-place-swap test — do NOT add a second remount test.
 
+## `contacts` desktop-top search header (Decision 28 Slice C) — testing notes
+- Wide drops the phone AppBar+FAB; the master pane grows a `_MasterHeader` (title + live `count` +
+  "New" `FilledButton` + a `TextField`). Verified literals: `_NoMatches` = `EmptyState` title
+  **`"No matches"`**, message `"No contacts match your search."`; ✕-clear = an `IconButton` with
+  **tooltip `"Clear"`** (`find.byTooltip('Clear')`) shown only when the box is non-empty; header
+  button label **`New`** (`find.widgetWithText(FilledButton, 'New')`).
+- Search (`_matches`) filters ONLY the list rows (name/company/email, null-guarded); the detail pane
+  resolves its selection against the FULL list, so filtering never changes the pane. To prove the
+  filter, use a **list-only** field — Alan's email `alan@bletchley.uk` renders only in his row
+  subtitle (he isn't the auto-selection), so its disappearance on `enterText('Ada')` pins the filter.
+- `_NoMatches` branch identity trap: when `filtered.isEmpty` the `_ContactsList` is gone, so the
+  auto-selected contact's **name** now renders ONLY in the pane — `find.text('Ada Lovelace')`
+  findsOneWidget then proves the pane kept its selection while the list shows "No matches".
+- Adequate coverage = wide-header-replaces-chrome + search-filters-rows-not-detail + ✕-clear-restores
+  + no-match-shows-_NoMatches-pane-holds-selection + narrow-unchanged. The clear-search-on-New reset
+  (`_openForm` → `_search.clear()`) is real but NOT worth a test: driving the full `ContactFormScreen`
+  push/fill/save is heavy and re-tests form plumbing more than the search behaviour — skip, not a gap.
+
 ## Known false-positive traps (do not flag / do not do)
 - Pure presenter widgets in `lib/widgets/` (`EmptyState`, `TypeLabel`, `InitialsAvatar`) need no
   tests — do not flag them as missing coverage.

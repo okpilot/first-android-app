@@ -107,8 +107,10 @@ void main() {
     expect(find.text('WORKSPACE'), findsOneWidget);
     expect(find.byType(NavigationBar), findsNothing);
 
-    // Contacts is the initial destination.
-    expect(find.text('New contact'), findsOneWidget);
+    // Contacts is the initial destination — the seeded contact shows in the wide
+    // master-detail (list row + detail pane). (On wide there's no "New contact" FAB;
+    // that's the header "New" button now — Decision 28 Slice C.)
+    expect(find.text('Ada Lovelace'), findsWidgets);
 
     // Tapping the sidebar's Tasks item switches the visible screen. Target the sidebar
     // row (an InkWell) directly so the tap doesn't depend on the identically-titled
@@ -117,7 +119,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Contacts screen is no longer the visible one.
-    expect(find.text('New contact'), findsNothing);
+    expect(find.text('Ada Lovelace'), findsNothing);
   });
 
   testWidgets('wide screen: the bottom-pinned Settings item selects the '

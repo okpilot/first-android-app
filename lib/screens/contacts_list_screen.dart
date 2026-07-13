@@ -40,10 +40,21 @@ class _ContactsListScreenState extends State<ContactsListScreen> {
   // can't strand a stale object. Unused in the narrow (push) layout.
   String? _selectedId;
 
+  // Wide-layout search box. A controller (not a mirror String) so a programmatic
+  // clear — the ✕ suffix and the after-New reset — updates the visible field too.
+  late final TextEditingController _search;
+
   @override
   void initState() {
     super.initState();
+    _search = TextEditingController();
     unawaited(_load());
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
   }
 
   /// Reload. Async so `RefreshIndicator` keeps spinning until the fetch resolves.
@@ -69,8 +80,12 @@ class _ContactsListScreenState extends State<ContactsListScreen> {
       ),
     );
     if (saved != null && mounted) {
-      // Show the just-saved contact in the pane (harmless in the narrow layout).
-      setState(() => _selectedId = saved.id);
+      setState(() {
+        // Show the just-saved contact in the pane (harmless in the narrow layout);
+        // clear any active search so the new contact is actually visible in the list.
+        _selectedId = saved.id;
+        _search.clear();
+      });
       _load();
     }
   }
@@ -87,81 +102,229 @@ class _ContactsListScreenState extends State<ContactsListScreen> {
     if (changed == true && mounted) _load();
   }
 
-  /// The loaded state — one pane on a narrow content area, two panes on a wide one.
-  Widget _loaded(List<Contact> contacts) {
+  bool _matches(Contact c, String q) =>
+      c.name.toLowerCase().contains(q) ||
+      (c.company ?? '').toLowerCase().contains(q) ||
+      (c.email ?? '').toLowerCase().contains(q);
+
+  /// The loaded state — single pane (push) on narrow, two-pane master-detail on wide.
+  Widget _loaded(bool wide, List<Contact> contacts) {
     if (contacts.isEmpty) return _EmptyState(onAdd: () => _openForm());
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < kTwoPaneBreakpoint) {
-          return _ContactsList(contacts: contacts, onTap: _openDetail);
-        }
-        // Resolve the selection by id (no package:collection extension — keeps
-        // flutter analyze clean). Auto-select the first contact when none is chosen.
-        final matches = contacts.where((c) => c.id == _selectedId);
-        final selected = matches.isEmpty ? contacts.first : matches.first;
-        return Row(
-          children: [
-            SizedBox(
-              width: kListPaneWidth,
-              child: _ContactsList(
-                contacts: contacts,
-                onTap: (c) => setState(() => _selectedId = c.id),
-                selectedId: selected.id,
-              ),
-            ),
-            const VerticalDivider(width: 1),
-            Expanded(
-              // Key by id so swapping the selected contact remounts the view
-              // (its _contact is seeded once in initState).
-              child: ContactDetailView(
-                key: ValueKey(selected.id),
-                repository: widget.repository,
-                contact: selected,
-                onChanged: (_) => _load(),
-                onDeleted: (_) {
-                  setState(() => _selectedId = null);
-                  unawaited(_load());
+    if (!wide) return _ContactsList(contacts: contacts, onTap: _openDetail);
+
+    // Resolve the selection by id against the FULL list (no package:collection
+    // extension — keeps analyze clean). Auto-select the first when none is chosen.
+    // Searching filters only the list rows; the detail pane holds its selection.
+    final matches = contacts.where((c) => c.id == _selectedId);
+    final selected = matches.isEmpty ? contacts.first : matches.first;
+    final q = _search.text.trim().toLowerCase();
+    final filtered = q.isEmpty
+        ? contacts
+        : contacts.where((c) => _matches(c, q)).toList();
+
+    return Row(
+      children: [
+        SizedBox(
+          width: kListPaneWidth,
+          child: Column(
+            children: [
+              _MasterHeader(
+                count: contacts.length,
+                controller: _search,
+                onChanged: () => setState(() {}),
+                onClear: () {
+                  _search.clear();
+                  setState(() {});
                 },
+                onNew: () => _openForm(),
               ),
-            ),
-          ],
-        );
-      },
+              const Divider(height: 1),
+              Expanded(
+                child: filtered.isEmpty
+                    ? const _NoMatches()
+                    : _ContactsList(
+                        contacts: filtered,
+                        onTap: (c) => setState(() => _selectedId = c.id),
+                        selectedId: selected.id,
+                      ),
+              ),
+            ],
+          ),
+        ),
+        const VerticalDivider(width: 1),
+        Expanded(
+          // Key by id so swapping the selected contact remounts the view
+          // (its _contact is seeded once in initState).
+          child: ContactDetailView(
+            key: ValueKey(selected.id),
+            repository: widget.repository,
+            contact: selected,
+            onChanged: (_) => _load(),
+            onDeleted: (_) {
+              setState(() => _selectedId = null);
+              unawaited(_load());
+            },
+          ),
+        ),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Contacts')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openForm(),
-        icon: const Icon(Icons.add),
-        label: const Text('New contact'),
-      ),
-      body: RefreshIndicator(
-        onRefresh: _load,
-        child: FutureBuilder<List<Contact>>(
-          future: _future,
-          builder: (context, snapshot) {
-            switch (snapshot.connectionState) {
-              case ConnectionState.waiting:
-                // Keep showing the current list/panes while refreshing; only show a
-                // full-screen spinner on the very first load.
-                if (_lastData != null) {
-                  return _loaded(_lastData!);
+    // Decide the layout from the content-area width (the screen sits in HomeShell's
+    // Expanded beside the sidebar). Wide drops the phone AppBar + FAB in favour of the
+    // list pane's own header; narrow keeps the phone chrome untouched.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= kTwoPaneBreakpoint;
+        return Scaffold(
+          appBar: wide ? null : AppBar(title: const Text('Contacts')),
+          floatingActionButton: wide
+              ? null
+              : FloatingActionButton.extended(
+                  onPressed: () => _openForm(),
+                  icon: const Icon(Icons.add),
+                  label: const Text('New contact'),
+                ),
+          body: RefreshIndicator(
+            onRefresh: _load,
+            child: FutureBuilder<List<Contact>>(
+              future: _future,
+              builder: (context, snapshot) {
+                switch (snapshot.connectionState) {
+                  case ConnectionState.waiting:
+                    // Keep showing the current list/panes while refreshing; only show
+                    // a full-screen spinner on the very first load.
+                    if (_lastData != null) {
+                      return _loaded(wide, _lastData!);
+                    }
+                    return const Center(child: CircularProgressIndicator());
+                  default:
+                    if (snapshot.hasError) {
+                      debugPrint('CONTACTS_LOAD_FAILED: ${snapshot.error}');
+                      return _ErrorState(
+                        error: snapshot.error!,
+                        onRetry: _load,
+                      );
+                    }
+                    return _loaded(wide, snapshot.data ?? const <Contact>[]);
                 }
-                return const Center(child: CircularProgressIndicator());
-              default:
-                if (snapshot.hasError) {
-                  debugPrint('CONTACTS_LOAD_FAILED: ${snapshot.error}');
-                  return _ErrorState(error: snapshot.error!, onRetry: _load);
-                }
-                return _loaded(snapshot.data ?? const <Contact>[]);
-            }
-          },
-        ),
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// The wide master-pane header: title + live count + an inline "New" button over a
+/// live search field. Replaces the phone's AppBar + FAB on wide screens (Decision 28,
+/// Slice C).
+class _MasterHeader extends StatelessWidget {
+  const _MasterHeader({
+    required this.count,
+    required this.controller,
+    required this.onChanged,
+    required this.onClear,
+    required this.onNew,
+  });
+
+  final int count;
+  final TextEditingController controller;
+  final VoidCallback onChanged;
+  final VoidCallback onClear;
+  final VoidCallback onNew;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasQuery = controller.text.isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              // Flexible title group (ellipsises under pressure) + the New button at
+              // its natural size, so a narrow list pane never overflows the Row.
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'Contacts',
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
+                        style: theme.textTheme.titleLarge,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        '$count',
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.icon(
+                onPressed: onNew,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('New'),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: controller,
+            onChanged: (_) => onChanged(),
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              isDense: true,
+              hintText: 'Search contacts…',
+              prefixIcon: const Icon(Icons.search, size: 20),
+              suffixIcon: hasQuery
+                  ? IconButton(
+                      tooltip: 'Clear',
+                      icon: const Icon(Icons.clear, size: 18),
+                      onPressed: onClear,
+                    )
+                  : null,
+            ),
+          ),
+        ],
       ),
+    );
+  }
+}
+
+/// Shown in the master pane when a search matches no contacts (distinct from the
+/// zero-contacts [_EmptyState] — the detail pane keeps its selection).
+class _NoMatches extends StatelessWidget {
+  const _NoMatches();
+
+  @override
+  Widget build(BuildContext context) {
+    return const EmptyState(
+      icon: Icons.search_off_outlined,
+      title: 'No matches',
+      message: 'No contacts match your search.',
     );
   }
 }

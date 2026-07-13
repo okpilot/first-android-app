@@ -113,6 +113,17 @@
   in-slice. Only nit (low-value SUGGESTION): the list-pane width `320` is a bare literal semantically
   coupled to `640` (breakpoint comment says "640 = 320 + ≥320") — a `kListPaneWidth` const would make a
   future width change refactor-safe; `720` reading-cap is fine as a single commented use.
+  **Slice C (194ff12)** — reviewed CLEAN. `build()` composes LayoutBuilder→Scaffold→FutureBuilder
+  (`appBar`/`FAB` null on wide) → delegates to `_loaded(wide, contacts)`; search is a light snapshot
+  filter (`contacts.where(_matches)` on the already-fetched small list) via a pure `_matches(c,q)`
+  predicate method — well-placed, NOT the item-#2 heavy transform. New `_MasterHeader`/`_NoMatches`
+  are clean `StatelessWidget` extractions (no state/lifecycle → correct); `_NoMatches` reuses the
+  `EmptyState` atom. State owns+disposes the `_search` `TextEditingController` (a controller not a
+  mirror String, so a programmatic clear updates the field). Const applied where eligible (theme
+  reads block const on the header subtree — correct). `_MasterHeader`'s inline styling literals
+  (padding 16/16/16/12, gaps 8/12, icon 18/20) are one-off local values, NOT cross-widget semantic
+  constants like `kListPaneWidth`/`kTwoPaneBreakpoint` — no extraction warranted. Native/web title
+  swaps to "CRM+" consistent across all four strings (.cc ×2, index.html ×2, manifest ×2).
 - **`_CommentsSection` in `event_detail_screen.dart`** — reference-quality inline stateful
   sub-section. `build()` is a `FutureBuilder` composing `_header`/`_composerRow`/`_liveTile`/
   `_archivedSection` helpers (method-extraction, which item #1 allows alongside StatelessWidgets).

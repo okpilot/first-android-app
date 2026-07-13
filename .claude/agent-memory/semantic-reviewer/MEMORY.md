@@ -2,26 +2,21 @@
 
 > Transition tracker, curated in place (never a dated session log). Records recurring semantic /
 > behavioral bug patterns for THIS project so future reviews focus where logic actually breaks.
-> Curated at `/wrapup`.
+> Curated at `/wrapup`. Verbose per-slice review detail lives in `topics/*.md`.
 
 ## Recurring semantic bugs
 - **`setState(() => <expr that returns a Future>)`** (PROMOTED, count 2: Contacts `fa4fc45`,
   comments `3a87cc8`). The arrow discards the Future — async work fires but `setState` returns
   synchronously; `flutter analyze` did NOT flag it (legal void-context arrow) until the
-  `discarded_futures` lint was enabled (`0e4a7af`) — that lint now mechanizes the catch. Fix =
-  block body `setState(() { … })` and `await`/`unawaited` the call outside. Still worth a semantic
-  flag on any new `setState(() => …)` whose callee returns a Future (belt-and-braces with the lint).
-
-- **Form declares an entity read-only but leaves the write affordance live** (RESOLVED-WATCH,
-  count 1, first seen Tasks `58b2b5d`; fixed & re-verified `258cb6c`). `TaskFormScreen` for an
-  archived task used to hide the "Mark complete" toggle + swap in Restore but keep the title field
-  editable and BOTH Save affordances (appBar + FilledButton) enabled → Save → `update_task` guarded
-  to `deleted_at is null` → `no_data_found` → misleading "Couldn't save" (retry always fails). FIX
-  (verified in `258cb6c`): both Save affordances gated `if (!_isArchived)`, title `readOnly:
-  _isArchived`, `onFieldSubmitted` null when archived → `_save()` is now unreachable for an archived
-  task, only Restore remains; test "an archived task is read-only…" asserts it. Keep watching new
-  edit/detail forms that gate ONE affordance on a read-only flag but not the siblings (Save button +
-  input field). Fix = gate ALL write affordances on the same flag.
+  `discarded_futures` lint was enabled (`0e4a7af`), which now mechanizes the catch. Fix = block body
+  `setState(() { … })` and `await`/`unawaited` outside. Still worth a semantic flag on any new
+  `setState(() => …)` whose callee returns a Future (belt-and-braces with the lint).
+- **Form declares an entity read-only but leaves a write affordance live** (RESOLVED-WATCH, count 1,
+  Tasks `58b2b5d`; fixed & re-verified `258cb6c`). Archived `TaskFormScreen` hid the complete toggle
+  but kept the title editable + BOTH Save affordances live → Save → `update_task` guarded
+  `deleted_at is null` → `no_data_found` → misleading "Couldn't save" (retry always fails). Fix =
+  gate ALL write affordances (Save button + input field + `onFieldSubmitted`) on the same read-only
+  flag. Watch new edit/detail forms that gate ONE affordance but not its siblings.
 
 _Seed watch-items carried from the project's conventions:_
 - **`mounted`-after-`await`** — a new `await` in a `State` method that then touches `context` /
@@ -35,106 +30,30 @@ _Seed watch-items carried from the project's conventions:_
 - **RPC-only writes** — event writes go through `create_event`/`update_event`, deletes through
   `soft_delete_*`; check `toRpcParams()` passes the params the RPC signature expects.
 
-## Positive signals
-- **Contacts master-detail extraction (`contact_detail_screen.dart` + `contacts_list_screen.dart`,
-  commit 16ed89e, Decision 28 Slice B) — CLEAN.** `ContactDetailScreen` split into a thin phone
-  Scaffold+PopScope wrapper (owns `_dirty`, pops) + a Scaffold-less `ContactDetailView` body that
-  NEVER pops and reports up via `onChanged`/`onDeleted`. Load-bearing invariants all hold: (1)
-  `key: ValueKey(selected.id)` keyed by the RESOLVED-selected id → parent selection swap remounts
-  the pane (initState re-seeds `_contact`/`_deleting`), while an in-place `_edit` keeps the same id
-  → no remount → view's `_contact` is the pane's single source of truth (no double-source vs the
-  reloaded list). (2) id-resolution `where(id==_selectedId).isEmpty ? first : first` is total —
-  `_EmptyState` guards empty before it; null/stale id both fall back to first (correct). (3)
-  snackbar shown ONCE in `_confirmDelete` on the ROOT messenger before `onDeleted`; both hosts'
-  `onDeleted` navigate only → no double/missing toast; survives host close. (4) `_lastData`
-  stale-guard preserved — waiting branch routes through `_loaded(_lastData!)`, panes render from
-  cache, no spinner flash. (5) `mounted`-after-`await` present on every await path incl. the newly
-  guarded `_edit`. Phone imperative `pop(true)` after delete is safe under `canPop:false` because
-  `onPopInvokedWithResult`'s `if(didPop)return` short-circuits the imperative pop.
-  **Known transient (SUGGESTION, non-blocking, consistent-by-design):** after a desktop delete,
-  `onDeleted` sets `_selectedId=null` + reloads; during the reload window `_lastData` still holds
-  the deleted row, so IF the deleted contact was `contacts.first` the pane briefly re-shows it
-  (delete spinner still up) until the fetch resolves and the row drops out. This exactly mirrors the
-  list's own documented `_lastData` linger and self-heals — do NOT escalate to ISSUE on a
-  master-detail slice; it is the price of the no-spinner-flash stale-guard, same as the phone list.
-- **Desktop sidebar pure-UI slice (`home_shell.dart` `_Sidebar`, commit 4679504, Decision 28 Slice A)**
-  — CLEAN. `NavigationRail` → stateless `_Sidebar`; `_index`/`_select` and the `IndexedStack` bodies
-  are untouched, so tab state still round-trips (IndexedStack still owns the bodies). Selection index
-  maps 1:1: `_destinations` order == `IndexedStack` child order (Contacts0·Calendar1·Tasks2·Settings3);
-  Settings pinned via `lastIndex = length-1`, loop `for(i<lastIndex)` renders 0..2 then Settings —
-  every `onSelect(i)` passes the right index. All colour from `colorScheme` (chrome, not entity data).
-  No async → `mounted`/`_lastData` traps N/A. **Finder note (load-bearing, not a bug):** the test taps
-  `find.text('Tasks')` while `TasksListScreen`'s AppBar title is ALSO `'Tasks'` — it works because that
-  screen is the offstage `IndexedStack` child and `find.text` default `skipOffstage:true` drops it
-  (verified: test passes). Correct but fragile — if a future test uses `skipOffstage:false` or the
-  layout stops making non-selected children offstage, the tap breaks with "matched 2 widgets". Seeding
-  one contact (avoids the empty-state button duplicating the FAB's 'New contact') is the right dedup.
-- **Comments slice (`_CommentsSection`, commit 3a87cc8)** — the `_lastData` stale-guard
-  (`identical(future, _future)`) holds even in the tricky initState-fetch-vs-user-add race (composer
-  is enabled during the initial spinner, so a load can start before the first fetch resolves); the
-  older fetch is correctly ignored. Mutation ops clear their controllers / null `_editingId` AFTER
-  the `await` inside the op, so a failed write preserves the user's text and keeps edit mode open for
-  retry. `_run` reuses the `_confirmDelete` idiom (capture messenger, `mounted` re-check, `busy` in
-  `finally`). Reinforce this shape for new list/mutation sections.
-
 ## Watching
-- **per-keystroke `setState`** — `_composer`/`_editController` listeners call a bare
-  `setState((){})` that rebuilds the whole `FutureBuilder` + every tile + the `.where` live/archived
-  filters on each keystroke. Cheap for small lists, idiomatic here; flag only if it recurs on a
-  larger/perf-sensitive list. (WATCHING, count 1, first seen 3a87cc8.)
-- **mutation entrypoints missing the `if (_busy) return` re-entrancy guard** — `_add`/`_saveEdit`
-  guard `_busy` internally, but `_archive`/`_unarchive` rely solely on button-disable. Idempotent
-  here (archive/unarchive just re-set `deleted_at`), so low risk. Watch for a non-idempotent mutation
-  that takes this shape. (WATCHING, count 1, first seen 3a87cc8.)
+- **per-keystroke `setState((){})`** — a bare `setState` rebuilds the whole `FutureBuilder` + tiles +
+  `.where` filters on each keystroke. Cheap for small lists, idiomatic here; flag only if it recurs on
+  a larger/perf-sensitive list. (WATCHING, count 2: comments `3a87cc8`, contacts search `194ff12`.)
+- **mutation entrypoints missing an `if (_busy) return` re-entrancy guard** — some ops guard `_busy`
+  internally, others (`_archive`/`_unarchive`) rely solely on button-disable. Idempotent so far.
+  Watch for a NON-idempotent mutation that takes this shape. (WATCHING, count 1, first seen 3a87cc8.)
 
-## Positive signals (write-RPC ports)
-- **Contacts write-RPC port (commit 1988e26, Decision 26 Slice 1)** — direct INSERT/UPDATE →
-  `create_contact`/`update_contact` RPCs, verified behaviorally equivalent to the old `toWrite`
-  path, not just structurally a port. The load-bearing checks for future `event_types`/`comments`
-  ports: (1) server `nullif(trim(...),'')` reproduces the old client `_emptyToNull` **exactly** —
-  both store the trimmed value or NULL, so no field silently changed normalization; (2) the RPC
-  inserts/updates all 6 human columns the old map wrote — none dropped; (3) `id as String` cast is
-  valid because the RPC `returns uuid` (scalar → JSON string); (4) `_fetchOne`'s `.single()` is
-  correct (NOT a `maybeSingle` case): the just-written live row is visible under
-  `contacts_select using (deleted_at is null)`, so 0 rows means something went wrong and SHOULD
-  throw. Mirrors `SupabaseEventsRepository` byte-for-byte. When reviewing Slice 3, diff the new
-  port against this shape and confirm the same 4 hold.
-- **Event-types write-RPC port (commit 20970ea, Decision 26 Slice 2) — CONFIRMED, all 4 checks hold.**
-  `create_event_type(p_name,p_color)` / `update_event_type(p_id,p_name,p_color)` are a single-def NEW
-  migration (no CREATE OR REPLACE chain). Repo/model/screen structurally identical to contacts:
-  `id as String` cast valid (RPC `returns uuid`); `update` refetches by input `type.id` not the RPC
-  return; `_fetchOne` selects `_columns='id, name, color'` == `EventType.fromJson` field set exactly;
-  `_save` catches → mounted-guard → `_saving=false` → snackbar, so `no_data_found` on a soft-deleted
-  update row surfaces sensibly. Entity-specific deltas vs contacts (all legitimate): fewer params, no
-  `nullif`/`_emptyToNull` normalization (event_types has no optional text fields), explicit column
-  list vs contacts' bare `.select()`. `toWrite`→`toRpcParams` swept; only remaining `toWrite` is
-  `Comment` (Slice 3, unconverted). Third straight clean port — reinforce the shape for Slice 3.
-- **Comments write-RPC port (commit 3296258, Decision 26 Slice 3 — FINAL) — CONFIRMED clean, all 4
-  checks hold, fourth straight clean port.** `create_comment(p_event_id,p_body)` /
-  `update_comment(p_id,p_body)` (body-only, no `p_event_id` → an edit can't move a comment) /
-  `soft_delete_comment(p_id)` / `restore_comment(p_id)` — all single-def NEW migration
-  (`20260712150000`), no CREATE OR REPLACE chain. `id as String` cast valid (create_comment
-  `returns uuid`); `_fetchOne` selects `_columns='id, event_id, body, created_at, updated_at,
-  deleted_at'` == `Comment.fromJson` field set exactly (incl. `deleted_at` → `isArchived`); screen
-  (`event_detail_screen.dart`) NOT in diff — interface unchanged, UI + fakes untouched. Guards match
-  UI exactly: update/soft_delete guard `deleted_at is null` (UI edits/archives live tiles only),
-  restore guards `deleted_at is not null` (UI unarchives archived tiles only); `no_data_found` raised
-  before `_fetchOne` runs → thrown → surfaced by `_run`'s catch→snackbar.
-- **KEY DELTA vs contacts/event_types (why `.single()` is safe here for a DIFFERENT reason):** under
-  event_comments' `using (true)` SELECT policy an archived row STAYS selectable, so `_fetchOne`
-  round-trips `isArchived` correctly on archive/unarchive AND the row can never vanish from
-  `_fetchOne`'s view — strictly safer than the contacts/event_types ports (where a concurrent
-  soft-delete could make `.single()` throw). So the "non-atomic re-fetch could throw on a concurrent
-  soft-delete" caveat does NOT apply to comments — under `using(true)` no concurrent soft/restore can
-  hide the just-written row from the re-select. Do NOT flag `.single()` here.
-- **Non-atomic re-fetch is by-design, not a race bug** — RPC-then-`_fetchOne` is two round-trips
-  (vs the old single `insert…returning`). A concurrent soft-delete between the two would make
-  `.single()` throw instead of returning the row — but that is the correct error signal, matches
-  the events repo, and is deliberate. Do NOT flag it as a stale-load/race finding.
+## Positive signals (reviewed CLEAN — detail in topics)
+- **Desktop-adaptive slices (Decision 28 A/B/C: sidebar 4679504, master-detail 16ed89e, desktop-top
+  search 194ff12)** — [topics/desktop-adaptive-slices.md](topics/desktop-adaptive-slices.md). Detail
+  `selected` always resolves by id against the FULL list; B/C `_lastData` lingers are
+  consistent-by-design transients, NOT ISSUEs.
+- **Decision 26 write-RPC ports (contacts 1988e26, event-types 20970ea, comments 3296258)** —
+  [topics/write-rpc-ports.md](topics/write-rpc-ports.md). Reusable 4-check port shape; `.single()`
+  and the non-atomic RPC-then-`_fetchOne` re-fetch are correct by design — do NOT flag as races.
+- **Comments `_CommentsSection` (3a87cc8)** — `identical(future,_future)` stale-guard holds through
+  the initState-fetch-vs-user-add race; mutation ops clear controllers/`_editingId` AFTER the await
+  so a failed write preserves text + keeps edit mode open; `_run` = capture messenger + `mounted`
+  re-check + `busy` in `finally`. Reinforce this shape for new list/mutation sections.
 
 ## Known false-positive traps (do not flag these)
-- Missing `auth.uid()` / `with check (true)` is expected pre-auth (issue #3) — not a semantic defect,
-  and DB-security is `db-security-reviewer`'s lane, not yours.
+- Missing `auth.uid()` / `with check (true)` is expected pre-auth (issue #3) — DB-security is
+  `db-security-reviewer`'s lane, not yours.
 - `drop function if exists …; create or replace …` to change an RPC signature is the **correct**
   pattern here (avoids PGRST203), not a regression.
 - Stock lint / style / null-safety already covered by `.coderabbit.yaml`'s generic Dart pass and

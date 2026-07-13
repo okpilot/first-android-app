@@ -106,4 +106,105 @@ void main() {
     // The push flow is preserved — a full ContactDetailScreen route.
     expect(find.byType(ContactDetailScreen), findsOneWidget);
   });
+
+  testWidgets('wide: the list header replaces the AppBar + FAB', (
+    tester,
+  ) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.binding.setSurfaceSize(const Size(1100, 800));
+
+    await tester.pumpWidget(_app(_people));
+    await tester.pumpAndSettle();
+
+    // No phone chrome on wide.
+    expect(find.byType(AppBar), findsNothing);
+    expect(find.byType(FloatingActionButton), findsNothing);
+    // The list pane owns the header: a search field + an inline "New" button.
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'New'), findsOneWidget);
+  });
+
+  testWidgets('wide: search filters the list rows, not the detail', (
+    tester,
+  ) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.binding.setSurfaceSize(const Size(1100, 800));
+
+    await tester.pumpWidget(_app(_people));
+    await tester.pumpAndSettle();
+
+    // Alan's email renders only in his list-row subtitle (he isn't the selection).
+    expect(find.text('alan@bletchley.uk'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'Ada');
+    await tester.pumpAndSettle();
+
+    // Alan's row is filtered out; Ada (auto-selected) stays in list + detail.
+    expect(find.text('alan@bletchley.uk'), findsNothing);
+    expect(find.text('Ada Lovelace'), findsWidgets);
+  });
+
+  testWidgets('wide: the ✕ clear button restores the full list', (
+    tester,
+  ) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.binding.setSurfaceSize(const Size(1100, 800));
+
+    await tester.pumpWidget(_app(_people));
+    await tester.pumpAndSettle();
+
+    // Filter down to Ada — Alan's row (and his email) drop out.
+    await tester.enterText(find.byType(TextField), 'Ada');
+    await tester.pumpAndSettle();
+    expect(find.text('alan@bletchley.uk'), findsNothing);
+
+    // The ✕ suffix (tooltip 'Clear') runs onClear → clears the box → full list back.
+    await tester.tap(find.byTooltip('Clear'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('alan@bletchley.uk'),
+      findsOneWidget,
+    ); // Alan's row restored
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      isEmpty,
+    );
+  });
+
+  testWidgets(
+    'wide: a query matching nothing shows "No matches" but the detail keeps '
+    'its selection',
+    (tester) async {
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.binding.setSurfaceSize(const Size(1100, 800));
+
+      await tester.pumpWidget(_app(_people));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'nobodyhere');
+      await tester.pumpAndSettle();
+
+      // The master pane shows the _NoMatches state (distinct from zero-contacts).
+      expect(find.text('No matches'), findsOneWidget);
+      // The detail pane still holds its selection (Ada, auto-selected). With the
+      // list filtered empty, her name renders only in the pane.
+      expect(find.byType(ContactDetailView), findsOneWidget);
+      expect(find.text('Ada Lovelace'), findsOneWidget);
+    },
+  );
+
+  testWidgets('narrow: keeps the AppBar + FAB and has no search', (
+    tester,
+  ) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.binding.setSurfaceSize(const Size(360, 800));
+
+    await tester.pumpWidget(_app(_people));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AppBar), findsOneWidget);
+    expect(find.byType(FloatingActionButton), findsOneWidget);
+    expect(find.byType(TextField), findsNothing);
+  });
 }
