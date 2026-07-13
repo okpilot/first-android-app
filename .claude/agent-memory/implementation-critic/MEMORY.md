@@ -48,6 +48,19 @@ _First run pending. Seed watch-items carried from the project's conventions:_
   = `primaryContainer`/`onSurface`/`onSurfaceVariant` theme tokens (chrome, not colour-as-data). Note:
   `_edit`'s `setState` after `await Navigator.push` has no `if(!mounted)return` but is PRE-EXISTING and
   provably safe (the pushed form is a modal route over the whole tree, so the pane can't be disposed mid-await) — not a regression, do not cry-wolf.
+  Tasks master-detail (Decision 28 Slice D) is the faithful sibling port: `TaskEditView` (Scaffold-less,
+  `onChanged` never pops, `showHeader` for the pane) + thin `TaskFormScreen` StatelessWidget wrapper
+  (`onChanged: (_) => Navigator.pop(true)` — setState-then-sync-pop in `_save` is safe: setState runs while
+  mounted before the pop). Verified-clean traps: (a) both `_save` AND `_runMutation` reset `_saving=false`
+  BEFORE `onChanged` (pane-freeze fix); (b) pane key `${id}:${isArchived}` remounts on archive/restore because
+  the `archive`/`restore` repo methods `_fetchOne` the mutated row so `result.isArchived` actually flips →
+  `_onEditorChanged` reselects that id; (c) `_resolveSelected` = selected-if-present → first ACTIVE → null
+  (never auto-opens completed/archived), stale `_selectedId` falls through safely; `_creatingNew` survives
+  `_load()` (untouched by it). Plan-SANCTIONED minor (do NOT cry-wolf): the selected-row highlight is
+  `ColoredBox(primaryContainer)` wrapping the `InkWell` (not Contacts' `ListTile selected:`), so the tap ripple
+  is masked on an ALREADY-selected row — cosmetic only (re-tapping a selected row is a no-op; unselected rows
+  ripple fine); the plan explicitly specced "ColoredBox/Ink". RefreshIndicator over the two-pane `Row` with two
+  ListViews is the proven Contacts structure — no assertion.
 - **Pure-UI / adaptive-layout slices** (desktop sidebar = Decision 28 Slice A): no async → `mounted`/
   `_lastData` traps are N/A; the win condition is theme-token fidelity, not repo/SQL posture. Checklist:
   (1) every colour from `Theme.of(context).colorScheme` (no ad-hoc hex; `Colors.transparent` is fine) and
@@ -56,8 +69,11 @@ _First run pending. Seed watch-items carried from the project's conventions:_
   primaryContainer chip + onSurface/onSurfaceVariant + w600/w500; (3) no fixed height around a
   textScaler-growing Text (padding + `Flexible`+ellipsis is the pattern; a fixed square is OK ONLY with
   `TextScaler.noScaling` inside, as the `C⁺` brand glyph does); watch for a non-`Flexible` Text in a
-  fixed-width Row (e.g. the `CRM+` wordmark) as a latent extreme-textScaler horizontal overflow —
-  SUGGESTION, not a gate. (4) index assumptions (Settings = `length-1`) safe vs the real `_destinations`
+  fixed-width Row (e.g. the `CRM+` wordmark; also `_TasksHeader`'s `'N active'` count — unlike Contacts'
+  `_MasterHeader` where the count IS `Flexible`, the Tasks plan specced a bare count Text + `Expanded`
+  spacer, so it's a plan-accepted divergence, not an item-9 fallback mismatch) as a latent
+  extreme-textScaler horizontal overflow — SUGGESTION, not a gate (wide area is ≥640, so realistic
+  overflow needs an extreme scaler). (4) index assumptions (Settings = `length-1`) safe vs the real `_destinations`
   order + the `IndexedStack` body order. Passing a static-const list as a widget param instead of the
   plan's literal 2-arg ctor is a harmless decoupling, not an item-10 signature break (no repo fake).
 - **Infra / bash / SQL-only slices** (postgrest reload-after-migrate; DDL-watch triggers): trace quoting

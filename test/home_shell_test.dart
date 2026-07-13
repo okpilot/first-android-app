@@ -118,12 +118,10 @@ void main() {
     await tester.tap(find.widgetWithText(InkWell, 'Tasks'));
     await tester.pumpAndSettle();
 
-    // The Tasks destination is actually the visible one (its AppBar title shows),
-    // not merely "something other than Contacts".
-    expect(
-      find.descendant(of: find.byType(AppBar), matching: find.text('Tasks')),
-      findsOneWidget,
-    );
+    // The Tasks destination is actually the visible one, not merely "something other than
+    // Contacts". On this wide surface Tasks has no AppBar (Decision 28 Slice D), so assert the
+    // Tasks empty state instead — layout-agnostic, and the fake Tasks repo returns no tasks.
+    expect(find.text('No tasks yet'), findsOneWidget);
     // …and the Contacts screen is no longer visible.
     expect(find.text('Ada Lovelace'), findsNothing);
   });

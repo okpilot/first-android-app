@@ -65,7 +65,9 @@ void main() {
     await tester.pumpWidget(_form(repo));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(TextButton, 'Save'));
+    // Save now lives solely in the body button (the AppBar action was dropped when the
+    // editor body was extracted into TaskEditView, Decision 28 Slice D).
+    await tester.tap(find.widgetWithText(FilledButton, 'Add task'));
     await tester.pumpAndSettle();
 
     expect(find.text('Title is required'), findsOneWidget);
@@ -117,7 +119,7 @@ void main() {
     expect(find.text('Archive task'), findsOneWidget);
     expect(find.text('Restore task'), findsNothing);
 
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.text('Mark complete'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Save changes'));
     await tester.pumpAndSettle();
@@ -210,4 +212,39 @@ void main() {
     expect(find.text("Couldn't archive — please try again"), findsOneWidget);
     expect(find.text('Edit task'), findsOneWidget); // didn't pop
   });
+
+  // TaskEditView is the Scaffold-less body embedded in the desktop editor pane, where it
+  // stays mounted after a save (no pop). Guard that a successful save resets `_saving` so the
+  // editor doesn't freeze — the failure mode the pane introduced (Decision 28 Slice D).
+  testWidgets(
+    'TaskEditView: a save fires onChanged and leaves the editor usable (no freeze)',
+    (tester) async {
+      final repo = _RecordingTasksRepo();
+      final saved = <Task>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: Scaffold(
+            body: TaskEditView(
+              repository: repo,
+              existing: const Task(id: 't1', title: 'Call Nadia'),
+              onChanged: saved.add,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Save changes'));
+      await tester.pumpAndSettle();
+      expect(saved, hasLength(1));
+      expect(saved.single.id, 't1');
+
+      // If `_saving` stayed true the AbsorbPointer would swallow this second tap; a second
+      // onChanged proves the editor was re-enabled.
+      await tester.tap(find.widgetWithText(FilledButton, 'Save changes'));
+      await tester.pumpAndSettle();
+      expect(saved, hasLength(2));
+    },
+  );
 }
