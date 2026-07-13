@@ -118,7 +118,13 @@ void main() {
     await tester.tap(find.widgetWithText(InkWell, 'Tasks'));
     await tester.pumpAndSettle();
 
-    // Contacts screen is no longer the visible one.
+    // The Tasks destination is actually the visible one (its AppBar title shows),
+    // not merely "something other than Contacts".
+    expect(
+      find.descendant(of: find.byType(AppBar), matching: find.text('Tasks')),
+      findsOneWidget,
+    );
+    // …and the Contacts screen is no longer visible.
     expect(find.text('Ada Lovelace'), findsNothing);
   });
 

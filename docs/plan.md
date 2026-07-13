@@ -36,8 +36,18 @@ disposable. Built emergently — thin slices, one at a time.
 4. **Next candidates:** DB security hardening (issue #3 — RPC `auth.uid()`, revoke PUBLIC execute, column-level write grants) · **auth (GoTrue)** logins + owner-based RLS · search/filter on the list · run on the physical S23+ · full 7-column week (wide-screen adaptive).
 
 ## Next slice
-**Desktop sidebar — Decision 28, Slice B — Contacts master-detail panel (next).** Slice A (the sidebar chrome, Decision 28) is committed on `feat/desktop-sidebar`; Slice B will add a right panel on wide screens showing the selected contact's details + edit actions (reusing existing Contacts detail/edit screens), bringing data into the wide layout. Phone Contacts screen unchanged. Approved mockup artifact drove the slice. Plan: `~/.local/share/claude-config/claude/plans/fuzzy-munching-thacker.md`.
-**Resume = plan + build Slice B;** then the backlog: **Tasks phone QA** (owed from Decision 27, v0 merged & deployed to homebase) · **in-app empty-state hints — issue #21** · **auth (GoTrue) + DB hardening — issue #3**.
+**Desktop-adaptive UI — Decision 28, Slices A+B+C — ✅ DONE & pushed as PR #31** (`feat/desktop-adaptive`;
+sidebar + Contacts master-detail + desktop top/search + `CRM+` window title). Plan (done):
+`~/.local/share/claude-config/claude/plans/fuzzy-munching-thacker.md`. **Resume = answer the cloud
+CodeRabbit review on PR #31** (`/coderabbit` → `/fullpush` → `/replycoderabbit`), then merge.
+**Then, the next feature slice — pick one:**
+- **Contact activity view** (fills the master-detail right-pane whitespace with a contact's related
+  events/lessons, tasks, notes — the agreed Decision 28 follow-on; data links already exist), OR
+- **in-app empty-state hints — issue #21 (Decision 21)**, OR the meatier **auth (GoTrue) + DB
+  hardening — issue #3**.
+**Owed regardless (phone QA backlog, single trip on the S23+ via `/updatephone`):** Tasks v0 (Decision
+27) **and** the RPC write paths (Decision 26) — do both in one on-device pass since both are merged &
+deployed but un-QA'd (device was off the tailnet).
 
 **Prior: RPC-for-all-writes — Decision 26 — ✅ COMPLETE (all 4 slices merged & deployed).** Every write goes through a SECURITY DEFINER RPC; reads
 stay direct. Plan (done): `~/.local/share/claude-config/claude/plans/stuck-lazy-sutton.md`.

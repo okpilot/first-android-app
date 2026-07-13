@@ -1,8 +1,9 @@
 # Desktop-adaptive slices (Decision 28) — semantic review detail
 
 All three were reviewed CLEAN. Shared invariant across the master-detail work: the detail
-`selected` resolves by id against the **full** contacts list (`where(id==_selectedId).isEmpty ?
-first : first` — total, empty guarded upstream), never against a filtered/derived list.
+`selected` resolves by id against the **full** contacts list
+(`matches = contacts.where(id==_selectedId); selected = matches.isEmpty ? contacts.first : matches.first`
+— total, empty guarded upstream), never against a filtered/derived list.
 
 ## Slice A — desktop sidebar (`home_shell.dart` `_Sidebar`, commit 4679504)
 `NavigationRail` → stateless `_Sidebar`; `_index`/`_select` + `IndexedStack` bodies untouched, so
