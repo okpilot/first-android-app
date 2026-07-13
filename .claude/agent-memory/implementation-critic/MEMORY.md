@@ -33,6 +33,33 @@ _First run pending. Seed watch-items carried from the project's conventions:_
   the `identical(future,_future)` guard; cloud-CR PR #30 flagged it → guard ADDED, now matches
   `event_types_screen`), nested-gesture (circle `InkResponse` inside row `InkWell`; archived rows `onToggle:null`),
   migration `using(true)`+no-delete-grant. Not novel logic.
+- **Widget-extraction / master-detail slices** (Contacts master-detail = Decision 28 Slice B): a
+  shared body widget (`ContactDetailView`, no Scaffold, `onChanged`/`onDeleted` callbacks, NEVER pops)
+  + thin phone wrapper (owns Scaffold+PopScope+pop). Win condition = the extraction preserves every
+  async-safety invariant verbatim: (1) the plan-critic CRITICAL was `key: ValueKey(selected.id)` so a
+  parent-driven selection swap REMOUNTS the pane (`_contact` seeded once in initState) — confirm the key
+  is present and keyed by the resolved-selected id, not the raw param. (2) snackbar shown ONCE, in the
+  body on the root messenger, host only navigates — no double/missing toast. (3) discarded_futures
+  handling is context-sensitive: `discarded_futures: true` fires in SYNC bodies only (initState, the
+  `(_){…}` onDeleted closure → needs `unawaited(_load())`), NOT in async methods (`_openForm`/`_openDetail`
+  bare `_load()` OK — `unawaited_futures` not enabled); an arrow `(_) => _load()` returns the future so
+  it's not "discarded". (4) id-resolution stays dependency-free `where(...).isEmpty ? first : first`
+  (no package:collection — `depend_on_referenced_packages` would fail the gate). (5) selection highlight
+  = `primaryContainer`/`onSurface`/`onSurfaceVariant` theme tokens (chrome, not colour-as-data). Note:
+  `_edit`'s `setState` after `await Navigator.push` has no `if(!mounted)return` but is PRE-EXISTING and
+  provably safe (the pushed form is a modal route over the whole tree, so the pane can't be disposed mid-await) — not a regression, do not cry-wolf.
+- **Pure-UI / adaptive-layout slices** (desktop sidebar = Decision 28 Slice A): no async → `mounted`/
+  `_lastData` traps are N/A; the win condition is theme-token fidelity, not repo/SQL posture. Checklist:
+  (1) every colour from `Theme.of(context).colorScheme` (no ad-hoc hex; `Colors.transparent` is fine) and
+  it's chrome, not entity data (colour-as-data is only about EventType colours); (2) selection styling
+  matches the sibling shipped theme tokens it claims to mirror — for the sidebar, `navigationRailTheme`:
+  primaryContainer chip + onSurface/onSurfaceVariant + w600/w500; (3) no fixed height around a
+  textScaler-growing Text (padding + `Flexible`+ellipsis is the pattern; a fixed square is OK ONLY with
+  `TextScaler.noScaling` inside, as the `C⁺` brand glyph does); watch for a non-`Flexible` Text in a
+  fixed-width Row (e.g. the `CRM+` wordmark) as a latent extreme-textScaler horizontal overflow —
+  SUGGESTION, not a gate. (4) index assumptions (Settings = `length-1`) safe vs the real `_destinations`
+  order + the `IndexedStack` body order. Passing a static-const list as a widget param instead of the
+  plan's literal 2-arg ctor is a harmless decoupling, not an item-10 signature break (no repo fake).
 - **Infra / bash / SQL-only slices** (postgrest reload-after-migrate; DDL-watch triggers): trace quoting
   through every shell hop; confirm the NOTIFY channel/payload against PostgREST's contract; for event
   triggers confirm `returns event_trigger` + `execute function` + that `search_path=''` is safe ONLY when

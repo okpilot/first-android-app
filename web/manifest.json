@@ -1,6 +1,6 @@
 {
-    "name": "first_android_app",
-    "short_name": "first_android_app",
+    "name": "CRM+",
+    "short_name": "CRM+",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

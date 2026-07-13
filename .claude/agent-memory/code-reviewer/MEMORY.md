@@ -90,6 +90,40 @@
   no colour-as-data). `task_form_screen.dart` mirrors `event_form_screen`/`ContactFormScreen`:
   messenger+navigator captured before await, `_runMutation` helper for archive/restore, `_saving`
   gate via `AbsorbPointer`. All four new files tested in-slice.
+- **`_Sidebar` / `_SidebarItem` in `home_shell.dart`** (4679504, Decision 28) — reference-quality
+  UI-chrome extraction. Two small `StatelessWidget`s (correctly stateless — no state/lifecycle);
+  parent `build()` composes a `Row`, no logic/async. Const applied where eligible (subtree pulls
+  `scheme.*` so the brand `Container`/`Text` can't be const — correct). C⁺ mark is a single
+  occurrence, not duplicated → no shared-widget extraction warranted yet. Widget test shipped
+  in-slice. Only nit: the inline nav record type `({IconData icon, IconData selected, String label})`
+  is repeated in 3 spots — a `typedef` would DRY it (SUGGESTION, idiom).
+- **`ContactDetailView` extraction in `contact_detail_screen.dart`** (16ed89e, Decision 28 Slice B)
+  — reference-quality body-widget extraction for master-detail. `ContactDetailScreen` becomes a thin
+  `Scaffold`+`PopScope` host owning the changed/delete back-signal; the shared body `ContactDetailView`
+  (no Scaffold, NEVER pops, reports via `onChanged`/`onDeleted`) renders identically full-screen and in
+  the desktop pane. `build()` composes (`Align`→`ConstrainedBox(maxWidth:720)`→`_body`); `_body` is a
+  method-extraction (allowed by item #1). Both widgets legit `StatefulWidget` (`_contact`/`_deleting`/
+  `_dirty` + lifecycle). List screen's `_loaded(contacts)` extracts the LayoutBuilder one-pane/two-pane
+  branch; selection resolved by id via `where(...).isEmpty ? first : first` (dependency-free, light
+  snapshot filter — NOT a heavy transform); `ContactDetailView(key: ValueKey(selected.id))` remounts on
+  swap. Selection highlight uses theme tokens (`primaryContainer`/`onSurface`) = chrome, not
+  colour-as-data. `kTwoPaneBreakpoint=640` const extracted + documented; hand-rolled `_ErrorState` = the
+  convention; `EmptyState`/`InitialsAvatar` reused; new `_MetaLine` (muted date footer, no atom exists).
+  `_edit` GAINED `if(!mounted)return` before its post-`await` setState (improvement). Widget test shipped
+  in-slice. Only nit (low-value SUGGESTION): the list-pane width `320` is a bare literal semantically
+  coupled to `640` (breakpoint comment says "640 = 320 + ≥320") — a `kListPaneWidth` const would make a
+  future width change refactor-safe; `720` reading-cap is fine as a single commented use.
+  **Slice C (194ff12)** — reviewed CLEAN. `build()` composes LayoutBuilder→Scaffold→FutureBuilder
+  (`appBar`/`FAB` null on wide) → delegates to `_loaded(wide, contacts)`; search is a light snapshot
+  filter (`contacts.where(_matches)` on the already-fetched small list) via a pure `_matches(c,q)`
+  predicate method — well-placed, NOT the item-#2 heavy transform. New `_MasterHeader`/`_NoMatches`
+  are clean `StatelessWidget` extractions (no state/lifecycle → correct); `_NoMatches` reuses the
+  `EmptyState` atom. State owns+disposes the `_search` `TextEditingController` (a controller not a
+  mirror String, so a programmatic clear updates the field). Const applied where eligible (theme
+  reads block const on the header subtree — correct). `_MasterHeader`'s inline styling literals
+  (padding 16/16/16/12, gaps 8/12, icon 18/20) are one-off local values, NOT cross-widget semantic
+  constants like `kListPaneWidth`/`kTwoPaneBreakpoint` — no extraction warranted. Native/web title
+  swaps to "CRM+" consistent across all four strings (.cc ×2, index.html ×2, manifest ×2).
 - **`_CommentsSection` in `event_detail_screen.dart`** — reference-quality inline stateful
   sub-section. `build()` is a `FutureBuilder` composing `_header`/`_composerRow`/`_liveTile`/
   `_archivedSection` helpers (method-extraction, which item #1 allows alongside StatelessWidgets).
