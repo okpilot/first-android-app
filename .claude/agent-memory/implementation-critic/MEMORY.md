@@ -52,9 +52,16 @@ _First run pending. Seed watch-items carried from the project's conventions:_
   `onChanged` never pops, `showHeader` for the pane) + thin `TaskFormScreen` StatelessWidget wrapper
   (`onChanged: (_) => Navigator.pop(true)` — setState-then-sync-pop in `_save` is safe: setState runs while
   mounted before the pop). Verified-clean traps: (a) both `_save` AND `_runMutation` reset `_saving=false`
-  BEFORE `onChanged` (pane-freeze fix); (b) pane key `${id}:${isArchived}` remounts on archive/restore because
+  BEFORE `onChanged` (pane-freeze fix); (b) pane key remounts on archive/restore because
   the `archive`/`restore` repo methods `_fetchOne` the mutated row so `result.isArchived` actually flips →
-  `_onEditorChanged` reselects that id; (c) `_resolveSelected` = selected-if-present → first ACTIVE → null
+  `_onEditorChanged` reselects that id. Cloud-CR #32 grew the key to `${id}:${isArchived}:${isDone}` so a
+  list-toggled completion also remounts the open editor, AND made `_onEditorChanged` update `_lastData`
+  optimistically (insert-if-new / replace-by-id) before `unawaited(_load())` — valid because `_load()` runs
+  its sync prefix (sets `_future`) before the rebuild, so the FutureBuilder waiting-branch renders the
+  optimistic `_lastData`, then the newest future reconciles to server truth via the `identical` guard.
+  Key-contract trap: the BINDING key doc-comment lives on `TaskEditView` in `task_form_screen.dart`, NOT the
+  list screen — a key change is a mini rule-reversal whose sibling doc-comment must sync in the SAME slice
+  (watch for it still citing a stale 2-part `id:isArchived` key); (c) `_resolveSelected` = selected-if-present → first ACTIVE → null
   (never auto-opens completed/archived), stale `_selectedId` falls through safely; `_creatingNew` survives
   `_load()` (untouched by it). Plan-SANCTIONED minor (do NOT cry-wolf): the selected-row highlight is
   `ColoredBox(primaryContainer)` wrapping the `InkWell` (not Contacts' `ListTile selected:`), so the tap ripple
@@ -69,11 +76,10 @@ _First run pending. Seed watch-items carried from the project's conventions:_
   primaryContainer chip + onSurface/onSurfaceVariant + w600/w500; (3) no fixed height around a
   textScaler-growing Text (padding + `Flexible`+ellipsis is the pattern; a fixed square is OK ONLY with
   `TextScaler.noScaling` inside, as the `C⁺` brand glyph does); watch for a non-`Flexible` Text in a
-  fixed-width Row (e.g. the `CRM+` wordmark; also `_TasksHeader`'s `'N active'` count — unlike Contacts'
-  `_MasterHeader` where the count IS `Flexible`, the Tasks plan specced a bare count Text + `Expanded`
-  spacer, so it's a plan-accepted divergence, not an item-9 fallback mismatch) as a latent
-  extreme-textScaler horizontal overflow — SUGGESTION, not a gate (wide area is ≥640, so realistic
-  overflow needs an extreme scaler). (4) index assumptions (Settings = `length-1`) safe vs the real `_destinations`
+  fixed-width Row (e.g. the `CRM+` wordmark) as a latent extreme-textScaler horizontal overflow —
+  SUGGESTION, not a gate (wide area is ≥640, so realistic overflow needs an extreme scaler).
+  `_TasksHeader` already wraps both its title and numeric active count in `Flexible` inside the
+  `Expanded` group (like Contacts' `_MasterHeader`), so it's overflow-safe. (4) index assumptions (Settings = `length-1`) safe vs the real `_destinations`
   order + the `IndexedStack` body order. Passing a static-const list as a widget param instead of the
   plan's literal 2-arg ctor is a harmless decoupling, not an item-10 signature break (no repo fake).
 - **Infra / bash / SQL-only slices** (postgrest reload-after-migrate; DDL-watch triggers): trace quoting

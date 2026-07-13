@@ -95,6 +95,20 @@ class _TasksListScreenState extends State<TasksListScreen> {
     setState(() {
       _creatingNew = false;
       _selectedId = result.id;
+      // Apply the result optimistically so the pane/selection stay stable while _load() runs
+      // (the stale-guard renders _lastData meanwhile — without this a create would fall back to
+      // another active task and archive/restore would flash the old control set).
+      final current = _lastData;
+      if (current != null) {
+        final updated = [...current];
+        final index = updated.indexWhere((t) => t.id == result.id);
+        if (index == -1) {
+          updated.insert(0, result);
+        } else {
+          updated[index] = result;
+        }
+        _lastData = updated;
+      }
     });
     unawaited(_load());
   }
@@ -167,8 +181,12 @@ class _TasksListScreenState extends State<TasksListScreen> {
     final archived = tasks.where((t) => t.isArchived).toList();
 
     // Nothing at all → the inviting full-screen empty state (with a New task action), in both
-    // layouts (no pane) — mirrors Contacts.
-    if (active.isEmpty && completed.isEmpty && archived.isEmpty) {
+    // layouts (no pane) — mirrors Contacts. Exception: on wide, once "New task" sets _creatingNew
+    // we fall through to _twoPane so the blank draft editor renders (else the button dead-ends).
+    if (active.isEmpty &&
+        completed.isEmpty &&
+        archived.isEmpty &&
+        !(wide && _creatingNew)) {
       return EmptyState(
         icon: Icons.check_circle_outline,
         title: 'No tasks yet',
@@ -218,9 +236,13 @@ class _TasksListScreenState extends State<TasksListScreen> {
       );
     } else if (selected != null) {
       pane = TaskEditView(
-        // Key on archived-state too: archive/restore keeps the id but flips the control set,
-        // so it must remount (id-only would strand live controls on an archived task).
-        key: ValueKey('${selected.id}:${selected.isArchived}'),
+        // Key on archived + done state too: archive/restore keeps the id but flips the control
+        // set, and toggling done from the list keeps the id but changes completion — both must
+        // remount (id-only would strand live controls on an archived task, or let a later "Save
+        // changes" overwrite a list-toggled completion with the pane's stale value).
+        key: ValueKey(
+          '${selected.id}:${selected.isArchived}:${selected.isDone}',
+        ),
         repository: widget.repository,
         existing: selected,
         onChanged: _onEditorChanged,

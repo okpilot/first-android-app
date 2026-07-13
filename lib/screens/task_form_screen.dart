@@ -43,9 +43,10 @@ class TaskFormScreen extends StatelessWidget {
 /// is read-only history until it's brought back.
 ///
 /// **Key it so a selection swap remounts** it — the host uses
-/// `ValueKey('${task.id}:${task.isArchived}')` (its controller / `_isDone` / `_isArchived`
-/// branch are seeded once in [initState], so both a different task AND an archive/restore
-/// of the same task must remount to pick up the new control set).
+/// `ValueKey('${task.id}:${task.isArchived}:${task.isDone}')` (its controller / `_isDone` /
+/// `_isArchived` branch are seeded once in [initState], so a different task, an archive/restore,
+/// AND a list-toggled completion of the same task must each remount to pick up the new control
+/// set / done value — the last guards against a stale pane save overwriting a list toggle).
 class TaskEditView extends StatefulWidget {
   const TaskEditView({
     super.key,

@@ -355,4 +355,60 @@ void main() {
     expect(find.widgetWithText(FilledButton, 'Add task'), findsOneWidget);
     expect(find.text('Mark complete'), findsNothing);
   });
+
+  testWidgets(
+    'wide: empty-state "New task" opens the blank draft editor (not a dead-end)',
+    (tester) async {
+      await _pumpWide(tester, _StatefulTasksRepo(const []));
+
+      // Wide + totally empty → the full-screen empty state (no pane yet).
+      expect(find.text('No tasks yet'), findsOneWidget);
+      expect(find.byType(TaskEditView), findsNothing);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'New task'));
+      await tester.pumpAndSettle();
+
+      // The blank draft editor now renders in the pane — previously the button dead-ended
+      // because the empty-list branch returned before reaching the two-pane layout.
+      expect(find.text('No tasks yet'), findsNothing);
+      expect(find.byType(TaskEditView), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Add task'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'wide: toggling the selected task done from the list remounts the editor with the new state',
+    (tester) async {
+      final repo = _StatefulTasksRepo(const [
+        Task(id: 't1', title: 'Call Nadia'),
+        Task(id: 't2', title: 'Prep demo'),
+      ]);
+      await _pumpWide(tester, repo);
+
+      // Select t2 (its row title is unique — t1 is the auto-selected one already in the pane).
+      await tester.tap(find.text('Prep demo'));
+      await tester.pumpAndSettle();
+      final before = tester.widget<Switch>(
+        find.descendant(
+          of: find.byType(TaskEditView),
+          matching: find.byType(Switch),
+        ),
+      );
+      expect(before.value, isFalse);
+
+      // Toggle t2 done from the LEFT list circle — not the pane.
+      await tester.tap(find.byKey(const ValueKey('check_t2')));
+      await tester.pumpAndSettle();
+
+      // The pane remounted (its key now includes isDone) so the editor reflects the new
+      // completion — guarding against a later "Save changes" overwriting it with a stale value.
+      final after = tester.widget<Switch>(
+        find.descendant(
+          of: find.byType(TaskEditView),
+          matching: find.byType(Switch),
+        ),
+      );
+      expect(after.value, isTrue);
+    },
+  );
 }
