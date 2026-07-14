@@ -1,8 +1,11 @@
-> Cross-session work tracker. Update in place. Last updated: 2026-07-14 (Tasks view-first — Decision 29 — MERGED as PR #33 → squash `f39649f`; `main` clean).
+> Cross-session work tracker. Update in place. Last updated: 2026-07-14 (Linux desktop shortcut + `/updatelinux` — Decision 30).
 
 # Handover
 
-**Status: TASKS VIEW-FIRST — read-only detail, then Edit — Decision 29 — ✅ SHIPPED & MERGED (PR #33 → squash `f39649f`, branch deleted; 2026-07-14).**
+**Status: LINUX DESKTOP SHORTCUT + `/updatelinux` — Decision 30 — local tooling.**
+A **CRM+** app launcher for Linux: `.desktop` entry at `~/.local/share/applications/crm-plus.desktop` (square `C⁺` logo via an **absolute** `Icon=` path — theme-name didn't resolve; `Name=CRM+`). The **release** bundle is built against **homebase** (`--dart-define-from-file=dev-defines.homebase.json`; verified `libapp.so` carries `https://homebase…`, no `localhost`) and installed off the T7 drive at `~/Apps/crm-plus/bundle/` so the shortcut survives an unmounted project drive. **New `/updatelinux` command** = the desktop twin of `/updatephone` (build→verify-URL→rsync→refresh shortcut→report HEAD + Tailscale reminder). Resolves the old caveat that `flutter build linux` might choke on the spaces in the project path — it builds/runs clean. **Desktop needs Tailscale up** to reach homebase, same as the phone. No app code or schema touched.
+
+**Prior: TASKS VIEW-FIRST — read-only detail, then Edit — Decision 29 — ✅ SHIPPED & MERGED (PR #33 → squash `f39649f`, branch deleted; 2026-07-14).**
 Tap a task → read-only `TaskDetailView` (title, status pill, Added/Updated dates) → Edit pushes `TaskFormScreen`. Mirrors Contacts view-first pattern. Wide detail pane shows the selected task read-only (Edit pushes the form); **New on wide opens a title form in the pane** (Option A, prototype-chosen), narrow pushes the full-screen form. Completion is a button (Complete ↔ Reopen); list-row circle still quick-completes. `TaskEditView` shrank to title-only; rename via `copyWith(title:)` preserves `isDone`/`deletedAt`. **New shared `SubtleButton`** (neutral-chip for secondary actions) — Contacts pencil → `SubtleButton('Edit')` too. Fixed theme's `filledButtonTheme` silently overriding `FilledButton.tonal` (caught in live QA). **New shared `MetaLine`** (extracted the duplicated Added/Updated footer). Suite **128** green. Cloud CR on #33: 2 docs FIX + 1 defer (#34) + 2 skip. **QA this session: Android emulator (`galaxy_s23plus`) — list → view-first detail → new-task form all verified via `adb`;** Linux desktop light+dark confirmed detail + subtle buttons.
 **Deferred from #33:** **[#34](../../issues/34)** — no explicit Cancel for the in-pane New draft (desktop; minor UX).
 **Prior: DESKTOP-ADAPTIVE (Slices A–C) + TASKS DESKTOP (Slice D) — Decision 28 — shipped & merged.** PRs #31 squash → `5a41c5b` · #32 squash → `27ba471` (branches deleted).
@@ -155,7 +158,7 @@ Contacts #2 → `fa4fc45`. The app also runs on the physical **S23+** against ho
   - To run the app against homebase: the **emulator can't reach the tailnet**; use the real **S23+ with the Tailscale app** (`flutter build apk --dart-define-from-file=dev-defines.homebase.json` → `adb install`). Local dev still uses `dev-defines.android.json` (10.0.2.2 / adb reverse).
 - ⏸️ **Auth (GoTrue) deferred** to the first per-user slice; RLS policies are anon-permissive for now (tighten to owner-based then).
 - ✅ Bespoke mono/Linear-Attio **theme** DONE (Decision 13, `lib/theme.dart`, light+dark, one 3-weight type scale). **adaptive/two-pane** wide layout still a candidate next slice.
-- ⚠️ `flutter build linux` may still choke on the spaces in the absolute path (CMake/ninja) — untested; flag if we target Linux desktop.
+- ✅ `flutter build linux --release` **builds & runs clean** despite the spaces in the project path (verified 2026-07-14, Decision 30 — the desktop shortcut runs the AOT release bundle).
 - 🧹 Stray background `flutter run -d web-server` processes may linger from debugging (failed to bind :8080); harmless, `pkill -f "flutter run"` to clear.
 
 ## Done this run (2026-07-08, session 3)
