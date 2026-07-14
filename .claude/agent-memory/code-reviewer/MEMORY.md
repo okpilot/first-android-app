@@ -8,7 +8,7 @@
 
 | Pattern | First Seen | Count | Last Seen | Status (→ rule loc) |
 |---|---|---|---|---|
-| _(none yet — first run pending)_ | | | | |
+| Identical private detail-widget copied across screens (`_MetaLine` "Added X · Updated Y" muted date footer — same class in `contact_detail_screen.dart:282` AND `task_detail_screen.dart:447`, functionally byte-identical bar a `parts.isEmpty` guard). Unlike `_ErrorState` (per-screen variance = convention), this has zero variance → extractable atom. | 2026-07-14 (tasks view-first) | 2 | 2026-07-14 (tasks view-first) | RULE CANDIDATE — count 2, propose promoting to `lib/widgets/meta_line.dart` (learner). SUGGESTION only, non-blocking. |
 
 ## Durable knowledge (this project's conventions to check against)
 - **No hard line caps.** Judge structure by responsibility/nesting, not length. A long
@@ -124,6 +124,22 @@
   (padding 16/16/16/12, gaps 8/12, icon 18/20) are one-off local values, NOT cross-widget semantic
   constants like `kListPaneWidth`/`kTwoPaneBreakpoint` — no extraction warranted. Native/web title
   swaps to "CRM+" consistent across all four strings (.cc ×2, index.html ×2, manifest ×2).
+- **`task_detail_screen.dart` (cfbfe7f, Decision 29)** — reference-quality view-first detail, mirrors
+  `ContactDetailScreen`/`ContactDetailView`. Thin `TaskDetailScreen` host (legit stateful: `_dirty` +
+  lifted `late _task` seeding the AppBar title + setState in `onChanged`); shared body `TaskDetailView`
+  (legit stateful: `_task`/`_busy` + initState) has no Scaffold and NEVER pops. `build()` composes
+  (`AbsorbPointer`→`Align`→`ConstrainedBox(560)`→`ListView`); all repo mutations in `_run`/`_edit` —
+  none in build. `mounted` guards after every await; `_run` captures messenger before the await;
+  `_edit` guards `updated==null || !mounted`. Reuses new shared `SubtleButton` atom for Edit/Complete/
+  Reopen/Archive/Restore. `_StatusPill` (Active/Completed/Archived) is a NEW local widget — not
+  colour-as-data (dot always paired with a text label; muted-vs-ink tokens, not per-type colour) and
+  no existing status-pill atom to reuse (event_detail's circular(999) is a comment-count badge, not a
+  status pill). Only nit: `_MetaLine` duplicates contact_detail's identical private copy (tracker row).
+  `SubtleButton` (`lib/widgets/subtle_button.dart`) is a clean shared atom — exists because theme's
+  `filledButtonTheme` pins even `FilledButton.tonal` to `scheme.primary` (intentional, not a finding).
+  `task_form_screen.dart` correctly shrank to title-only (dropped Switch/archive/restore/showHeader);
+  `tasks_list_screen.dart` reversed the in-pane editor to a read-only detail cleanly (dropped
+  `_creatingNew`/`_onEditorChanged` optimistic patch — the detail's own setState makes it unnecessary).
 - **`_CommentsSection` in `event_detail_screen.dart`** — reference-quality inline stateful
   sub-section. `build()` is a `FutureBuilder` composing `_header`/`_composerRow`/`_liveTile`/
   `_archivedSection` helpers (method-extraction, which item #1 allows alongside StatelessWidgets).

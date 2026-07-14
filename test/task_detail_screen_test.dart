@@ -249,4 +249,120 @@ void main() {
     expect(find.text("Couldn't archive — please try again"), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Archive'), findsOneWidget);
   });
+
+  // ---- the TaskDetailScreen WRAPPER: its "something changed" back-signal + AppBar retitle.
+  // The phone list only reloads when this pop returns true, so the dirty signal is load-bearing.
+
+  testWidgets('archiving in place retitles the AppBar to "Archived task"', (
+    tester,
+  ) async {
+    final repo = _StatefulTasksRepo(const [
+      Task(id: 't1', title: 'Call Nadia'),
+    ]);
+    await tester.pumpWidget(
+      _detail(repo, const Task(id: 't1', title: 'Call Nadia')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(AppBar, 'Task'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Archive'));
+    await tester.pumpAndSettle();
+
+    // The wrapper lifts `_task` purely so the bar tracks the in-place archive.
+    expect(find.widgetWithText(AppBar, 'Archived task'), findsOneWidget);
+    expect(find.widgetWithText(AppBar, 'Task'), findsNothing);
+  });
+
+  testWidgets('backing out after a change pops true (so the list reloads)', (
+    tester,
+  ) async {
+    final repo = _StatefulTasksRepo(const [
+      Task(id: 't1', title: 'Call Nadia'),
+    ]);
+    Object? popResult;
+    var popped = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: ElevatedButton(
+                onPressed: () async {
+                  popResult = await Navigator.of(context).push<Object?>(
+                    MaterialPageRoute(
+                      builder: (_) => TaskDetailScreen(
+                        repository: repo,
+                        task: const Task(id: 't1', title: 'Call Nadia'),
+                      ),
+                    ),
+                  );
+                  popped = true;
+                },
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    // Change the task, then back out via the AppBar back button.
+    await tester.tap(find.widgetWithText(FilledButton, 'Complete'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+
+    expect(popped, isTrue);
+    expect(popResult, isTrue);
+  });
+
+  testWidgets('backing out without a change pops false (no needless reload)', (
+    tester,
+  ) async {
+    final repo = _StatefulTasksRepo(const [
+      Task(id: 't1', title: 'Call Nadia'),
+    ]);
+    Object? popResult;
+    var popped = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: ElevatedButton(
+                onPressed: () async {
+                  popResult = await Navigator.of(context).push<Object?>(
+                    MaterialPageRoute(
+                      builder: (_) => TaskDetailScreen(
+                        repository: repo,
+                        task: const Task(id: 't1', title: 'Call Nadia'),
+                      ),
+                    ),
+                  );
+                  popped = true;
+                },
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    // Straight back out, nothing touched.
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+
+    expect(popped, isTrue);
+    expect(popResult, isFalse);
+  });
 }

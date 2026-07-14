@@ -70,5 +70,8 @@ git hooks stay mechanical — the new **post-commit** hook just *nudges* the pip
 
 ## Environment
 - Flutter 3.44.5 at `~/flutter` (not on PATH — use `~/flutter/bin/flutter`).
-  Web + Linux desktop ready; Android SDK not yet installed.
+  Web + Linux desktop ready. Android SDK installed (`~/Android/Sdk`); emulators
+  `galaxy_s23plus` + `pixel_api35` available — `~/flutter/bin/flutter emulators --launch galaxy_s23plus`,
+  then QA via `adb exec-out screencap -p` (reliable; desktop xdotool clicking is flaky on this
+  multi-monitor setup). The emulator reaches homebase over the host's tailnet.
 - Run: `~/flutter/bin/flutter run -d chrome` (web) · `-d linux` (desktop).

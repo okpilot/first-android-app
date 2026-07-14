@@ -354,39 +354,69 @@ void main() {
     expect(find.widgetWithText(FilledButton, 'Complete'), findsOneWidget);
   });
 
-  testWidgets(
-    'wide: New task pushes the title-only form (not an in-pane draft)',
-    (tester) async {
-      final repo = _StatefulTasksRepo(const [
-        Task(id: 't1', title: 'Call Nadia'),
-      ]);
-      await _pumpWide(tester, repo);
+  testWidgets('wide: New opens the title form IN THE PANE (no push)', (
+    tester,
+  ) async {
+    final repo = _StatefulTasksRepo(const [
+      Task(id: 't1', title: 'Call Nadia'),
+    ]);
+    await _pumpWide(tester, repo);
 
-      await tester.tap(find.widgetWithText(FilledButton, 'New'));
+    await tester.tap(find.widgetWithText(FilledButton, 'New'));
+    await tester.pumpAndSettle();
+
+    // In-pane title form, no full-screen push (Decision 29: desktop New is in-pane so a single
+    // field doesn't float in an empty window).
+    expect(find.byType(TaskFormScreen), findsNothing);
+    expect(find.byType(TaskEditView), findsOneWidget);
+    expect(find.byType(TaskDetailView), findsNothing);
+    expect(find.widgetWithText(FilledButton, 'Add task'), findsOneWidget);
+  });
+
+  testWidgets('wide: the in-pane New form saves and shows the new task', (
+    tester,
+  ) async {
+    final repo = _StatefulTasksRepo(const [
+      Task(id: 't1', title: 'Call Nadia'),
+    ]);
+    await _pumpWide(tester, repo);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'New'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), 'Book the venue');
+    await tester.tap(find.widgetWithText(FilledButton, 'Add task'));
+    await tester.pumpAndSettle();
+
+    // The form closed and the new task's read-only detail now fills the pane.
+    expect(find.byType(TaskEditView), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byType(TaskDetailView),
+        matching: find.text('Book the venue'),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+    'wide: New task from the empty state opens the in-pane form (not a dead-end)',
+    (tester) async {
+      await _pumpWide(tester, _StatefulTasksRepo(const []));
+
+      // Wide + totally empty → the full-screen empty state (no pane yet).
+      expect(find.text('No tasks yet'), findsOneWidget);
+      expect(find.byType(TaskEditView), findsNothing);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'New task'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(TaskFormScreen), findsOneWidget);
-      expect(find.widgetWithText(AppBar, 'New task'), findsOneWidget);
+      // The blank in-pane form renders (button doesn't dead-end); no push.
+      expect(find.text('No tasks yet'), findsNothing);
+      expect(find.byType(TaskFormScreen), findsNothing);
+      expect(find.byType(TaskEditView), findsOneWidget);
       expect(find.widgetWithText(FilledButton, 'Add task'), findsOneWidget);
     },
   );
-
-  testWidgets('wide: New task from the empty state pushes the form', (
-    tester,
-  ) async {
-    await _pumpWide(tester, _StatefulTasksRepo(const []));
-
-    // Wide + totally empty → the full-screen empty state (no pane yet).
-    expect(find.text('No tasks yet'), findsOneWidget);
-    expect(find.byType(TaskDetailView), findsNothing);
-
-    await tester.tap(find.widgetWithText(FilledButton, 'New task'));
-    await tester.pumpAndSettle();
-
-    // Pushes the title-only form (no in-pane draft anymore).
-    expect(find.byType(TaskFormScreen), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Add task'), findsOneWidget);
-  });
 
   testWidgets(
     'wide: toggling the selected task done from the list remounts the pane with the new state',

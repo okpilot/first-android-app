@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../data/tasks_repository.dart';
 import '../models/task.dart';
-import '../util/format.dart';
+import '../widgets/meta_line.dart';
 import '../widgets/subtle_button.dart';
 import 'task_form_screen.dart';
 
@@ -74,7 +74,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 /// list rows). Editing is title-only and lives in [TaskFormScreen]; this view pushes it.
 ///
 /// **Key it so a selection swap remounts** it — the desktop host uses
-/// `ValueKey('${task.id}:${task.isDone}:${task.isArchived}')`: `_task` is seeded once in
+/// `ValueKey('${task.id}:${task.isArchived}:${task.isDone}')`: `_task` is seeded once in
 /// [initState], so a different task AND a list-circle toggle of the *same* task (which
 /// changes `isDone` without a rebuild of this view) must each remount to reseed.
 class TaskDetailView extends StatefulWidget {
@@ -212,7 +212,7 @@ class _TaskDetailViewState extends State<TaskDetailView> {
                 ),
               ],
               const SizedBox(height: 22),
-              _MetaLine(created: _task.createdAt, updated: _task.updatedAt),
+              MetaLine(created: _task.createdAt, updated: _task.updatedAt),
               const SizedBox(height: 30),
               // Actions — subtle tonal buttons. Live: Complete/Reopen + Archive.
               // Archived: Restore only.
@@ -291,31 +291,6 @@ class _StatusPill extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// A muted date-only "Added / Updated" footer. Date-only via [ymd] (no time-of-day)
-/// keeps clear of the project's `timestamptz`/UTC time trap (matches Contacts' meta line).
-class _MetaLine extends StatelessWidget {
-  const _MetaLine({required this.created, required this.updated});
-
-  final DateTime? created;
-  final DateTime? updated;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final parts = [
-      if (created != null) 'Added ${ymd(created!)}',
-      if (updated != null) 'Updated ${ymd(updated!)}',
-    ];
-    if (parts.isEmpty) return const SizedBox.shrink();
-    return Text(
-      parts.join('  ·  '),
-      style: theme.textTheme.bodyMedium?.copyWith(
-        color: theme.colorScheme.onSurfaceVariant,
       ),
     );
   }
