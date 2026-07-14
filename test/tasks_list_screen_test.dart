@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:first_android_app/data/tasks_repository.dart';
 import 'package:first_android_app/models/task.dart';
+import 'package:first_android_app/screens/task_form_screen.dart';
 import 'package:first_android_app/screens/tasks_list_screen.dart';
 import 'package:first_android_app/theme.dart';
 
@@ -98,14 +99,31 @@ Widget _screen(TasksRepository repo) => MaterialApp(
   home: TasksListScreen(repository: repo),
 );
 
+/// Pump the screen pinned to a **phone-width** surface. The default test surface is 800px, which
+/// is ≥ [kTasksWideBreakpoint] (640) and would trip the wide desktop layout — so the phone-chrome
+/// tests must pin a narrow surface (mirrors `contacts_master_detail_test.dart`).
+Future<void> _pumpNarrow(WidgetTester tester, TasksRepository repo) async {
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+  await tester.binding.setSurfaceSize(const Size(360, 800));
+  await tester.pumpWidget(_screen(repo));
+  await tester.pumpAndSettle();
+}
+
+/// Pump the screen pinned to a **wide** (desktop) surface → the list-header layout.
+Future<void> _pumpWide(WidgetTester tester, TasksRepository repo) async {
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+  await tester.binding.setSurfaceSize(const Size(1100, 800));
+  await tester.pumpWidget(_screen(repo));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('renders active tasks', (tester) async {
     final repo = _StatefulTasksRepo(const [
       Task(id: 't1', title: 'Call Nadia'),
       Task(id: 't2', title: 'Prep demo'),
     ]);
-    await tester.pumpWidget(_screen(repo));
-    await tester.pumpAndSettle();
+    await _pumpNarrow(tester, repo);
 
     expect(find.widgetWithText(AppBar, 'Tasks'), findsOneWidget);
     expect(find.text('Call Nadia'), findsOneWidget);
@@ -113,8 +131,7 @@ void main() {
   });
 
   testWidgets('shows the empty state when there are no tasks', (tester) async {
-    await tester.pumpWidget(_screen(_StatefulTasksRepo(const [])));
-    await tester.pumpAndSettle();
+    await _pumpNarrow(tester, _StatefulTasksRepo(const []));
 
     expect(find.text('No tasks yet'), findsOneWidget);
     expect(find.text('New task'), findsWidgets); // FAB + empty-state CTA
@@ -127,8 +144,7 @@ void main() {
       Task(id: 't1', title: 'Active one'),
       Task(id: 't2', title: 'Done one', isDone: true),
     ]);
-    await tester.pumpWidget(_screen(repo));
-    await tester.pumpAndSettle();
+    await _pumpNarrow(tester, repo);
 
     // Header present with a count; the done title is hidden until expanded.
     expect(find.text('COMPLETED'), findsOneWidget);
@@ -146,8 +162,7 @@ void main() {
       const Task(id: 't1', title: 'Active one'),
       Task(id: 't9', title: 'Old checklist', deletedAt: DateTime(2026, 7, 11)),
     ]);
-    await tester.pumpWidget(_screen(repo));
-    await tester.pumpAndSettle();
+    await _pumpNarrow(tester, repo);
 
     expect(find.text('ARCHIVED'), findsOneWidget);
     expect(find.text('Old checklist'), findsNothing);
@@ -161,8 +176,7 @@ void main() {
     tester,
   ) async {
     final repo = _StatefulTasksRepo(const [Task(id: 't1', title: 'Buy milk')]);
-    await tester.pumpWidget(_screen(repo));
-    await tester.pumpAndSettle();
+    await _pumpNarrow(tester, repo);
 
     expect(find.text('Buy milk'), findsOneWidget);
 
@@ -184,8 +198,7 @@ void main() {
     final repo = _FailingRepo(
       tasks: const [Task(id: 't1', title: 'Buy milk')],
     );
-    await tester.pumpWidget(_screen(repo));
-    await tester.pumpAndSettle();
+    await _pumpNarrow(tester, repo);
 
     expect(find.text("Couldn't load tasks"), findsOneWidget);
     expect(find.widgetWithText(OutlinedButton, 'Retry'), findsOneWidget);
@@ -206,8 +219,7 @@ void main() {
       final repo = _StatefulTasksRepo(const [
         Task(id: 't1', title: 'Done one', isDone: true),
       ]);
-      await tester.pumpWidget(_screen(repo));
-      await tester.pumpAndSettle();
+      await _pumpNarrow(tester, repo);
 
       // The quiet inline note, not the full-screen "No tasks yet".
       expect(find.text('All clear — no active tasks.'), findsOneWidget);
@@ -220,8 +232,7 @@ void main() {
     final repo = _StatefulTasksRepo(const [
       Task(id: 't1', title: 'Call Nadia'),
     ]);
-    await tester.pumpWidget(_screen(repo));
-    await tester.pumpAndSettle();
+    await _pumpNarrow(tester, repo);
 
     await tester.tap(find.text('Call Nadia'));
     await tester.pumpAndSettle();
@@ -237,8 +248,7 @@ void main() {
     final repo = _StatefulTasksRepo([
       Task(id: 't9', title: 'Old checklist', deletedAt: DateTime(2026, 7, 11)),
     ]);
-    await tester.pumpWidget(_screen(repo));
-    await tester.pumpAndSettle();
+    await _pumpNarrow(tester, repo);
 
     // Expand the collapsed Archived section, then tap the row.
     await tester.tap(find.text('ARCHIVED'));
@@ -256,8 +266,7 @@ void main() {
     tester,
   ) async {
     final repo = _UpdateFailsRepo(const [Task(id: 't1', title: 'Buy milk')]);
-    await tester.pumpWidget(_screen(repo));
-    await tester.pumpAndSettle();
+    await _pumpNarrow(tester, repo);
 
     await tester.tap(find.byKey(const ValueKey('check_t1')));
     await tester.pumpAndSettle();
@@ -266,4 +275,140 @@ void main() {
     // The row stays put (nothing moved, because the write failed).
     expect(find.text('Buy milk'), findsOneWidget);
   });
+
+  // ---- wide (desktop) master-detail — Decision 28, Slice D -----------------
+
+  testWidgets(
+    'wide: selecting a task opens its editor in place, no push (+ no AppBar/FAB)',
+    (tester) async {
+      final repo = _StatefulTasksRepo(const [
+        Task(id: 't1', title: 'Call Nadia'),
+        Task(id: 't2', title: 'Prep demo'),
+      ]);
+      await _pumpWide(tester, repo);
+
+      // No phone chrome; the header (title + inline New) + an in-place editor pane instead
+      // of a pushed form.
+      expect(find.byType(AppBar), findsNothing);
+      expect(find.byType(FloatingActionButton), findsNothing);
+      expect(find.widgetWithText(FilledButton, 'New'), findsOneWidget);
+      expect(find.byType(TaskEditView), findsOneWidget);
+      expect(find.byType(TaskFormScreen), findsNothing);
+      // First active task auto-selected → its title shows in the editor field (not just the row).
+      expect(
+        find.descendant(
+          of: find.byType(TaskEditView),
+          matching: find.text('Call Nadia'),
+        ),
+        findsOneWidget,
+      );
+
+      // Selecting the second row swaps the pane in place — still no route push.
+      await tester.tap(find.text('Prep demo'));
+      await tester.pumpAndSettle();
+      expect(find.byType(TaskFormScreen), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byType(TaskEditView),
+          matching: find.text('Prep demo'),
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('wide: auto-selects the first ACTIVE task (not a done one)', (
+    tester,
+  ) async {
+    final repo = _StatefulTasksRepo(const [
+      Task(id: 't1', title: 'Call Nadia'),
+      Task(id: 't2', title: 'Done one', isDone: true),
+    ]);
+    await _pumpWide(tester, repo);
+
+    expect(find.byType(TaskEditView), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(TaskEditView),
+        matching: find.text('Call Nadia'),
+      ),
+      findsOneWidget,
+    );
+    // Editor-only affordance for a live task confirms it's the editable pane.
+    expect(find.text('Mark complete'), findsOneWidget);
+  });
+
+  testWidgets('wide: New task opens a blank editor in the pane (no push)', (
+    tester,
+  ) async {
+    final repo = _StatefulTasksRepo(const [
+      Task(id: 't1', title: 'Call Nadia'),
+    ]);
+    await _pumpWide(tester, repo);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'New'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TaskFormScreen), findsNothing);
+    expect(find.byType(TaskEditView), findsOneWidget);
+    // Blank draft: the Add-task button, and no complete toggle (new tasks aren't completable).
+    expect(find.widgetWithText(FilledButton, 'Add task'), findsOneWidget);
+    expect(find.text('Mark complete'), findsNothing);
+  });
+
+  testWidgets(
+    'wide: empty-state "New task" opens the blank draft editor (not a dead-end)',
+    (tester) async {
+      await _pumpWide(tester, _StatefulTasksRepo(const []));
+
+      // Wide + totally empty → the full-screen empty state (no pane yet).
+      expect(find.text('No tasks yet'), findsOneWidget);
+      expect(find.byType(TaskEditView), findsNothing);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'New task'));
+      await tester.pumpAndSettle();
+
+      // The blank draft editor now renders in the pane — previously the button dead-ended
+      // because the empty-list branch returned before reaching the two-pane layout.
+      expect(find.text('No tasks yet'), findsNothing);
+      expect(find.byType(TaskEditView), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Add task'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'wide: toggling the selected task done from the list remounts the editor with the new state',
+    (tester) async {
+      final repo = _StatefulTasksRepo(const [
+        Task(id: 't1', title: 'Call Nadia'),
+        Task(id: 't2', title: 'Prep demo'),
+      ]);
+      await _pumpWide(tester, repo);
+
+      // Select t2 (its row title is unique — t1 is the auto-selected one already in the pane).
+      await tester.tap(find.text('Prep demo'));
+      await tester.pumpAndSettle();
+      final before = tester.widget<Switch>(
+        find.descendant(
+          of: find.byType(TaskEditView),
+          matching: find.byType(Switch),
+        ),
+      );
+      expect(before.value, isFalse);
+
+      // Toggle t2 done from the LEFT list circle — not the pane.
+      await tester.tap(find.byKey(const ValueKey('check_t2')));
+      await tester.pumpAndSettle();
+
+      // The pane remounted (its key now includes isDone) so the editor reflects the new
+      // completion — guarding against a later "Save changes" overwriting it with a stale value.
+      final after = tester.widget<Switch>(
+        find.descendant(
+          of: find.byType(TaskEditView),
+          matching: find.byType(Switch),
+        ),
+      );
+      expect(after.value, isTrue);
+    },
+  );
 }

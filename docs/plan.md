@@ -36,7 +36,13 @@ disposable. Built emergently — thin slices, one at a time.
 4. **Next candidates:** DB security hardening (issue #3 — RPC `auth.uid()`, revoke PUBLIC execute, column-level write grants) · **auth (GoTrue)** logins + owner-based RLS · search/filter on the list · run on the physical S23+ · full 7-column week (wide-screen adaptive).
 
 ## Next slice
-**Desktop-adaptive UI — Decision 28, Slices A+B+C — ✅ DONE & pushed as PR #31** (`feat/desktop-adaptive`;
+**Tasks desktop master-detail — Decision 28 Slice D — ✅ DONE & pushed** (`feat/tasks-desktop`, stacked
+on `feat/desktop-adaptive`/PR #31). Wide = two-pane (list + in-place `TaskEditView` editor); narrow
+unchanged. Direction A (centred list) was built + rejected in live QA → pivoted to B; extracted
+`TaskEditView` from `TaskFormScreen`. Plan (done): `~/.local/share/claude-config/claude/plans/jolly-tickling-star.md`.
+**Resume = answer the cloud CodeRabbit review on the new Tasks-desktop PR, then merge (after PR #31).**
+
+**Prior: Desktop-adaptive UI — Decision 28, Slices A+B+C — ✅ DONE & pushed as PR #31** (`feat/desktop-adaptive`;
 sidebar + Contacts master-detail + desktop top/search + `CRM+` window title). Plan (done):
 `~/.local/share/claude-config/claude/plans/fuzzy-munching-thacker.md`. **Resume = answer the cloud
 CodeRabbit review on PR #31** (`/coderabbit` → `/fullpush` → `/replycoderabbit`), then merge.
