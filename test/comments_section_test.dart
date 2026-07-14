@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -25,6 +27,9 @@ class _FakeCommentsRepo implements CommentsRepository {
   final List<Comment> _items;
   int _seq = 0;
   bool throwOnFetch = false;
+  // When set, archive() awaits this before mutating — holds a write in flight so a test
+  // can observe the `_busy` re-entrancy guard mid-write. Complete it to let the write finish.
+  Completer<void>? archiveGate;
 
   @override
   Future<List<Comment>> fetchFor(String parentId) async {
@@ -52,8 +57,10 @@ class _FakeCommentsRepo implements CommentsRepository {
   }
 
   @override
-  Future<Comment> archive(String id) async =>
-      _setDeleted(id, DateTime(2026, 7, 11));
+  Future<Comment> archive(String id) async {
+    if (archiveGate != null) await archiveGate!.future;
+    return _setDeleted(id, DateTime(2026, 7, 11));
+  }
 
   @override
   Future<Comment> unarchive(String id) async => _setDeleted(id, null);
@@ -334,6 +341,80 @@ void main() {
     await tester.enterText(find.byType(TextField).last, 'Revised');
     await tester.pump();
     expect(saveButton().onPressed, isNotNull);
+  });
+
+  testWidgets(
+    'actions are disabled while a write is in flight, then re-enable when it resolves',
+    (tester) async {
+      // Gate the archive write so it stays pending — `_busy` is true across the await,
+      // which is exactly the re-entrancy window the doc-comment on `_run` promises.
+      final gate = Completer<void>();
+      final repo = _FakeCommentsRepo([_live('c1', 'Still around.')])
+        ..archiveGate = gate;
+      await tester.pumpWidget(_detail(repo));
+      await tester.pumpAndSettle();
+
+      // Give the composer real text so its Comment button is enabled *before* the write —
+      // that way disabling it mid-flight can only be `_busy`, not the empty-text gate.
+      await tester.enterText(find.byType(TextField).first, 'A pending note');
+      await tester.pump();
+
+      FilledButton commentButton() => tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Comment'),
+      );
+      TextButton editAction() =>
+          tester.widget<TextButton>(find.widgetWithText(TextButton, 'Edit'));
+      TextButton archiveAction() =>
+          tester.widget<TextButton>(find.widgetWithText(TextButton, 'Archive'));
+
+      expect(commentButton().onPressed, isNotNull); // enabled before the write
+
+      // Start the archive; the gated repo call keeps it pending, so `_busy` stays true.
+      await tester.ensureVisible(find.text('Archive'));
+      await tester.tap(find.text('Archive'));
+      await tester
+          .pump(); // flush setState(_busy = true); write still in flight
+
+      // Mid-flight: every action is disabled — the composer's Comment despite its text,
+      // and the tile's Edit / Archive.
+      expect(commentButton().onPressed, isNull);
+      expect(editAction().onPressed, isNull);
+      expect(archiveAction().onPressed, isNull);
+
+      // Let the write complete → reload runs, `_busy` clears.
+      gate.complete();
+      await tester.pumpAndSettle();
+
+      // The archive landed (dropped from live) and the composer is interactive again.
+      expect(find.text('Still around.'), findsNothing);
+      expect(find.text('No comments yet.'), findsOneWidget);
+      expect(commentButton().onPressed, isNotNull);
+    },
+  );
+
+  testWidgets('Cancel discards inline edits and keeps the original body', (
+    tester,
+  ) async {
+    final repo = _FakeCommentsRepo([_live('c1', 'Original body')]);
+    await tester.pumpWidget(_detail(repo));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Edit'));
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+
+    // Type a change into the inline editor but abandon it with Cancel.
+    await tester.enterText(find.byType(TextField).last, 'Discarded change');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await tester.pumpAndSettle();
+
+    // Reverted to view mode: the editor and Save are gone, the original body is intact,
+    // and the typed-but-cancelled text was never persisted.
+    expect(find.widgetWithText(FilledButton, 'Save'), findsNothing);
+    expect(find.text('Discarded change'), findsNothing);
+    expect(find.text('Original body'), findsOneWidget);
+    expect(find.text('Edit'), findsOneWidget); // action row back in view mode
   });
 
   // The whole point of the extraction (Slice 2a): the widget is a standalone, public,

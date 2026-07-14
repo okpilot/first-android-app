@@ -16,6 +16,16 @@ MEMORY.md keeps one-line pointers here.
     `fetchFor(parentId)`, and that a sibling parent's comment ('e1') does NOT leak in.
 - **Rule:** when a shared widget's whole reason for extraction is cross-parent reuse, add a direct
   standalone mount with a NON-default parentId — host-only tests can't prove it isn't secretly coupled.
+- **`_busy` re-entrancy mid-write** IS testable despite a synchronously-resolving fake: add an optional
+  `Completer<void>? archiveGate` to `_FakeCommentsRepo` (archive awaits `gate.future` when set) →
+  tap Archive, `pump()` once to flush `setState(_busy=true)`, then assert `onPressed == null` on the
+  composer `FilledButton('Comment')` (seed composer text first so only `_busy` can disable it) AND the
+  tile's `Edit`/`Archive` `TextButton`s; `gate.complete()` + `pumpAndSettle` proves it resolves and
+  re-enables. Covered 2026-07-14.
+- **Inline-edit Cancel** (`_action('Cancel', … _cancelEdit)`, a `TextButton`): tap Edit, `enterText`
+  a change into `TextField.last`, tap Cancel → assert `FilledButton('Save')` gone (view mode restored),
+  the typed text `findsNothing`, the ORIGINAL body `findsOneWidget` (edit discarded, never persisted).
+  Covered 2026-07-14.
 - **Why no `_OrderedRepo` out-of-order test:** reloads run through `_run`, which sets `_busy=true` and
   disables every action button while a load is in flight, so two user-triggered reloads can't overlap.
   The stale-guard catch branch (`identical(future, _future)` + failed-refresh snackbar) is covered by
