@@ -154,6 +154,31 @@ void main() {
     expect(popped!.map((c) => c.id), ['c2']);
   });
 
+  testWidgets(
+    'an empty roster shows the role-aware "link them as <noun>" empty state',
+    (tester) async {
+      // Attendees (event path) and people (task path) each get their own noun.
+      await tester.pumpWidget(
+        _picker(title: 'attendees', repo: _FakeContactsRepo()),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('No contacts yet'), findsOneWidget);
+      expect(
+        find.text('Add contacts first, then link them as attendees.'),
+        findsOneWidget,
+      );
+
+      await tester.pumpWidget(
+        _picker(title: 'people', repo: _FakeContactsRepo()),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Add contacts first, then link them as people.'),
+        findsOneWidget,
+      );
+    },
+  );
+
   testWidgets('a failed roster load shows the contacts error state', (
     tester,
   ) async {

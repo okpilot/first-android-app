@@ -83,12 +83,18 @@ $$;
 -- update (title + done + notes + People) — replaces update_task(uuid, text, boolean, text) -------
 drop function if exists public.update_task(uuid, text, boolean, text);
 
+-- p_contacts is REQUIRED here (no default) — unlike create_task, an update replaces the whole
+-- People set, so an omitted arg would silently WIPE every link. Without a default, a mismatched
+-- caller (a stale client mid-rolling-deploy sending the old 4-arg shape) fails loudly with
+-- PGRST202 (function-not-found) instead of clearing People. Our client always sends it
+-- (tasks_repository.dart update()), so this costs nothing. create_task keeps its default: a create
+-- has nothing to wipe.
 create or replace function public.update_task(
   p_id       uuid,
   p_title    text,
   p_is_done  boolean,
   p_notes    text,
-  p_contacts uuid[] default '{}'
+  p_contacts uuid[]
 )
 returns uuid
 language plpgsql

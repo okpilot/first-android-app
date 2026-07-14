@@ -115,10 +115,12 @@ class _ContactPickerScreenState extends State<ContactPickerScreen> {
                 }
                 final all = snapshot.data ?? const <Contact>[];
                 if (all.isEmpty) {
-                  return const EmptyState(
+                  return EmptyState(
                     icon: Icons.contacts_outlined,
                     title: 'No contacts yet',
-                    message: 'Add contacts first, then link them here.',
+                    // Role-aware via the noun so the event path keeps its own wording
+                    // ("…link them as attendees.") and tasks read "…as people."
+                    message: 'Add contacts first, then link them as $noun.',
                   );
                 }
                 final shown = _filter(all);
