@@ -1,8 +1,11 @@
-> Cross-session work tracker. Update in place. Last updated: 2026-07-14 (Linux desktop shortcut + `/updatelinux` — Decision 30).
+> Cross-session work tracker. Update in place. Last updated: 2026-07-14 (Tasks notes field).
 
 # Handover
 
-**Status: LINUX DESKTOP SHORTCUT + `/updatelinux` — Decision 30 — local tooling.**
+**Status: TASK NOTES — optional freeform field on tasks (Decision 27 follow-on) — BUILT ON BRANCH `feat/task-notes` (commit `5cfc2b3`), pending /fullpush/PR/merge/deploy.**
+An optional `notes` field on each task: a description on the task itself, distinct from the future task-comments log. **Migration:** adds `notes` column; recreates `create_task(p_title, p_notes)` and `update_task(p_id, p_title, p_is_done, p_notes)` with the new parameter (drop+recreate for signature safety, grants re-issued). Blank/whitespace → NULL server-side. **Model/Repo/Form/Detail:** notes threaded through, seeded on edit, displayed read-only on detail (when present). **Tests:** all 138 green, analyze clean. Awaits the `/fullpush` gate → explicit push approval → push → PR/cloud-CR → merge → deploy-homebase. Then resume with the next slice (task-comments log).
+
+**Prior: LINUX DESKTOP SHORTCUT + `/updatelinux` — Decision 30 — ✅ SHIPPED & MERGED (commit `4eac941`, local tooling; 2026-07-14).**
 A **CRM+** app launcher for Linux: `.desktop` entry at `~/.local/share/applications/crm-plus.desktop` (square `C⁺` logo via an **absolute** `Icon=` path — theme-name didn't resolve; `Name=CRM+`). The **release** bundle is built against **homebase** (`--dart-define-from-file=dev-defines.homebase.json`; verified `libapp.so` carries `https://homebase…`, no `localhost`) and installed off the T7 drive at `~/Apps/crm-plus/bundle/` so the shortcut survives an unmounted project drive. **New `/updatelinux` command** = the desktop twin of `/updatephone` (build→verify-URL→rsync→refresh shortcut→report HEAD + Tailscale reminder). Resolves the old caveat that `flutter build linux` might choke on the spaces in the project path — it builds/runs clean. **Desktop needs Tailscale up** to reach homebase, same as the phone. No app code or schema touched.
 
 **Prior: TASKS VIEW-FIRST — read-only detail, then Edit — Decision 29 — ✅ SHIPPED & MERGED (PR #33 → squash `f39649f`, branch deleted; 2026-07-14).**

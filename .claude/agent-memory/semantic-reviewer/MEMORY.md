@@ -75,6 +75,18 @@ _Seed watch-items carried from the project's conventions:_
   the full form; only Tasks does in-pane create. MetaLine extraction (`lib/widgets/meta_line.dart`)
   keeps the `parts.isEmpty→SizedBox.shrink()` guard; contact call-site retains its own null guard —
   behaviorally faithful merge.
+- **Task `notes` scalar field add (Decision 27 follow-on, `5cfc2b3`) — CLEAN.** Reusable
+  "add-a-nullable-scalar-to-an-RPC-written-entity" shape: (1) `copyWith({String? notes})` uses
+  `notes ?? this.notes` (null arg = keep) — the complete-toggle (`copyWith(isDone:...)`, list circle
+  + detail button) preserves notes untouched; the form always passes `_notes.text` ('' when cleared),
+  and CLEAR-via-`''`→server `nullif(trim(),'')`→NULL is deliberate (no explicit-clear sentinel
+  needed). (2) Migration drops OLD signatures (`create_task(text)`, `update_task(uuid,text,boolean)`),
+  create-or-replaces with prior body VERBATIM + notes, re-grants NEW signatures — correct PGRST203
+  dodge, do NOT flag. (3) Detail-key `id:isArchived:isDone` omits notes, but a notes-only edit does
+  NOT strand stale display: `_edit`/`_run` do in-place `setState(_task=updated)` (updated = server
+  re-fetch, so '' already normalized to NULL) BEFORE the keyless-for-notes `_load()` rebuild; State
+  persists with the fresh value. `_save` = messenger-before-await + `if(!mounted)return` in both
+  branches. Reinforce this shape for the next scalar-field-add slice.
 - **Comments `_CommentsSection` (3a87cc8)** — `identical(future,_future)` stale-guard holds through
   the initState-fetch-vs-user-add race; mutation ops clear controllers/`_editingId` AFTER the await
   so a failed write preserves text + keeps edit mode open; `_run` = capture messenger + `mounted`

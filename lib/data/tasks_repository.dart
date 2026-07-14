@@ -9,7 +9,7 @@ abstract interface class TasksRepository {
   /// Active first, then done; newest within each group.
   Future<List<Task>> fetchAll();
   Future<Task> create(Task draft);
-  Future<Task> update(Task task); // title + is_done, in one
+  Future<Task> update(Task task); // title + is_done + notes, in one
   Future<Task> archive(String id); // set deleted_at
   Future<Task> restore(String id); // clear deleted_at
 }
@@ -27,7 +27,7 @@ class SupabaseTasksRepository implements TasksRepository {
   final SupabaseClient _client;
   static const _table = 'tasks';
   static const _columns =
-      'id, title, is_done, created_at, updated_at, deleted_at';
+      'id, title, is_done, notes, created_at, updated_at, deleted_at';
 
   @override
   Future<List<Task>> fetchAll() async {
@@ -42,21 +42,24 @@ class SupabaseTasksRepository implements TasksRepository {
 
   @override
   Future<Task> create(Task draft) async {
-    // draft.toRpcParams() is exactly {p_title} — matches create_task(p_title). Spread, like siblings.
+    // draft.toRpcParams() is {p_title, p_notes} — matches create_task(p_title, p_notes). Spread, like siblings.
     final id = await _client.rpc('create_task', params: draft.toRpcParams());
     return _fetchOne(id as String);
   }
 
   @override
   Future<Task> update(Task task) async {
-    // Explicit params (NOT toRpcParams, which is the create shape): update_task carries both the
-    // title and is_done, so one write path serves the form save AND the list complete-toggle.
+    // Explicit params (NOT toRpcParams, which is the create shape): update_task carries the
+    // title, is_done AND notes, so one write path serves the form save AND the list/detail
+    // complete-toggle (which re-sends the unchanged title + notes with a flipped is_done). The
+    // server normalizes blank/whitespace notes to NULL.
     await _client.rpc(
       'update_task',
       params: {
         'p_id': task.id,
         'p_title': task.title.trim(),
         'p_is_done': task.isDone,
+        'p_notes': task.notes,
       },
     );
     return _fetchOne(task.id);

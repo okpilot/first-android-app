@@ -65,8 +65,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 /// The shared detail *body* for one task. Rendered full-screen on phones (inside
 /// [TaskDetailScreen]) and embedded in the desktop master-detail pane. It has no
 /// `Scaffold`/`AppBar` and NEVER pops — it reports up via [onChanged] and lets the host
-/// decide navigation. Read-first: the title, a status pill, the dates, and — as **subtle
-/// tonal buttons** distinct from the filled-ink primary (New task / Save) — **Edit**
+/// decide navigation. Read-first: the title, a status pill, the notes (when present), the
+/// dates, and — as **subtle tonal buttons** distinct from the filled-ink primary
+/// (New task / Save) — **Edit**
 /// (top-right), **Complete**/**Reopen**, and **Archive**. An **archived** task is
 /// read-only history: it drops Edit + completion and offers only **Restore**.
 ///
@@ -210,6 +211,15 @@ class _TaskDetailViewState extends State<TaskDetailView> {
                   'Read-only history — restore to edit.',
                   style: theme.textTheme.bodyMedium,
                 ),
+              ],
+              // Notes — an optional freeform description. Shown (read-only) when present, for
+              // live AND archived tasks; hidden entirely when the task has no notes. Label +
+              // value mirror the ContactDetailView row style (labelMedium over bodyLarge).
+              if (_task.notes != null && _task.notes!.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                Text('Notes', style: theme.textTheme.labelMedium),
+                const SizedBox(height: 6),
+                Text(_task.notes!, style: theme.textTheme.bodyLarge),
               ],
               const SizedBox(height: 22),
               MetaLine(created: _task.createdAt, updated: _task.updatedAt),

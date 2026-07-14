@@ -47,108 +47,28 @@ _First run pending. Seed watch-items from conventions:_
 - New util helper without a boundary / bad-input test.
 
 ## Positive signals
-- **Tests backstop the `setState(() => Future)` trap** — they caught it in both `fa4fc45` and
-  `3a87cc8` when `flutter analyze` still missed it. The `discarded_futures` lint (enabled `0e4a7af`)
-  is now the primary mechanical catch; keep the load/refresh-failure + button-gating branches
-  covered on every new stateful section as regression coverage. (PROMOTED, count 2.)
-- `_CommentsSection` (private widget in event_detail_screen.dart) is tested through its host
-  `EventDetailScreen` with 3 inert repo fakes + a real `_FakeCommentsRepo` (has a `throwOnFetch`
-  toggle — flip it AFTER the initial pump to drive a failed *refresh*, or set it true before pump
-  for a failed *initial load*). No separate `_RefreshFailsRepo`/`_OrderedRepo` needed here.
-- **Design note (why no `_OrderedRepo` out-of-order test for `_CommentsSection`):** its reloads run
-  through `_run`, which sets `_busy=true` and disables every action button while a load is in flight,
-  so two user-triggered reloads can't overlap. The stale-guard's catch branch (`identical(future,
-  _future)` + failed-refresh snackbar) IS covered by the `throwOnFetch`-after-pump test; the
-  success-branch out-of-order overwrite is already covered on the shared pattern in
-  `event_types_screen_test.dart`. Not a gap — do not flag it.
+- **Tests backstop the `setState(() => Future)` trap** — caught in both `fa4fc45` and `3a87cc8` when
+  `flutter analyze` still missed it. The `discarded_futures` lint (enabled `0e4a7af`) is now the
+  primary mechanical catch; keep load/refresh-failure + button-gating branches covered on every new
+  stateful section as regression coverage. (PROMOTED, count 2.)
 
 ## Repo internals are NOT faked at the SupabaseClient level (do not force a test)
 - Repos (`Supabase*Repository`) are faked at the **interface** for screen tests, never at the
   `SupabaseClient` level. So an RPC-write swap inside a real repo impl (e.g. `create`/`update` →
   `_client.rpc(...)` + a `_fetchOne` re-select, as in `contacts_repository.dart` commit `1988e26`)
-  has **no in-convention unit test** — the `_fetchOne` re-select path can only be exercised against
-  real Postgres (done in the migration verification), not `flutter test`. Correct to say "out of
-  convention, not written" rather than invent a SupabaseClient fake. Interface unchanged → existing
-  screen/`widget_test.dart` fakes still hold and need no edit.
+  has **no in-convention unit test** — the re-select path only runs against real Postgres (migration
+  verification), not `flutter test`. Say "out of convention, not written" rather than invent a
+  SupabaseClient fake. Interface unchanged → existing screen/`widget_test.dart` fakes still hold.
 - `Contact.toRpcParams()` (replaced `toWrite()`): trims `p_name` client-side; sends `p_email`/
   `p_phone`/`p_company`/`p_remarks` **raw** (server `nullif(trim(...))` owns empty→null); `p_dob` via
   `ymd()` or null; omits id + server timestamps (repo adds `p_id` for updates). When testing a
   `toRpcParams`/`toWrite` map, assert the **full key set** and every optional passthrough — a dropped
   or mis-keyed field (e.g. `p_phone`) otherwise slips through.
 
-## `tasks_list_screen` stale-guard — RESOLVED (cloud-CR PR #30, 2026-07-12)
-- `TasksListScreen._load` now HAS the `identical(future, _future)` guard (`if (identical(future,
-  _future)) _lastData = data;`), matching `event_types_screen` — added in response to a cloud
-  CodeRabbit finding (the fleet had it as log-&-watch; CR pushed it to FIX). A late older load can
-  no longer overwrite `_lastData`.
-- Note the screen still has NO "showing saved data" refresh banner: a failed refresh shows the FULL
-  `_ErrorState` (unlike `event_types`, which keeps stale + snackbars). So the `event_types`
-  `_RefreshFailsRepo` test would still go RED here — do NOT port it. Only the success-path
-  `_OrderedRepo` stale-guard test is now portable, if coverage of the guard is wanted later.
-
-## `task_detail_screen` view-first (Decision 29) — testing notes
-- Two classes: `TaskDetailView` (the shared read-body, no Scaffold, reports up via `onChanged`) and
-  `TaskDetailScreen` (thin phone wrapper = AppBar + `PopScope`). The VIEW is covered exhaustively
-  (read/Complete↔Reopen/Archive→Restore/Edit-pushes-form/failure snackbars) in the same file.
-- The WRAPPER's distinct behaviour is separately testable and was the real gap: (1) its `PopScope`
-  `_dirty` back-signal — `canPop:false` + a deferred `Future.microtask(navigator.pop(_dirty))` — pops
-  **true** only after an `onChanged` fired (so the phone list reloads), **false** otherwise; (2) the
-  lifted `_task` retitles the AppBar 'Task'→'Archived task' on in-place archive. To test the pop
-  RESULT: push `TaskDetailScreen` from a Builder host, `await Navigator.push<Object?>` into a captured
-  var, then `tester.tap(find.byType(BackButton))` + pumpAndSettle (the microtask settles) and assert
-  the captured result. Added 3 wrapper tests (2026-07-14, commit cfbfe7f).
-- `SubtleButton` (lib/widgets/) is a pure presenter atom — no test (DO NOT #3); both branches
-  (`icon==null` → `FilledButton`, else `FilledButton.icon`) are exercised through the detail tests
-  (Edit has no icon; Complete/Archive/Restore do). Do not pad a widget test for it.
-
-## `home_shell` sidebar (Decision 28, adaptive nav) — testing notes
-- `HomeShell` puts all four screens in an `IndexedStack`; finders skip the non-selected children
-  (treated as offstage), so a screen's own content text (e.g. `ContactsListScreen` "New contact",
-  `SettingsScreen` "Event types") is `findsNothing` until that destination is selected. Use that to
-  disambiguate a sidebar label from the destination's own AppBar/content of the same word.
-- The `_Sidebar` renders the **first N-1 destinations in a loop** but **Settings (last) separately**
-  after a `Spacer()`, wired to `onSelect(lastIndex)`. That pinned-at-bottom index math is a DISTINCT
-  code path from the looped items — a Tasks/Calendar tap does NOT cover it. Worth its own test:
-  tap the "Settings" sidebar label → assert the Settings screen's "Event types" row appears. (Added.)
-- Adequate coverage for this UI-chrome slice = wide-shows-sidebar+switch, narrow-shows-NavigationBar,
-  pinned-Settings-selects. The `primaryContainer` selected-state fill is pure styling — do NOT assert
-  it (DO NOT #4); a Calendar tap is redundant with Tasks (same loop path) — do NOT pad with it.
-
-## `contacts` master-detail (Decision 28 Slice B) — testing notes
-- Two panes keyed off content width `kTwoPaneBreakpoint` (640). Drive layout with
-  `tester.binding.setSurfaceSize(const Size(1100, 800))` (wide) / `Size(360, 800)` (narrow) +
-  `addTearDown(() => tester.binding.setSurfaceSize(null))`. Wide = in-place `ContactDetailView`
-  (no Scaffold, reports up via `onChanged`/`onDeleted`); narrow = tap pushes `ContactDetailScreen`
-  (thin Scaffold+PopScope wrapper around the same `ContactDetailView`). Disambiguate: assert
-  `find.byType(ContactDetailView)` (embedded pane present) vs `find.byType(ContactDetailScreen)`
-  (route pushed).
-- Identity trap: a contact's **name** and **company** render in BOTH the list tile (subtitle =
-  `company · email`) and the pane, so they can't prove WHICH contact the pane shows. Use a
-  **detail-only** field — e.g. `remarks` ("Bombe.") only renders in the pane. Absence of contact #2's
-  remark on load pins auto-select to `contacts.first`; presence after tapping #2 pins the keyed
-  remount (`ValueKey(selected.id)` → `_contact` re-seeded in initState).
-- Adequate coverage = wide-auto-select-first + wide-in-place-swap-no-push + wide-"Not added" +
-  narrow-push. The `ListTile.selected`/`selectedTileColor` row highlight is pure styling — do NOT
-  assert it (DO NOT #4). "Selecting a different contact updates the pane" is already covered by the
-  in-place-swap test — do NOT add a second remount test.
-
-## `contacts` desktop-top search header (Decision 28 Slice C) — testing notes
-- Wide drops the phone AppBar+FAB; the master pane grows a `_MasterHeader` (title + live `count` +
-  "New" `FilledButton` + a `TextField`). Verified literals: `_NoMatches` = `EmptyState` title
-  **`"No matches"`**, message `"No contacts match your search."`; ✕-clear = an `IconButton` with
-  **tooltip `"Clear"`** (`find.byTooltip('Clear')`) shown only when the box is non-empty; header
-  button label **`New`** (`find.widgetWithText(FilledButton, 'New')`).
-- Search (`_matches`) filters ONLY the list rows (name/company/email, null-guarded); the detail pane
-  resolves its selection against the FULL list, so filtering never changes the pane. To prove the
-  filter, use a **list-only** field — Alan's email `alan@bletchley.uk` renders only in his row
-  subtitle (he isn't the auto-selection), so its disappearance on `enterText('Ada')` pins the filter.
-- `_NoMatches` branch identity trap: when `filtered.isEmpty` the `_ContactsList` is gone, so the
-  auto-selected contact's **name** now renders ONLY in the pane — `find.text('Ada Lovelace')`
-  findsOneWidget then proves the pane kept its selection while the list shows "No matches".
-- Adequate coverage = wide-header-replaces-chrome + search-filters-rows-not-detail + ✕-clear-restores
-  + no-match-shows-_NoMatches-pane-holds-selection + narrow-unchanged. The clear-search-on-New reset
-  (`_openForm` → `_search.clear()`) is real but NOT worth a test: driving the full `ContactFormScreen`
-  push/fill/save is heavy and re-tests form plumbing more than the search behaviour — skip, not a gap.
+## Per-slice screen testing notes → [screen-testing-notes](topics/screen-testing-notes.md)
+How to test / what's a non-gap, one section per slice: `_CommentsSection`, `tasks_list_screen`
+stale-guard (RESOLVED), `task_detail_screen` wrapper, task `notes`, `home_shell` sidebar, `contacts`
+master-detail + search header. Read it before testing any of those screens.
 
 ## Known false-positive traps (do not flag / do not do)
 - Pure presenter widgets in `lib/widgets/` (`EmptyState`, `TypeLabel`, `InitialsAvatar`) need no
