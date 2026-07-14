@@ -66,8 +66,8 @@ Synced across `crlocal.md` / `agent-workflow.md` / `semantic-reviewer.md` / `pla
   hardening — issue #3** (which now also owns the deferred task_comments server-side archived-task
   guard + closing the direct write path — see the migration header).
 
-**Phone QA backlog (one S23+ trip via `/updatephone` once the device is back on the tailnet):**
-Tasks v0 (Decision 27) + the RPC write paths (Decision 26) — merged & deployed, never QA'd on-device.
+**Phone QA backlog (optional emulator QA owed for):**
+Tasks v0 (Decision 27) + the RPC write paths (Decision 26) — merged & deployed, never QA'd on-device. (The S23+ is back on tailnet as of this session.)
 
 **Prior: RPC-for-all-writes — Decision 26 — ✅ COMPLETE (all 4 slices merged & deployed).** Every write goes through a SECURITY DEFINER RPC; reads
 stay direct. Plan (done): `~/.local/share/claude-config/claude/plans/stuck-lazy-sutton.md`.

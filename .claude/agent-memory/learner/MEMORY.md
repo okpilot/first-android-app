@@ -14,7 +14,7 @@ columns by header, not position.
 |---|---|---|---|
 | `setState(() => …)` arrow discards a returned Future (invisible to analyze; tests only). First: Contacts `fa4fc45`. | 2 | 3a87cc8 | PROMOTED → `analysis_options.yaml` `discarded_futures` (`0e4a7af`) |
 | RLS/soft-delete linchpin verify-curl run live but not recorded in `backend/README.md` (red-team re-raises). First: #13→#19. | 2 | 2b100b7 | PROMOTED → `docs/database.md` #11 (`4911243`); RESOLVED-WATCH. Held again at `2b100b7` — task_contacts join-table curl was a minor coverage nit, added same-cycle, no structural re-raise. |
-| Rule reversal mid-multi-slice migration leaves a contradictory sibling doc-comment / migration header citing the OLD rule. First: D25 amendment mismatch (crlocal). | 2 | 3296258 | PROMOTED → `CLAUDE.md` "How we work". Divergent-slice test PASSED at `3296258` (nothing stale reached main); but sweep is leaky at plan stage — see subsection-hiding watch below. |
+| Rule reversal mid-multi-slice migration leaves a contradictory sibling doc-comment / migration header citing the OLD rule. First: D25 amendment mismatch (crlocal). | 2 | b5486f0 | PROMOTED → `CLAUDE.md` "How we work". Divergent-slice test PASSED at `3296258` (nothing stale reached main). Two NEW non-DB surface variants at `b5486f0` (issue #40 review-bar rebalance), BOTH caught in-cycle, EACH count 1 → NO re-tighten: (f) operative-RULE-NUMBER change (round floor/ceiling, cr-local M) left a stale restatement in `.claude/commands/wrapup.md:47` — a surface class OUTSIDE the promoted rule's DB-scoped grep list ("repo doc-comment, migration header, doc"); plan-critic caught it + folded a RULE EXTENSION note. (g) owed-list TWIN — same-file plan.md updated its status line but left its "Owed" list citing the just-shipped item; impl-critic caught it. Trip: if (f) OR (g) recurs (count 2) → propose ONE broadening of the CLAUDE.md grep list to name `.claude/commands/`+`.claude/agents/` operative-number restatements AND same-file owed/status lists. |
 | **Refinement:** stale rule-reversal citations hide in secondary summaries & decision-entry SUBSECTIONS (Impl/Why-safe/Principle), not the obvious rule line. First: `3296258`. | 1 | 3296258 | WATCHING — single commit, do NOT sharpen `CLAUDE.md` yet. doc-updater has the mechanical lesson ("grep the WHOLE file + every subsection"). Next reversal leaking same way → RULE CANDIDATE. |
 | **`toRpcParams()` spread must match the RPC's param list exactly or PostgREST throws PGRST202.** Body-only `update_*` / mismatched-arity `create_*` → blind `{...toRpcParams()}` sends a param the fn lacks. First: `1e7574d` (`update_comment` body-only). | 2 | 258cb6c | RULE CANDIDATE — recurred at tasks `258cb6c` (`create_task` arity). Propose ONE line under `docs/database.md` #2. Both caught at PLAN time (plan-critic); rule makes it explicit so it's not re-derived. |
 | **Defaulted write-param on an RPC turns caller OMISSION into SILENT data loss** — `update_task.p_contacts` had a DEFAULT, so a stale/mismatched Dart caller that dropped it would silently WIPE a task's People instead of erroring. Fix = drop the default → param REQUIRED → loud PGRST202, not silent wipe (create keeps its default: nothing to wipe). **Fleet MISSED at `f8467d1`; cloud CR caught it.** First: `3b0468a` (fix). | 1 | 3b0468a | NEAR MISS / WATCHING — count 1, NO rule. Inverse face of the `toRpcParams`↔arity seam (that = too many params → PGRST202; this = optional param omitted → silent semantic loss). If EITHER recurs, the `docs/database.md` #2 seam line should cover BOTH: spread matches RPC params exactly AND write-affecting params are REQUIRED (no DEFAULT on update-writes). |
@@ -59,7 +59,16 @@ columns by header, not position.
   if ANY test-surface mechanism (b/c/d) OR the comment-drift (e) recurs → BROADEN the `CLAUDE.md`
   sweep line to "grep docs, sibling inline COMMENTS, AND `test/` (reconstructing fakes + exact-map
   assertions) on any model field/method/affordance/`p_*`-param change (add OR remove)", not a second
-  convention. NOT gated (surfaces at `flutter test` / review, never analyze).
+  convention. NOT gated (surfaces at `flutter test` / review, never analyze). **Two more count-1
+  sub-mechanisms, `b5486f0` (non-DB / config axis — distinct from the model-surface axis above):**
+  (f) change an operative RULE-NUMBER (round floor/ceiling, cr-local M) → a sibling `.claude/commands/`
+  or `.claude/agents/` file that RESTATES the number goes stale (wrapup.md:47 "ceiling (4 …)"); the
+  promoted rule's grep list is DB-scoped and doesn't name these files, but plan-critic caught it. (g)
+  same-file OWED-LIST twin — a status/shipped line updated while the SAME file's "Owed"/"Next"/"TODO"
+  list still cites the shipped item (plan.md:14 shipped vs :51 owed); impl-critic caught it. Both
+  count 1, both caught, NO leak → NO rule. Trip: (f) or (g) recurs → ONE broadening of the CLAUDE.md
+  grep list (name `.claude/commands/`+`.claude/agents/` number restatements + same-file owed/status
+  lists), NOT a new convention.
 - **A CREATE OR REPLACE recreating an RPC to add ONE param must re-carry the WHOLE prior body**
   (SECURITY DEFINER, `SET search_path`, `deleted_at is null` guard, `if not found raise`, trims) — a
   terse "also set notes=…" risks dropping guards. Once (plan-critic ISSUE, `5cfc2b3`, folded in). Log
