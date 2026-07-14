@@ -340,8 +340,37 @@ create/edit/seed, detail render/absent/archived, complete-toggle preserves notes
 fakes thread the field). Suite **138** green, analyze clean. Fleet: plan-critic (REVISE→folded) +
 implementation-critic (APPROVED) + code/semantic/red-team/doc/test all clean.
 
-**Status (2026-07-14):** built on branch `feat/task-notes` (commit `5cfc2b3`); pending the
-`/fullpush` gate → push approval → PR/cloud-CR → merge → homebase deploy → emulator light+dark QA.
+---
+
+## Decision 32: Task comments — extract ONE shared `CommentsSection` widget, not a copy (2026-07-14)
+**Context:** Decision 31's second half — adding an archivable **comments log** to tasks — needs the
+same UI the events feature already has (composer, live tiles with Edit/Archive, archived section with
+Show/Hide + Unarchive, load/refresh error states, the `_lastData` stale-guard). Two ways to get it
+onto tasks: **copy** the private `_CommentsSection` from `event_detail_screen.dart` into a task
+version, or **extract** it into one shared widget both features use. Copying risks the two drifting
+(a fix to one silently skips the other); extracting front-loads a refactor but keeps one source.
+**Decided (Slice 2a — a refactor slice, shipped BEFORE the task-comments feature):**
+- **Extract ONE shared, parent-agnostic widget** — the private `_CommentsSection` moved verbatim into
+  a public `lib/widgets/comments_section.dart` as `CommentsSection(repository, parentId)`. One widget,
+  two consumers (events now; tasks in Slice 2b). This is the precedent: task comments **reuse** the
+  event widget, never a forked copy.
+- **The model goes parent-agnostic:** `Comment.eventId` → `Comment.parentId`; `Comment.toRpcParams()`
+  removed — a parent-agnostic model can't know `p_event_id` vs the future `p_task_id`, so each **repo**
+  now builds its own RPC param map inline (the repo is where that divergence belongs).
+- **Reads alias the FK to a common shape:** `CommentsRepository` interface (`fetchFor(parentId)`,
+  `add`/`edit`/`archive`/`unarchive`); impl renamed `SupabaseCommentsRepository` →
+  `SupabaseEventCommentsRepository`, whose `select` aliases `parent_id:event_id` (a **select-only**
+  PostgREST alias) so one `Comment.fromJson` parses either `*_comments` table. Writes/`.eq()`/`_fetchOne`
+  still key on the **real** `event_id`/`id` columns — the alias never touches the write path.
+- **Behavior-preserving:** every async invariant rode through the transplant verbatim (the `_load()`
+  `identical(future,_future)` stale-guard, `_lastData` FutureBuilder fallback, `_busy` re-entrancy,
+  `mounted`-after-`await`, messenger-before-`await`). Events behave identically.
+**Verification:** full post-commit fleet clean to the N=2 consecutive-clean floor (code-reviewer +
+semantic-reviewer both CLEAN ×2; implementation-critic APPROVED; doc-updater SYNCED). test-writer
+added 2 standalone parent-agnostic tests (mount `CommentsSection` directly with a task-shaped
+`parentId`, prove no event-coupling / no cross-parent leakage). Suite **139** green, analyze clean.
+**Next:** Slice 2b — `task_comments` table + 4 RPCs + `SupabaseTaskCommentsRepository`, then hang the
+shared `CommentsSection` off the task detail.
 
 ---
 
