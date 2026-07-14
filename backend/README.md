@@ -154,29 +154,33 @@ TID=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -d '{"p_title":"  Buy milk  ","p_notes":"  ring the supplier  "}' | tr -d '"')
 curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   "$REST/tasks?id=eq.$TID&select=title,is_done,notes,deleted_at"  # -> title "Buy milk", is_done false, notes "ring the supplier", deleted_at null
-# update: rename + mark done + clear notes (one path serves the form save AND the list complete-toggle)
+# update: rename + mark done + edit notes (one path serves the form save AND the list complete-toggle)
 curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/rpc/update_task" \
-  -d "{\"p_id\":\"$TID\",\"p_title\":\"Buy oat milk\",\"p_is_done\":true,\"p_notes\":\"   \"}"
+  -d "{\"p_id\":\"$TID\",\"p_title\":\"Buy oat milk\",\"p_is_done\":true,\"p_notes\":\"  call the supplier back  \"}"
 curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
-  "$REST/tasks?id=eq.$TID&select=notes"                           # -> notes null (blank/whitespace p_notes normalized to NULL)
-# archive: sets deleted_at; the row is STILL selectable (using(true)) — the feature
+  "$REST/tasks?id=eq.$TID&select=title,is_done,notes"            # -> "Buy oat milk", is_done true, notes "call the supplier back" (trimmed)
+# archive: sets deleted_at; the row — INCLUDING its notes — is STILL selectable (using(true)) = the "view archived" feature
 curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/rpc/soft_delete_task" -d "{\"p_id\":\"$TID\"}"
 curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
-  "$REST/tasks?id=eq.$TID&select=id,is_done,deleted_at"           # -> row present, deleted_at non-null
+  "$REST/tasks?id=eq.$TID&select=id,is_done,notes,deleted_at"    # -> row present, notes "call the supplier back" readable, deleted_at non-null
 # update refuses an archived task -> no_data_found (P0002)
 curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/rpc/update_task" \
-  -d "{\"p_id\":\"$TID\",\"p_title\":\"x\",\"p_is_done\":false}"  # -> {"code":"P0002", ... "not found or already archived"}
+  -d "{\"p_id\":\"$TID\",\"p_title\":\"x\",\"p_is_done\":false,\"p_notes\":null}"  # -> {"code":"P0002", ... "not found or already archived"}
 # restore (unarchive): clears deleted_at back to null
 curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/rpc/restore_task" -d "{\"p_id\":\"$TID\"}"
-# create with notes omitted -> p_notes defaults null, so notes is stored NULL
+# notes normalization: blank/whitespace p_notes -> NULL (like title's trim); p_notes omitted -> default null
+BID=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_task" -d '{"p_title":"blank-note","p_notes":"   "}' | tr -d '"')
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/tasks?id=eq.$BID&select=notes"                          # -> notes null (whitespace normalized to NULL)
 NID=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/rpc/create_task" -d '{"p_title":"No-note task"}' | tr -d '"')
 curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
-  "$REST/tasks?id=eq.$NID&select=notes"                           # -> notes null
+  "$REST/tasks?id=eq.$NID&select=notes"                          # -> notes null (p_notes omitted -> default null)
 # guards: blank title -> check violation; no hard-delete grant
 curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/rpc/create_task" -d '{"p_title":"   "}'  # -> 400
