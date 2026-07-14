@@ -298,6 +298,17 @@ subset — but keep it Flutter-honest (phase-aware, no cargo-culted TS/Next rule
 
 ---
 
+## Decision 30: Linux desktop shortcut + `/updatelinux` command (2026-07-14)
+**Context:** The user wanted a proper Linux app launcher (menu shortcut + the square `C⁺` logo) for the CRM, running against the **live homebase** DB — the desktop counterpart to the phone. First cut had two faults, both fixed: (a) the build used the default `dev-defines.json` (`localhost:8000`) so it pointed at nothing live; (b) `Icon=crm-plus` (an icon-theme *name*) never resolved on this machine — the hicolor user theme has no index/cache — so the launcher showed a generic icon.
+**Decided:**
+- **A `.desktop` entry at `~/.local/share/applications/crm-plus.desktop`** — `Name=CRM+`, `Icon=` an **absolute path** (`~/.local/share/icons/crm-plus.png`, a copy of `assets/icon/crm-plus-dark-1024.png`, the square logo *with* background — not the transparent adaptive foreground), `StartupWMClass=first_android_app`. Absolute-path `Icon=` is the robust choice here; the theme-name form is unreliable without a populated hicolor cache.
+- **Release build wired to homebase:** `flutter build linux --release --dart-define-from-file=dev-defines.homebase.json`. Verified by grepping the compiled `lib/libapp.so` for `https://homebase…` and the *absence* of `localhost:8000`.
+- **Bundle lives off the T7 drive** at `~/Apps/crm-plus/bundle/` (rsync'd from `build/linux/x64/release/bundle/`), so the shortcut keeps working when the external project drive is unmounted. `Exec`/`Path` point there, not into the volatile build tree.
+- **New `/updatelinux` command** (`.claude/commands/updatelinux.md`) — the desktop analogue of `/updatephone`: build release-against-homebase → verify the live URL is baked in → `rsync --delete` into the stable install dir → refresh icon + shortcut (idempotent, recreates the `.desktop` if missing) → report installed HEAD + the Tailscale reminder. Like the phone, the desktop needs **Tailscale up** to reach homebase.
+**Note:** This resolves the old HANDOVER caveat that `flutter build linux` might choke on the spaces in the project's absolute path — it builds and runs cleanly (release, AOT). Local-machine tooling only; no app code or schema changed.
+
+---
+
 ## OPEN QUESTIONS
 - [x] Backend hosting: **self-host trimmed on homebase** (vs Supabase cloud). Settled 2026-07-07; revisit only if homebase load becomes a problem.
 - [x] First walking-skeleton slice entity: **`contacts`** (name, dob, email, phone, company, remarks). Settled 2026-07-08 — Slice 1.
