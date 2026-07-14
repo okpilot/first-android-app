@@ -8,7 +8,7 @@
 
 | Pattern | First Seen | Count | Last Seen | Status (→ rule loc) |
 |---|---|---|---|---|
-| Identical private detail-widget copied across screens (`_MetaLine` "Added X · Updated Y" muted date footer — same class in `contact_detail_screen.dart:282` AND `task_detail_screen.dart:447`, functionally byte-identical bar a `parts.isEmpty` guard). Unlike `_ErrorState` (per-screen variance = convention), this has zero variance → extractable atom. | 2026-07-14 (tasks view-first) | 2 | 2026-07-14 (tasks view-first) | RULE CANDIDATE — count 2, propose promoting to `lib/widgets/meta_line.dart` (learner). SUGGESTION only, non-blocking. |
+| Identical private detail-widget copied across screens (`_MetaLine` "Added X · Updated Y" muted date footer — same class in both detail screens, functionally byte-identical bar a `parts.isEmpty` guard). Unlike `_ErrorState` (per-screen variance = convention), this had zero variance → extractable atom. | 2026-07-14 (tasks view-first) | 2 | 2026-07-14 (acb0043) | PROMOTED → `lib/widgets/meta_line.dart` (`MetaLine`, extracted acb0043; the merged atom keeps task's `parts.isEmpty` guard, strictly safer for contacts whose call site already guarded). RESOLVED. |
 
 ## Durable knowledge (this project's conventions to check against)
 - **No hard line caps.** Judge structure by responsibility/nesting, not length. A long
@@ -134,12 +134,15 @@
   Reopen/Archive/Restore. `_StatusPill` (Active/Completed/Archived) is a NEW local widget — not
   colour-as-data (dot always paired with a text label; muted-vs-ink tokens, not per-type colour) and
   no existing status-pill atom to reuse (event_detail's circular(999) is a comment-count badge, not a
-  status pill). Only nit: `_MetaLine` duplicates contact_detail's identical private copy (tracker row).
+  status pill). The muted date footer is the shared `MetaLine` atom (`lib/widgets/meta_line.dart`,
+  extracted acb0043 — was a private `_MetaLine` duplicated here + in contact_detail; tracker RESOLVED).
   `SubtleButton` (`lib/widgets/subtle_button.dart`) is a clean shared atom — exists because theme's
   `filledButtonTheme` pins even `FilledButton.tonal` to `scheme.primary` (intentional, not a finding).
-  `task_form_screen.dart` correctly shrank to title-only (dropped Switch/archive/restore/showHeader);
-  `tasks_list_screen.dart` reversed the in-pane editor to a read-only detail cleanly (dropped
-  `_creatingNew`/`_onEditorChanged` optimistic patch — the detail's own setState makes it unnecessary).
+  `task_form_screen.dart` correctly shrank to title-only (dropped Switch/archive/restore/showHeader).
+  `tasks_list_screen.dart`: the wide pane shows a read-only detail for a selected task (dropped the
+  `_onEditorChanged` optimistic patch — the detail's own setState makes it unnecessary); acb0043
+  reintroduced `_creatingNew` for the wide **New** in-pane form (narrow still pushes) — a clean
+  three-state pane (detail / create-form / empty prompt).
 - **`_CommentsSection` in `event_detail_screen.dart`** — reference-quality inline stateful
   sub-section. `build()` is a `FutureBuilder` composing `_header`/`_composerRow`/`_liveTile`/
   `_archivedSection` helpers (method-extraction, which item #1 allows alongside StatelessWidgets).
