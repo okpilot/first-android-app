@@ -294,6 +294,8 @@ subset — but keep it Flutter-honest (phase-aware, no cargo-culted TS/Next rule
 - **Small cleanups from the post-commit reviewers:** extracted the duplicated meta footer to a shared `lib/widgets/meta_line.dart` (`MetaLine`, was a private `_MetaLine` in both detail screens — code-reviewer count 2); fixed a `TaskDetailView` dartdoc that stated the pane key field order backwards (semantic-reviewer).
 - **QA:** Android **emulator** (`galaxy_s23plus`) QA done via `adb` — list → read-only detail (subtle Edit/Complete/Archive) → new-task form all correct; reaches homebase over the host tailnet. Desktop light+dark detail + subtle buttons confirmed; desktop **in-pane New** verified by widget tests + the approved prototype (a live desktop screenshot wasn't captured — xdotool input is flaky on the multi-monitor setup; `adb`/emulator is the reliable path). **Correction:** the repo's old "Android SDK not installed" note was stale — the SDK + two emulators are installed (CLAUDE.md fixed).
 
+**Shipped (2026-07-14):** merged as **PR #33 → squash `f39649f`** (branch deleted; `main` clean). Cloud CR: 2 docs FIX (plan.md wording, README task contract, `1c606b7`) + 1 DEFER (**#34** in-pane New Cancel) + 2 SKIP (test nitpicks) + 1 false-positive (test-writer memory already view-first). Suite **128**.
+
 ---
 
 ## OPEN QUESTIONS
