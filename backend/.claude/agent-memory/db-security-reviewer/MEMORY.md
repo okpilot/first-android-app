@@ -4,7 +4,7 @@
 
 | Pattern | First Seen | Count | Last Seen | Status (→ rule loc) |
 |---|---|---|---|---|
-| Every new SECURITY DEFINER RPC omits `revoke execute … from public` (Postgres grants EXECUTE to PUBLIC by default; the `grant … to anon` is additive, not lock-down) | 2026-07-12 | 2 | 2026-07-12 tasks | WATCHING → DEFER to the issue #3 auth-hardening sweep; consolidated ISSUE, not per-RPC. See [revoke-execute-sweep](topics/revoke-execute-sweep.md) |
+| Every new SECURITY DEFINER RPC omits `revoke execute … from public` (Postgres grants EXECUTE to PUBLIC by default; the `grant … to anon` is additive, not lock-down) | 2026-07-12 | 3 | 2026-07-14 create/update_task recreated w/ p_contacts | WATCHING → DEFER to the issue #3 auth-hardening sweep; consolidated ISSUE, not per-RPC. See [revoke-execute-sweep](topics/revoke-execute-sweep.md) |
 
 ## Durable knowledge
 - **Phase: pre-auth.** GoTrue not wired. Missing `auth.uid()` owner-scoping = INFO tracked under
