@@ -1,6 +1,6 @@
 ---
 status: read me first each session
-updated: 2026-07-12
+updated: 2026-07-14
 ---
 
 # Plan — First Android App (learning CRM)
@@ -10,8 +10,8 @@ Learn app development end-to-end by building a light CRM in Flutter, backed by a
 trimmed self-hosted Supabase on homebase. Learning is the point; the CRM is
 disposable. Built emergently — thin slices, one at a time.
 
-## Current status (2026-07-13)
-- ✅ **Desktop-adaptive UI — Decision 28, Slices A+B+C — all committed on `feat/desktop-adaptive` (unpushed).** Slice A: Wide screens (≥600dp) render a labelled `_Sidebar` (CRM+ mark, WORKSPACE nav, Settings pinned) instead of `NavigationRail`; phone `NavigationBar` (<600dp) unchanged. Look stays Decision 13 mono; selection mirrors `navigationRailTheme` tokens. Test: `test/home_shell_test.dart` (width-parameterized). Slice B: Contacts master-detail on wide screens (≥640dp content area) — in-place detail pane right of list, no route push, first contact auto-selects; narrow keeps phone push-to-detail. Extracted shared `ContactDetailView` (no Scaffold). Empty fields show "Not added" (both layouts). Added `kTwoPaneBreakpoint`. Test: `test/contacts_master_detail_test.dart`. Slice C: Desktop list header (title + live count + **search field** + inline "New" button) replaces AppBar/FAB on wide; search filters loaded contacts (name/company/email) live, filters only list rows, detail keeps selection; "No matches" state; phone/narrow untouched. Window title → "CRM+" (all platforms). Suite **111**. **Future direction:** activity view (contact's related events/tasks/notes) will fill the intentional right-pane whitespace (later slice).
+## Current status (2026-07-14)
+- ✅ **Desktop-adaptive UI + Tasks desktop — Decision 28, Slices A–D — ✅ SHIPPED & MERGED (PRs #31 → squash `5a41c5b`, #32 → squash `27ba471`; both branches deleted).** Slice A: Wide screens (≥600dp) render a labelled `_Sidebar` (CRM+ mark, WORKSPACE nav, Settings pinned) instead of `NavigationRail`; phone `NavigationBar` (<600dp) unchanged. Slice B: Contacts master-detail on wide screens (≥640dp content area) — in-place detail pane right of list, no route push, first contact auto-selects; narrow keeps phone push-to-detail. Extracted shared `ContactDetailView` (no Scaffold); added `kTwoPaneBreakpoint`. Slice C: Desktop list header (title + live count + **search field** + inline "New") replaces AppBar/FAB on wide; search filters list rows only, detail keeps selection; "No matches" state; Window title → "CRM+" (all platforms). Slice D: **Tasks two-pane master-detail** — list + in-place `TaskEditView` on wide (extracted from `TaskFormScreen`; keyed `id:isArchived:isDone`; optimistic `_lastData`); narrow unchanged. Cloud CR answered on both PRs (#31: 3 already-fixed; #32: 5 findings all FIX across 2 rounds). Suite **119**. **Future direction:** activity view (contact's related events/tasks/notes) will fill the intentional master-detail right-pane whitespace (later slice).
 - ✅ Environment: Flutter 3.44.5; Web + Linux + **Android** targets all ready (SDK installed, Pixel + S23+ emulators). **App installed & running on the physical S23+** (debug APK against homebase over Tailscale — data round-trips verified).
 - ✅ **App identity — launcher `CRM+` + dark `C⁺` icon (Decision 24) — SHIPPED & MERGED (PR #22 → squash `343bcdc`).** Renamed `android:label` → `CRM+`; generated all mipmap densities + a modern adaptive icon via `flutter_launcher_icons` from the user's dark `C⁺` mark. Reproducible sources (SVG + PNG) committed under `assets/icon/`; adaptive foreground is a clean transparent glyph on a `#0a0a0a` background (no card-outline artifact under the mask); inset driven by `adaptive_icon_foreground_inset: 0` in config. Android-only. Gate green (analyze · 69 tests · web build); `/crlocal` 2 clean rounds; cloud-CR cycle 1 answered (1 finding FIX `1fff1ee`); branch deleted. **On-device S23+ QA PASSED** — installed via `/updatephone` (`8c52f81`); dark C⁺ icon + `CRM+` name verified on the launcher in light + dark, glyph size good.
 - ✅ **RPC-for-all-writes (Decision 26) — ✅ COMPLETE. Slices 0–3 all MERGED & DEPLOYED; 4/4 entities (events, contacts, event_types, event_comments) write via RPC.** Slice 3 (event_comments writes → RPC via `create_comment`/`update_comment`/`soft_delete_comment`/`restore_comment`) MERGED (PR #29 → squash `1e7574d`) & DEPLOYED to homebase (ledger → **14**); the divergent slice — reversed the event_comments write convention (database.md rules #2+#4, Decision 23 amended in-place), first real test of the promoted rule-reversal-sync rule. All 4 RPCs verified live via DDL-watch auto-reload. Cloud CR: 1 FIX + 1 SKIP. **Resume = phone QA of the RPC write paths.** Slice 0 (PostgREST auto-reload via DDL-watch triggers) deployed to homebase & verified live (`670787c`, PR #25 + follow-up PR #26 → `2e366d7`); deploy script keeps a single unconditional `notify pgrst` as fresh-DB cold-start net (triggers own running/steady-state + ad-hoc; Decision 25 amended 2026-07-12). **Slice 1** (contacts writes → RPC via `create_contact` / `update_contact`) **MERGED (PR #27 → squash `2370fcf`) & DEPLOYED** (ledger → 12; cloud CR 1 DEFER → #3). **Slice 2** (event_types writes → RPC via `create_event_type` / `update_event_type`) **MERGED (PR #28 → squash `a17ea81`) & DEPLOYED to homebase** (ledger → **13**; cloud CR answered — 1 FIX `7b38ea8`; RPC verified live via DDL-watch auto-reload — blank-name `create_event_type` → 400, no manual NOTIFY). Resume = **Slice 3** (event_comments writes → RPC); **phone QA** of the Slice 1–2 RPC paths still owed. Root-caused from the event-comment 404 = PostgREST stale-schema-cache.
@@ -36,24 +36,19 @@ disposable. Built emergently — thin slices, one at a time.
 4. **Next candidates:** DB security hardening (issue #3 — RPC `auth.uid()`, revoke PUBLIC execute, column-level write grants) · **auth (GoTrue)** logins + owner-based RLS · search/filter on the list · run on the physical S23+ · full 7-column week (wide-screen adaptive).
 
 ## Next slice
-**Tasks desktop master-detail — Decision 28 Slice D — ✅ DONE & pushed** (`feat/tasks-desktop`, stacked
-on `feat/desktop-adaptive`/PR #31). Wide = two-pane (list + in-place `TaskEditView` editor); narrow
-unchanged. Direction A (centred list) was built + rejected in live QA → pivoted to B; extracted
-`TaskEditView` from `TaskFormScreen`. Plan (done): `~/.local/share/claude-config/claude/plans/jolly-tickling-star.md`.
-**Resume = answer the cloud CodeRabbit review on the new Tasks-desktop PR, then merge (after PR #31).**
+**Decision 28 (Slices A–D) is fully SHIPPED & MERGED** — PR #31 → `5a41c5b`, PR #32 → `27ba471`; both
+branches deleted; cloud CR answered on both. Plans (done): `…/fuzzy-munching-thacker.md` (A–C),
+`…/jolly-tickling-star.md` (D). `main` clean & synced.
 
-**Prior: Desktop-adaptive UI — Decision 28, Slices A+B+C — ✅ DONE & pushed as PR #31** (`feat/desktop-adaptive`;
-sidebar + Contacts master-detail + desktop top/search + `CRM+` window title). Plan (done):
-`~/.local/share/claude-config/claude/plans/fuzzy-munching-thacker.md`. **Resume = answer the cloud
-CodeRabbit review on PR #31** (`/coderabbit` → `/fullpush` → `/replycoderabbit`), then merge.
+**Owed first (phone QA backlog, one S23+ trip via `/updatephone` once the device is back on the
+tailnet):** Tasks v0 (Decision 27) **and** the RPC write paths (Decision 26) — both merged & deployed
+but never QA'd on-device.
+
 **Then, the next feature slice — pick one:**
 - **Contact activity view** (fills the master-detail right-pane whitespace with a contact's related
   events/lessons, tasks, notes — the agreed Decision 28 follow-on; data links already exist), OR
 - **in-app empty-state hints — issue #21 (Decision 21)**, OR the meatier **auth (GoTrue) + DB
   hardening — issue #3**.
-**Owed regardless (phone QA backlog, single trip on the S23+ via `/updatephone`):** Tasks v0 (Decision
-27) **and** the RPC write paths (Decision 26) — do both in one on-device pass since both are merged &
-deployed but un-QA'd (device was off the tailnet).
 
 **Prior: RPC-for-all-writes — Decision 26 — ✅ COMPLETE (all 4 slices merged & deployed).** Every write goes through a SECURITY DEFINER RPC; reads
 stay direct. Plan (done): `~/.local/share/claude-config/claude/plans/stuck-lazy-sutton.md`.

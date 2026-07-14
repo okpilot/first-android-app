@@ -21,6 +21,10 @@ disposable vehicle for learning app development end to end.
 - **Tasks** — a lightweight to-do list: add a task, tick it complete, edit it, and archive
   ones you're done with. Completed and archived tasks tuck into their own sections so your
   active list stays clean, and nothing is ever hard-deleted.
+- **Desktop & wide screens** — on a wide window the app lays itself out for a mouse: a
+  labelled sidebar instead of the phone's bottom bar, and a two-pane master-detail for
+  Contacts and Tasks (the list on the left, the detail or editor on the right) instead of
+  tapping through to a separate screen. Narrow/phone keeps the familiar tap-through flow.
 
 Your data lives on a backend you host yourself (Postgres behind a REST layer), not a
 third-party cloud.
