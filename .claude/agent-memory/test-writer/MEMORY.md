@@ -30,6 +30,14 @@
   **`"Couldn't refresh comments — showing saved data"`** (has "comments", unlike the list screens).
 - Comment composer/edit buttons are `FilledButton` labelled **`Comment`** / **`Save`**; both gate on
   `!_busy && controller.text.trim().isNotEmpty` → assert `.onPressed == null` when empty/whitespace.
+- **`ContactPickerScreen`** (renamed from `event_picker_screen.dart`) role-noun AppBar: `title` is the
+  lowercase noun (`'people'` / `'attendees'`). Copy = `n==0 ? 'Add $noun' : '$nounCap · $n'` →
+  **`"Add people"`** empty, **`"Attendees · 2"`** capitalized-with-count. Rows are `CheckboxListTile`;
+  Done is a `TextButton`. A `_FailingContactsRepo.fetchAll` MUST be `async` (a bare `=> throw` throws
+  synchronously in initState and crashes the build instead of yielding a rejected Future).
+- **M3 `InputChip` delete icon is `Icons.clear`** (U+0E168), NOT `Icons.cancel` — to tap a People/
+  attendee chip's delete: `find.descendant(of: widgetWithText(InputChip, name), matching:
+  byIcon(Icons.clear))`, and `ensureVisible` it first (the People section sits low on the form).
 - **Tasks (v0)** literals: list load-error copy **`"Couldn't load tasks"`** + Retry `OutlinedButton`;
   list toggle-failure snackbar **`"Couldn't update — please try again"`**; active-empty-with-history
   inline note **`"All clear — no active tasks."`** (only when `completed`/`archived` non-empty — full

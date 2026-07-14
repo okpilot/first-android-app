@@ -5,24 +5,30 @@ import '../models/contact.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/initials_avatar.dart';
 
-/// A searchable multi-select of contacts, used to assign attendees to an event. Pops the
-/// selected contacts (both the back arrow and Done commit the current selection; a system
-/// back is a cancel → null, so the caller keeps its previous selection).
-class AttendeePickerScreen extends StatefulWidget {
-  const AttendeePickerScreen({
+/// A searchable multi-select of contacts, used to link contacts to a parent record — an event's
+/// attendees or a task's People. [title] is the role noun for that context (e.g. `'attendees'`,
+/// `'people'`); it drives the AppBar copy only. Pops the selected contacts (both the back arrow
+/// and Done commit the current selection; a system back is a cancel → null, so the caller keeps
+/// its previous selection).
+class ContactPickerScreen extends StatefulWidget {
+  const ContactPickerScreen({
     super.key,
     required this.repository,
     required this.initialSelected,
+    required this.title,
   });
 
   final ContactsRepository repository;
   final List<Contact> initialSelected;
 
+  /// The role noun for this context (`'attendees'` / `'people'`) — AppBar copy only.
+  final String title;
+
   @override
-  State<AttendeePickerScreen> createState() => _AttendeePickerScreenState();
+  State<ContactPickerScreen> createState() => _ContactPickerScreenState();
 }
 
-class _AttendeePickerScreenState extends State<AttendeePickerScreen> {
+class _ContactPickerScreenState extends State<ContactPickerScreen> {
   late Future<List<Contact>> _future;
   // id -> contact, so a selection survives filtering the list.
   late final Map<String, Contact> _selected;
@@ -62,13 +68,17 @@ class _AttendeePickerScreenState extends State<AttendeePickerScreen> {
   @override
   Widget build(BuildContext context) {
     final n = _selected.length;
+    final noun = widget.title;
+    final nounCap = noun.isEmpty
+        ? noun
+        : noun[0].toUpperCase() + noun.substring(1);
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: _done,
         ),
-        title: Text(n == 0 ? 'Add attendees' : 'Attendees · $n'),
+        title: Text(n == 0 ? 'Add $noun' : '$nounCap · $n'),
         actions: [
           TextButton(onPressed: _done, child: const Text('Done')),
           const SizedBox(width: 8),
@@ -105,10 +115,12 @@ class _AttendeePickerScreenState extends State<AttendeePickerScreen> {
                 }
                 final all = snapshot.data ?? const <Contact>[];
                 if (all.isEmpty) {
-                  return const EmptyState(
+                  return EmptyState(
                     icon: Icons.contacts_outlined,
                     title: 'No contacts yet',
-                    message: 'Add contacts first, then invite them to events.',
+                    // Role-aware via the noun so the event path keeps its own wording
+                    // ("…link them as attendees.") and tasks read "…as people."
+                    message: 'Add contacts first, then link them as $noun.',
                   );
                 }
                 final shown = _filter(all);

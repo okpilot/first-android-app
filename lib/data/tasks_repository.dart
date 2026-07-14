@@ -26,8 +26,13 @@ class SupabaseTasksRepository implements TasksRepository {
 
   final SupabaseClient _client;
   static const _table = 'tasks';
+  // Embed the People join on EVERY read (fetchAll AND _fetchOne): the write path replaces the
+  // whole `p_contacts` set, so any in-memory Task fed to update() must carry its full contacts or
+  // the save/complete-toggle would wipe the links. task_contacts is to-many; each row's `contacts`
+  // is to-one (null for a soft-deleted, RLS-hidden contact — Task.fromJson skips those).
   static const _columns =
-      'id, title, is_done, notes, created_at, updated_at, deleted_at';
+      'id, title, is_done, notes, created_at, updated_at, deleted_at, '
+      'task_contacts(contact_id, contacts(id, name, company))';
 
   @override
   Future<List<Task>> fetchAll() async {
@@ -42,7 +47,8 @@ class SupabaseTasksRepository implements TasksRepository {
 
   @override
   Future<Task> create(Task draft) async {
-    // draft.toRpcParams() is {p_title, p_notes} — matches create_task(p_title, p_notes). Spread, like siblings.
+    // draft.toRpcParams() is {p_title, p_notes, p_contacts} — matches create_task(p_title, p_notes,
+    // p_contacts). Spread, like siblings.
     final id = await _client.rpc('create_task', params: draft.toRpcParams());
     return _fetchOne(id as String);
   }
@@ -50,9 +56,10 @@ class SupabaseTasksRepository implements TasksRepository {
   @override
   Future<Task> update(Task task) async {
     // Explicit params (NOT toRpcParams, which is the create shape): update_task carries the
-    // title, is_done AND notes, so one write path serves the form save AND the list/detail
-    // complete-toggle (which re-sends the unchanged title + notes with a flipped is_done). The
-    // server normalizes blank/whitespace notes to NULL.
+    // title, is_done, notes AND the People set, so one write path serves the form save AND the
+    // list/detail complete-toggle (which re-sends the unchanged title + notes + contacts with a
+    // flipped is_done). The server normalizes blank/whitespace notes to NULL and replaces the
+    // whole task_contacts set from p_contacts.
     await _client.rpc(
       'update_task',
       params: {
@@ -60,6 +67,7 @@ class SupabaseTasksRepository implements TasksRepository {
         'p_title': task.title.trim(),
         'p_is_done': task.isDone,
         'p_notes': task.notes,
+        'p_contacts': [for (final c in task.contacts) c.id],
       },
     );
     return _fetchOne(task.id);

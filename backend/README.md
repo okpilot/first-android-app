@@ -188,6 +188,44 @@ curl -s -o /dev/null -w '%{http_code}\n' -X DELETE -H "apikey: $ANON" -H "Author
   "$REST/tasks?id=eq.$TID"                                        # -> 401 (no delete grant)
 ```
 
+## Verify: task People (task_contacts, Decision 34)
+`create_task` / `update_task` also carry `p_contacts uuid[]` — the linked-contacts ("People")
+set, written atomically into the `task_contacts` join (membership is set ONLY by these RPCs;
+`task_contacts` grants anon SELECT only). These curls prove: `p_contacts` links contacts,
+`on conflict do nothing` dedupes a repeated id, `update` replaces the whole set (delete +
+reinsert), and the embed reads them back. Needs two existing contact ids — reuse `$CID` from the
+contact block or create two (all six `create_contact` params are required — no defaults):
+```bash
+C1=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_contact" \
+  -d '{"p_name":"Nadia","p_dob":null,"p_email":null,"p_phone":null,"p_company":"Acme","p_remarks":null}' | tr -d '"')
+C2=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_contact" \
+  -d '{"p_name":"Bo","p_dob":null,"p_email":null,"p_phone":null,"p_company":null,"p_remarks":null}' | tr -d '"')
+# create with People (C1 listed twice -> on conflict dedupes to one row)
+PID=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_task" \
+  -d "{\"p_title\":\"Prep the pitch\",\"p_contacts\":[\"$C1\",\"$C1\",\"$C2\"]}" | tr -d '"')
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/tasks?id=eq.$PID&select=title,task_contacts(contact_id,contacts(id,name,company))"  # -> two People (dup collapsed), embed resolves
+# update replaces the whole set -> only C2 remains
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/update_task" \
+  -d "{\"p_id\":\"$PID\",\"p_title\":\"Prep the pitch\",\"p_is_done\":false,\"p_notes\":null,\"p_contacts\":[\"$C2\"]}"
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/tasks?id=eq.$PID&select=task_contacts(contact_id)"      # -> exactly one row, contact_id = $C2
+# update with empty People clears the set
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/update_task" \
+  -d "{\"p_id\":\"$PID\",\"p_title\":\"Prep the pitch\",\"p_is_done\":false,\"p_notes\":null,\"p_contacts\":[]}"
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/task_contacts?task_id=eq.$PID"                          # -> [] (set cleared)
+# no direct write: anon INSERT into the join is refused (membership is RPC-only)
+curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/task_contacts" \
+  -d "{\"task_id\":\"$PID\",\"contact_id\":\"$C1\"}"             # -> 401 (no insert grant)
+```
+
 ## Verify: task comment write RPCs (Decision 33, Slice 2b)
 `create_task_comment` / `update_task_comment` / `soft_delete_task_comment` / `restore_task_comment`
 are the RPC write path for `task_comments` — the task-side twin of `event_comments`. Same

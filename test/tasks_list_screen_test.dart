@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:first_android_app/data/comments_repository.dart';
+import 'package:first_android_app/data/contacts_repository.dart';
 import 'package:first_android_app/data/tasks_repository.dart';
 import 'package:first_android_app/models/comment.dart';
+import 'package:first_android_app/models/contact.dart';
 import 'package:first_android_app/models/task.dart';
 import 'package:first_android_app/screens/task_detail_screen.dart';
 import 'package:first_android_app/screens/task_form_screen.dart';
@@ -76,6 +78,7 @@ class _StatefulTasksRepo implements TasksRepository {
       id: 'new-${_tasks.length}',
       title: draft.title.trim(),
       notes: draft.notes,
+      contacts: draft.contacts,
     );
     _tasks.add(t);
     return t;
@@ -93,12 +96,13 @@ class _StatefulTasksRepo implements TasksRepository {
   Future<Task> archive(String id) async {
     final i = _tasks.indexWhere((t) => t.id == id);
     final t = _tasks[i];
-    // Only deleted_at changes server-side — notes/title/is_done survive the archive.
+    // Only deleted_at changes server-side — notes/People/title/is_done survive the archive.
     _tasks[i] = Task(
       id: t.id,
       title: t.title,
       isDone: t.isDone,
       notes: t.notes,
+      contacts: t.contacts,
       deletedAt: DateTime(2026, 7, 12),
     );
     return _tasks[i];
@@ -113,6 +117,7 @@ class _StatefulTasksRepo implements TasksRepository {
       title: t.title,
       isDone: t.isDone,
       notes: t.notes,
+      contacts: t.contacts,
     );
     return _tasks[i];
   }
@@ -159,14 +164,31 @@ class _UpdateFailsRepo implements TasksRepository {
   Future<Task> restore(String id) => throw UnimplementedError();
 }
 
-Widget _screen(TasksRepository repo, {CommentsRepository? comments}) =>
-    MaterialApp(
-      theme: AppTheme.light,
-      home: TasksListScreen(
-        repository: repo,
-        commentsRepository: comments ?? _InertCommentsRepo(),
-      ),
-    );
+/// Minimal fake contacts repo — the list threads it to the form/detail for the People picker,
+/// but these tests don't drive the picker (People are seeded on the Task directly).
+class _FakeContactsRepo implements ContactsRepository {
+  @override
+  Future<List<Contact>> fetchAll() async => const [];
+  @override
+  Future<Contact> create(Contact draft) async => draft;
+  @override
+  Future<Contact> update(Contact contact) async => contact;
+  @override
+  Future<void> softDelete(String id) async {}
+}
+
+Widget _screen(
+  TasksRepository repo, {
+  CommentsRepository? comments,
+  ContactsRepository? contacts,
+}) => MaterialApp(
+  theme: AppTheme.light,
+  home: TasksListScreen(
+    repository: repo,
+    commentsRepository: comments ?? _InertCommentsRepo(),
+    contactsRepository: contacts ?? _FakeContactsRepo(),
+  ),
+);
 
 /// Pump the screen pinned to a **phone-width** surface. The default test surface is 800px, which
 /// is ≥ [kTasksWideBreakpoint] (640) and would trip the wide desktop layout — so the phone-chrome
@@ -264,6 +286,28 @@ void main() {
     expect(find.text('Buy milk'), findsNothing);
     expect(find.text('COMPLETED'), findsOneWidget);
   });
+
+  testWidgets(
+    'completing a task from the list circle preserves its linked People',
+    (tester) async {
+      // The list's own _toggleDone path (distinct from the detail Complete button) must not
+      // clobber People — copyWith(isDone:) has to carry contacts through.
+      final repo = _StatefulTasksRepo(const [
+        Task(
+          id: 't1',
+          title: 'Buy milk',
+          contacts: [Contact(id: 'c1', name: 'Nadia')],
+        ),
+      ]);
+      await _pumpNarrow(tester, repo);
+
+      await tester.tap(find.byKey(const ValueKey('check_t1')));
+      await tester.pumpAndSettle();
+
+      expect(repo.lastUpdated!.isDone, isTrue);
+      expect(repo.lastUpdated!.contacts.map((c) => c.id), ['c1']);
+    },
+  );
 
   testWidgets('a failed load shows the error state, and Retry recovers', (
     tester,

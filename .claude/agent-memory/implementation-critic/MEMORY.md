@@ -49,6 +49,11 @@ See [positive-signals](topics/positive-signals.md) for the per-slice-type win co
 - **Infra / bash / SQL-only**: trace quoting per shell hop; verify NOTIFY contract; check cold-start
   path when a "redundant" reload is removed.
 - **Config / asset** (app-icon): pixel-sample corner-vs-center alpha, don't trust headers.
+- **Join-table + picker-generalization** (People on a task, Jul 14): m2m mirror of event_attendees
+  (drop+CR both RPCs on arity change, join-delete AFTER not-found raise, `using(true)` off #4 list) +
+  rename Attendee→ContactPicker w/ `title` noun (event strings byte-identical); load-bearing toggle
+  invariant verified on all 3 update paths via `copyWith` default + embed on both reads; title-vs-
+  widget.x trap handled (host seeds+setState `_task`).
 
 ## Durable, verified facts (load-bearing)
 - **`CREATE EVENT TRIGGER` does NOT fire `ddl_command_end`** (proven locally on postgres:15/16:

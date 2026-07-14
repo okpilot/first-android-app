@@ -69,73 +69,22 @@ _Seed watch-items carried from the project's conventions:_
 - **Decision 26 write-RPC ports (contacts 1988e26, event-types 20970ea, comments 3296258)** —
   [topics/write-rpc-ports.md](topics/write-rpc-ports.md). Reusable 4-check port shape; `.single()`
   and the non-atomic RPC-then-`_fetchOne` re-fetch are correct by design — do NOT flag as races.
-- **Tasks view-first (Decision 29, `cfbfe7f`)** — the state-lift-vs-`widget.x` trap
-  (impl-critic WATCHING) is RESOLVED: `TaskDetailScreen` host seeds `late _task` AND `setState`s it in
-  every `onChanged`, so the dynamic AppBar ('Task'/'Archived task') can't go stale on in-place
-  archive/restore. Desktop `_task`↔`_load()` consistency holds via the compound pane key
-  `id:isArchived:isDone` — a body archive/restore/complete flips its own `_task` first (no flash while
-  stale `_lastData` keeps the key unchanged), then `_load()` reseeds on remount. `_openForm` create
-  (push form → `_selectedId=saved.id` → `_load()`, NO optimistic `_lastData` patch) is a byte-for-byte
-  mirror of the accepted Contacts template — the removed `_onEditorChanged` patch was only needed for
-  the OLD in-pane create; the brief fall-to-`active.first` during the load window is the same
-  consistent-by-design transient Contacts already ships. Do NOT flag it. `_run` =
-  messenger-before-await + `mounted` re-check in both branches.
-- **Tasks in-pane create reintroduced, wide-only (Decision 29 amend, `acb0043`) — CLEAN.** Wide "New"
-  is now `_creatingNew` bool → `TaskEditView(key ValueKey('new'), onChanged: _onCreated)` in the
-  detail pane; narrow still pushes `TaskFormScreen` via `_openForm`. `_creatingNew` set true ONLY in
-  `_startNew`, cleared in BOTH `_onCreated` and `_selectTask` (row-select) — no wide path strands it.
-  `_startNew`/`_selectTask`/`_onCreated` are synchronous `setState` (no await before setState) and
-  `onChanged` fires from a mounted child ⇒ parent guaranteed mounted — no `mounted`-after-`await` gap.
-  `_onCreated` = setState(creating=false, `_selectedId=saved.id`) + `unawaited(_load())`, NO optimistic
-  `_lastData` patch — same accepted create→reload transient (pane briefly falls to `active.first`, or
-  first-task flashes the zero-state EmptyState during the load window, exactly like Contacts). A
-  background `_load()` during creation can't clobber the draft: stable `ValueKey('new')` ⇒ no remount ⇒
-  text preserved. Do NOT flag any of this. Dartdoc key-order nit RESOLVED (`id:isArchived:isDone` now
-  matches real key). NOTE: Tasks now diverges from Contacts here — Contacts wide `onNew` still pushes
-  the full form; only Tasks does in-pane create. MetaLine extraction (`lib/widgets/meta_line.dart`)
-  keeps the `parts.isEmpty→SizedBox.shrink()` guard; contact call-site retains its own null guard —
-  behaviorally faithful merge.
-- **CommentsSection extraction (Slice 2a, `2717da9`) — CLEAN, behavior-preserving.** `_CommentsSection`
-  transplanted verbatim from `event_detail_screen.dart` to public `lib/widgets/comments_section.dart`
-  (only `fetchForEvent`→`fetchFor`, `eventId`→`parentId`, and a `_run` doc-comment losing its
-  now-irrelevant `_confirmDelete`-idiom aside). All async invariants preserved: `_load()` triple
-  `identical(future,_future)` stale-guard, `_lastData` FutureBuilder fallback, `_busy` re-entrancy,
-  `if(!mounted)return` after every await, messenger-before-await. The PostgREST **select-only alias**
-  `parent_id:event_id` in `_columns` is correct: reads `.eq('event_id', parentId)` and `_fetchOne`
-  `.eq('id', id)` use REAL column names; `_columns` (with alias) is shared by list-read and `_fetchOne`
-  so `Comment.fromJson` reads `json['parent_id']` uniformly on both paths. RPC maps verified against the
-  binding migration (`20260712150000_comment_write_rpcs.sql`): `create_comment(p_event_id,p_body)` with
-  `body.trim()` preserved, `update_comment(p_id,p_body)` body-only (no `p_event_id` ⇒ edit can't reparent),
-  `soft_delete_comment(p_id)`/`restore_comment(p_id)`. `toRpcParams` moved model→repo (repo now owns the
-  `p_event_id` vs future `p_task_id` divergence). Do NOT flag the alias/real-column split as a bug — it's
-  the deliberate mechanism letting one `Comment` model serve both `*_comments` tables. Minor coverage
-  note (test-writer's lane): the removed `Comment.toRpcParams` unit test means create-body-trim is no
-  longer model-unit-tested, but `_add` pre-trims and the repo re-trims — functionally covered.
-- **Task `notes` scalar field add (Decision 31, `4d3d6b8`) — CLEAN.** Reusable
-  "add-a-nullable-scalar-to-an-RPC-written-entity" shape: (1) `copyWith({String? notes})` uses
-  `notes ?? this.notes` (null arg = keep) — the complete-toggle (`copyWith(isDone:...)`, list circle
-  + detail button) preserves notes untouched; the form always passes `_notes.text` ('' when cleared),
-  and CLEAR-via-`''`→server `nullif(trim(),'')`→NULL is deliberate (no explicit-clear sentinel
-  needed). (2) Migration drops OLD signatures (`create_task(text)`, `update_task(uuid,text,boolean)`),
-  create-or-replaces with prior body VERBATIM + notes, re-grants NEW signatures — correct PGRST203
-  dodge, do NOT flag. (3) Detail-key `id:isArchived:isDone` omits notes, but a notes-only edit does
-  NOT strand stale display: `_edit`/`_run` do in-place `setState(_task=updated)` (updated = server
-  re-fetch, so '' already normalized to NULL) BEFORE the keyless-for-notes `_load()` rebuild; State
-  persists with the fresh value. `_save` = messenger-before-await + `if(!mounted)return` in both
-  branches. Reinforce this shape for the next scalar-field-add slice.
-- **Task comments repo/wiring (Slice 2b, 643bbeb)** — `SupabaseTaskCommentsRepository` is a
-  byte-faithful twin of the event repo: `parent_id:task_id` select-only alias + real-column
-  `.eq('task_id')`/`.eq('id')`, `.single()` re-fetch (row always readable under `using(true)`, incl.
-  archived), RPC names+arity all match the binding migration `20260714140000` (`create_task_comment`
-  (p_task_id,p_body) / `update_task_comment`,`soft_delete_task_comment`,`restore_task_comment`(p_id)).
-  Do NOT flag the alias split or the non-atomic RPC-then-`_fetchOne`. Wiring is clean & un-crossed:
-  main→app→HomeShell threads `commentsRepository`(event)→Calendar and `taskCommentsRepository`(task)
-  →TasksList→both TaskDetailScreen (narrow) & TaskDetailView (desktop pane); both typed
-  `CommentsRepository` so the compiler wouldn't catch a swap — values verified correct by hand.
-- **Comments `_CommentsSection` (3a87cc8)** — `identical(future,_future)` stale-guard holds through
-  the initState-fetch-vs-user-add race; mutation ops clear controllers/`_editingId` AFTER the await
-  so a failed write preserves text + keeps edit mode open; `_run` = capture messenger + `mounted`
-  re-check + `busy` in `finally`. Reinforce this shape for new list/mutation sections.
+- **CLEAN slice traces** (full detail → [topics/clean-slices.md](topics/clean-slices.md)):
+  - Tasks view-first (Decision 29, `cfbfe7f`) — state-lift trap RESOLVED; `id:isArchived:isDone`
+    key + host `setState(_task)` keep the AppBar/pane consistent; create transient is by-design.
+  - Tasks in-pane create wide-only (Decision 29 amend, `acb0043`) — `_creatingNew`+`ValueKey('new')`;
+    synchronous setStates, no `mounted` gap, draft survives background `_load()`. Diverges from Contacts.
+  - CommentsSection extraction (Slice 2a, `2717da9`) — verbatim transplant; `parent_id:event_id`
+    select-only alias is deliberate (real cols on `.eq`), all async invariants preserved.
+  - Task `notes` scalar add (Decision 31, `4d3d6b8`) — reusable nullable-scalar-on-RPC-entity shape;
+    `copyWith(notes ?? this.notes)`, `''`→NULL clear, keyless-for-notes but no stale display.
+  - Task↔contacts "People on a task" (`2b100b7`) — KEY invariant HOLDS: toggles `copyWith(isDone:!)`
+    preserve contacts via `contacts ?? this.contacts`; `_columns` embeds on both reads; soft-deleted
+    contact drop is CORRECTLY LIMITED to the RLS-hidden case (parity with events). Do NOT flag.
+  - Task comments repo/wiring (Slice 2b, `643bbeb`) — byte-faithful event-repo twin; alias split +
+    non-atomic re-fetch by design; main→HomeShell wiring un-crossed, verified by hand.
+  - Comments `_CommentsSection` (`3a87cc8`) — `identical(future,_future)` guard; controllers cleared
+    AFTER await so a failed write preserves text; `_run` = messenger + `mounted` + `busy` finally.
 
 ## Known false-positive traps (do not flag these)
 - Missing `auth.uid()` / `with check (true)` is expected pre-auth (issue #3) — DB-security is

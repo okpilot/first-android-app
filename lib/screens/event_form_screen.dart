@@ -12,7 +12,7 @@ import '../util/calendar.dart';
 import '../util/format.dart';
 import '../widgets/initials_avatar.dart';
 import '../widgets/type_label.dart';
-import 'attendee_picker_screen.dart';
+import 'contact_picker_screen.dart';
 import 'event_types_screen.dart';
 
 /// Add (when [existing] is null) or edit an event. Pops the saved [Event] on success,
@@ -157,9 +157,10 @@ class _EventFormScreenState extends State<EventFormScreen> {
   Future<void> _openAttendees() async {
     final result = await Navigator.of(context).push<List<Contact>>(
       MaterialPageRoute(
-        builder: (_) => AttendeePickerScreen(
+        builder: (_) => ContactPickerScreen(
           repository: widget.contactsRepository,
           initialSelected: _attendees,
+          title: 'attendees',
         ),
       ),
     );
