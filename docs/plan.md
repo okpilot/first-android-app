@@ -40,19 +40,28 @@ disposable. Built emergently — thin slices, one at a time.
 4. **Next candidates:** DB security hardening (issue #3 — RPC `auth.uid()`, revoke PUBLIC execute, column-level write grants) · **auth (GoTrue)** logins + owner-based RLS · search/filter on the list · run on the physical S23+ · full 7-column week (wide-screen adaptive).
 
 ## Next slice
-**Decision 28 (Slices A–D) is fully SHIPPED & MERGED** — PR #31 → `5a41c5b`, PR #32 → `27ba471`; both
-branches deleted; cloud CR answered on both. Plans (done): `…/fuzzy-munching-thacker.md` (A–C),
-`…/jolly-tickling-star.md` (D). `main` clean & synced.
+**In flight — task comments (Decisions 32 + 33), on branches, both PRs open:**
+- **Slice 2a** — shared `CommentsSection` extraction (PR #37, `feat/task-comments`), awaiting cloud CR → merge.
+- **Slice 2b** — task comments feature (PR #38, `feat/task-comments-2b`, stacked on 2a), awaiting cloud CR → merge.
 
-**Owed first (phone QA backlog, one S23+ trip via `/updatephone` once the device is back on the
-tailnet):** Tasks v0 (Decision 27) **and** the RPC write paths (Decision 26) — both merged & deployed
-but never QA'd on-device.
+**Owed first, before the next feature slice:**
+1. **Deploy + QA (bundled):** homebase deploy of the `task_comments` **and** the owed notes
+   migration (Decision 31), then light/dark **emulator + Linux QA** of task comments and notes — the
+   first time the feature runs. Notes deploy pairs with `/updatephone` + `/updatelinux` (the new
+   required `update_task.p_notes` errors old clients until rebuilt).
+2. **Decision 34** — codify the review-bar change (CR-local `M=1`; fleet floor 3/4, ceiling 6,
+   adversarial + completeness lenses) into `.claude/commands/crlocal.md` + `.claude/rules/agent-workflow.md`.
+3. **Cloud CR triage** on #37/#38 (`/coderabbit` → `/fullpush` → `/replycoderabbit`).
 
 **Then, the next feature slice — pick one:**
 - **Contact activity view** (fills the master-detail right-pane whitespace with a contact's related
-  events/lessons, tasks, notes — the agreed Decision 28 follow-on; data links already exist), OR
+  events, tasks, notes — the agreed Decision 28 follow-on; data links already exist), OR
 - **in-app empty-state hints — issue #21 (Decision 21)**, OR the meatier **auth (GoTrue) + DB
-  hardening — issue #3**.
+  hardening — issue #3** (which now also owns the deferred task_comments server-side archived-task
+  guard + closing the direct write path — see the migration header).
+
+**Phone QA backlog (one S23+ trip via `/updatephone` once the device is back on the tailnet):**
+Tasks v0 (Decision 27) + the RPC write paths (Decision 26) — merged & deployed, never QA'd on-device.
 
 **Prior: RPC-for-all-writes — Decision 26 — ✅ COMPLETE (all 4 slices merged & deployed).** Every write goes through a SECURITY DEFINER RPC; reads
 stay direct. Plan (done): `~/.local/share/claude-config/claude/plans/stuck-lazy-sutton.md`.
