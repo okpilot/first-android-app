@@ -19,7 +19,11 @@ class _StatefulTasksRepo implements TasksRepository {
 
   @override
   Future<Task> create(Task draft) async {
-    final t = Task(id: 'new-${_tasks.length}', title: draft.title.trim());
+    final t = Task(
+      id: 'new-${_tasks.length}',
+      title: draft.title.trim(),
+      notes: draft.notes,
+    );
     _tasks.add(t);
     return t;
   }
@@ -36,10 +40,12 @@ class _StatefulTasksRepo implements TasksRepository {
   Future<Task> archive(String id) async {
     final i = _tasks.indexWhere((t) => t.id == id);
     final t = _tasks[i];
+    // Only deleted_at changes server-side — notes/title/is_done survive the archive.
     _tasks[i] = Task(
       id: t.id,
       title: t.title,
       isDone: t.isDone,
+      notes: t.notes,
       deletedAt: DateTime(2026, 7, 12),
     );
     return _tasks[i];
@@ -49,7 +55,12 @@ class _StatefulTasksRepo implements TasksRepository {
   Future<Task> restore(String id) async {
     final i = _tasks.indexWhere((t) => t.id == id);
     final t = _tasks[i];
-    _tasks[i] = Task(id: t.id, title: t.title, isDone: t.isDone);
+    _tasks[i] = Task(
+      id: t.id,
+      title: t.title,
+      isDone: t.isDone,
+      notes: t.notes,
+    );
     return _tasks[i];
   }
 }
@@ -383,7 +394,7 @@ void main() {
 
     await tester.tap(find.widgetWithText(FilledButton, 'New'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextFormField), 'Book the venue');
+    await tester.enterText(find.byType(TextFormField).first, 'Book the venue');
     await tester.tap(find.widgetWithText(FilledButton, 'Add task'));
     await tester.pumpAndSettle();
 

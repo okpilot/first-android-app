@@ -16,9 +16,20 @@ void main() {
       expect(t.id, 't1');
       expect(t.title, 'Call Nadia about the renewal');
       expect(t.isDone, isFalse);
+      expect(t.notes, isNull); // absent notes → null
       expect(t.createdAt, isNotNull);
       expect(t.deletedAt, isNull);
       expect(t.isArchived, isFalse);
+    });
+
+    test('reads a notes value back', () {
+      final t = Task.fromJson({
+        'id': 't1',
+        'title': 'Call Nadia',
+        'is_done': false,
+        'notes': 'Prefers a call after 15:00.',
+      });
+      expect(t.notes, 'Prefers a call after 15:00.');
     });
 
     test('parses a completed task', () {
@@ -77,14 +88,21 @@ void main() {
   });
 
   group('Task.toRpcParams', () {
-    test('maps to the trimmed p_title only (the create shape)', () {
+    test('maps to trimmed p_title + p_notes (the create shape)', () {
       final p = Task.draft(title: '  Prep the demo  ').toRpcParams();
-      expect(p, {'p_title': 'Prep the demo'});
+      // p_notes is always present (create_task(p_title, p_notes)); a draft without
+      // notes sends null, which the server normalizes to NULL.
+      expect(p, {'p_title': 'Prep the demo', 'p_notes': null});
       // is_done is written by update_task, never create_task — must not leak in.
       expect(p.containsKey('p_is_done'), isFalse);
       expect(p.containsKey('p_id'), isFalse);
       expect(p.containsKey('created_at'), isFalse);
       expect(p.containsKey('deleted_at'), isFalse);
+    });
+
+    test('carries notes verbatim (the server does the trim/nullif)', () {
+      final p = Task.draft(title: 'x', notes: '  jot this  ').toRpcParams();
+      expect(p['p_notes'], '  jot this  ');
     });
   });
 
@@ -94,9 +112,14 @@ void main() {
       expect(t.id, '');
       expect(t.isDone, isFalse);
       expect(t.isArchived, isFalse);
+      expect(t.notes, isNull); // notes optional → null when omitted
       expect(t.createdAt, isNull);
       expect(t.updatedAt, isNull);
       expect(t.deletedAt, isNull);
+    });
+
+    test('carries optional notes', () {
+      expect(Task.draft(title: 'x', notes: 'hi').notes, 'hi');
     });
   });
 
@@ -117,9 +140,19 @@ void main() {
       expect(edited.deletedAt, original.deletedAt);
     });
 
-    test('toggling isDone alone keeps the title', () {
-      const t = Task(id: 't1', title: 'keep me', isDone: false);
-      expect(t.copyWith(isDone: true).title, 'keep me');
+    test('toggling isDone alone keeps the title AND the notes', () {
+      const t = Task(id: 't1', title: 'keep me', isDone: false, notes: 'ctx');
+      final toggled = t.copyWith(isDone: true);
+      expect(toggled.title, 'keep me');
+      expect(toggled.notes, 'ctx'); // a null notes arg means "keep"
+    });
+
+    test('replaces notes when given (including an empty string to clear)', () {
+      const t = Task(id: 't1', title: 'x', notes: 'old');
+      expect(t.copyWith(notes: 'new').notes, 'new');
+      // The form clears by passing '': non-null, so it overrides. (The server then
+      // normalizes '' → NULL on the round-trip.)
+      expect(t.copyWith(notes: '').notes, '');
     });
   });
 }

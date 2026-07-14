@@ -6,9 +6,9 @@ import 'package:first_android_app/models/task.dart';
 import 'package:first_android_app/screens/task_form_screen.dart';
 import 'package:first_android_app/theme.dart';
 
-/// Records what the screen asked the repository to do. The form is title-only now
-/// (Decision 29) — completion / archive / restore live on the detail view — so this
-/// only needs create + update.
+/// Records what the screen asked the repository to do. The form edits title + notes
+/// (Decision 29 view-first; notes added later) — completion / archive / restore live on
+/// the detail view — so this only needs create + update.
 class _RecordingTasksRepo implements TasksRepository {
   Task? lastCreated;
   Task? lastUpdated;
@@ -72,7 +72,8 @@ void main() {
     await tester.pumpWidget(_form(repo));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextFormField), '  Prep demo  ');
+    // The Title field is the first TextFormField; Notes is the second.
+    await tester.enterText(find.byType(TextFormField).first, '  Prep demo  ');
     await tester.tap(find.widgetWithText(FilledButton, 'Add task'));
     await tester.pumpAndSettle();
 
@@ -80,9 +81,49 @@ void main() {
     // draft carries the raw text; toRpcParams()/the RPC does the trim.
     expect(repo.lastCreated!.title.trim(), 'Prep demo');
     expect(repo.lastCreated!.isDone, isFalse);
+    expect(repo.lastCreated!.notes, ''); // empty notes box → '' (server → NULL)
   });
 
-  testWidgets('the form is title-only: no complete toggle or archive action', (
+  testWidgets('adding a task with notes passes them to create', (tester) async {
+    final repo = _RecordingTasksRepo();
+    await tester.pumpWidget(_form(repo));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).first, 'Call Nadia');
+    await tester.enterText(
+      find.byType(TextFormField).last,
+      'Prefers a call after 15:00.',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Add task'));
+    await tester.pumpAndSettle();
+
+    expect(repo.lastCreated!.notes, 'Prefers a call after 15:00.');
+  });
+
+  testWidgets('editing seeds the notes field and saves the edited notes', (
+    tester,
+  ) async {
+    final repo = _RecordingTasksRepo();
+    await tester.pumpWidget(
+      _form(
+        repo,
+        existing: const Task(id: 't1', title: 'Call Nadia', notes: 'old note'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The existing notes are seeded into the field...
+    expect(find.text('old note'), findsOneWidget);
+    // ...and an edit round-trips the new value.
+    await tester.enterText(find.byType(TextFormField).last, 'new note');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save changes'));
+    await tester.pumpAndSettle();
+
+    expect(repo.lastUpdated!.notes, 'new note');
+    expect(repo.lastUpdated!.title, 'Call Nadia'); // untouched title preserved
+  });
+
+  testWidgets('the form offers no complete toggle or archive action', (
     tester,
   ) async {
     // Both New and Edit — the form never offers completion or archive (those are the
@@ -121,7 +162,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Edit task'), findsOneWidget); // app bar title
-    await tester.enterText(find.byType(TextFormField), 'Call Nadia back');
+    await tester.enterText(find.byType(TextFormField).first, 'Call Nadia back');
     await tester.tap(find.widgetWithText(FilledButton, 'Save changes'));
     await tester.pumpAndSettle();
 
@@ -138,7 +179,7 @@ void main() {
     await tester.pumpWidget(_form(_ThrowingTasksRepo()));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextFormField), 'Prep demo');
+    await tester.enterText(find.byType(TextFormField).first, 'Prep demo');
     await tester.tap(find.widgetWithText(FilledButton, 'Add task'));
     await tester.pumpAndSettle();
 

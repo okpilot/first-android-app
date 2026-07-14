@@ -60,13 +60,18 @@
   real Postgres (migration verification), not `flutter test`. Say "out of convention, not written"
   rather than invent a SupabaseClient fake. Interface unchanged → existing fakes hold, no edit.
 - RPC param maps now live in the **repos** (each knows its own signature, `p_event_id` vs `p_task_id`),
-  not the model — `Comment` dropped `toRpcParams()` in Slice 2a (commit 078d03c), so there's no
+  not the model — `Comment` dropped `toRpcParams()` in Slice 2a (commit `2717da9`), so there's no
   model-level param test for comments; the repo builds `{p_event_id, p_body}` inline.
 - `Contact.toRpcParams()` (replaced `toWrite()`): trims `p_name` client-side; sends `p_email`/
   `p_phone`/`p_company`/`p_remarks` **raw** (server `nullif(trim(...))` owns empty→null); `p_dob` via
   `ymd()` or null; omits id + server timestamps (repo adds `p_id` for updates). When testing a
   `toRpcParams`/`toWrite` map, assert the **full key set** and every optional passthrough — a dropped
   or mis-keyed field (e.g. `p_phone`) otherwise slips through.
+
+## Per-slice screen testing notes → [screen-testing-notes](topics/screen-testing-notes.md)
+How to test / what's a non-gap, one section per slice: `CommentsSection` (shared, Slice 2a),
+`tasks_list_screen` stale-guard (RESOLVED), `task_detail_screen` wrapper, task `notes`, `home_shell`
+sidebar, `contacts` master-detail + search header. Read it before testing any of those screens.
 
 ## Known false-positive traps (do not flag / do not do)
 - Pure presenter widgets in `lib/widgets/` (`EmptyState`, `TypeLabel`, `InitialsAvatar`, `SubtleButton`)

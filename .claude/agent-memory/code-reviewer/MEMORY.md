@@ -44,27 +44,32 @@
   `lib/widgets/`). The `error` field is passed-but-unused in ALL of them (contacts included) — a
   codebase-wide convention, not new dead code. Do NOT flag a new list screen's `_ErrorState` as
   "re-implementing a shared atom" or the unused `error` field as a task-slice finding.
+- **`task_detail_screen`'s inline Notes block is NOT a re-implemented `_Field` atom.** The detail
+  Notes block (`if (_task.notes!=null && isNotEmpty) [SizedBox(24), Text('Notes',labelMedium),
+  SizedBox(6), Text(value,bodyLarge)]`) says in a comment it "mirrors the ContactDetailView row
+  style" — but structurally it is DISTINCT from contact_detail's private `_Field` (which is an
+  icon + `Row` + "Not added" fallback + onSurfaceVariant colour, spacing 20/2). Notes has no icon,
+  no Row, no fallback (hides when empty), different spacing. Do NOT flag it as duplicating `_Field`
+  or as an extractable shared atom — it is a simpler one-off, unlike the byte-identical `MetaLine`.
 - **Out of scope** — DB/RLS/SQL/secrets (`db-security-reviewer`), deep logic correctness
   (`semantic-reviewer`), lints `flutter analyze` already reports.
 
-## Positive signals (reference-quality files — full detail in the topic file)
-One-line pointers; specifics in [reference-implementations](topics/reference-implementations.md).
-- **`event_form_screen.dart`** — reference form screen (flat `ListView`, every concern a small
-  `StatelessWidget`, repo/time-math outside `build()`, mounted+captured-messenger in `_save`).
-- **RPC-write repository pattern** — Decision 26 shape (`.rpc('create_x', model.toRpcParams())` →
-  `id as String` → private `_fetchOne`; `update` spreads `{p_id, ...toRpcParams()}`). Per-entity
-  divergences (comments' body-only `edit`; tasks' one-path `update`; comment model dropping
-  `toRpcParams` when parent-agnostic) are EXPECTED — verify correct, don't flag as drift.
-- **`tasks_list_screen.dart`** (58b2b5d) — reference list screen w/ collapsible sections; light
-  snapshot partition in `_buildBody`, `_lastData` guard, three-state wide pane (acb0043).
-- **`_Sidebar`/`_SidebarItem` in `home_shell.dart`** (4679504) — clean UI-chrome StatelessWidget
-  extraction. Nit: nav record type repeated ×3 → a `typedef` would DRY it (SUGGESTION).
-- **`ContactDetailView` in `contact_detail_screen.dart`** (16ed89e; Slice C 194ff12) — master-detail
-  body split (thin host + shared no-Scaffold body); pure `_matches` search filter. Nit: list-pane
-  width `320` a bare literal coupled to `640` → a `kListPaneWidth` const would be refactor-safe.
-- **`task_detail_screen.dart`** (cfbfe7f) — view-first detail; shared `SubtleButton`/`MetaLine`
-  atoms; `_StatusPill` NEW local widget (label-paired dot, not colour-as-data).
-- **`CommentsSection` in `lib/widgets/comments_section.dart`** (078d03c, Slice 2a) — reference shared
+## Positive signals — reference-quality slices to compare against
+Full detail in [positive-signals](topics/positive-signals.md). One-line index:
+- **`event_form_screen.dart`** — the form-screen reference (flat `ListView`, every concern a small
+  private `StatelessWidget`, repo/time-math out of `build()`, messenger/nav captured before await).
+- **RPC-write repository pattern** — `create`/`update` → `_client.rpc(...)` + `_fetchOne(id)`;
+  `toRpcParams()` `p_`-prefixed; per-entity divergences (comments' body-only `edit`, tasks' explicit
+  `update`, comment model dropping `toRpcParams` when parent-agnostic — Slice 2a) are EXPECTED,
+  verify-don't-flag. Task notes slice (`4d3d6b8`) = clean scalar-field-add.
+- **`tasks_list_screen.dart`** / **`contacts_list_screen` (Slices B/C)** — list-screen reference:
+  `_lastData` stale-guard, `mounted`-after-await, light snapshot `where` partition/search (NOT a
+  heavy transform), `EmptyState` + hand-rolled `_ErrorState`, master-detail `ValueKey` remount.
+- **`_Sidebar`/`_SidebarItem` (`home_shell.dart`)** — clean UI-chrome `StatelessWidget` extraction.
+- **`task_detail_screen.dart` / `ContactDetailView`** — view-first detail reference: thin
+  Scaffold host + shared body that NEVER pops, reuses `SubtleButton`/`MetaLine`, `_StatusPill` is
+  label-paired (not colour-as-data).
+- **`CommentsSection` (`lib/widgets/comments_section.dart`, Slice 2a `2717da9`)** — reference shared
   stateful sub-section, extracted verbatim from `event_detail_screen.dart`, now parent-agnostic
-  (`CommentsRepository`+`parentId`); own `_lastData` stale-guard; inline empty/error correctly
-  hand-rolled (not `EmptyState`); grep-confirmed zero stale old-name refs.
+  (`CommentsRepository`+`parentId`); own `_lastData` + `identical(future,_future)` stale-guard;
+  inline empty/error hand-rolled (not `EmptyState`); grep-confirmed zero stale old-name refs.

@@ -12,6 +12,11 @@ _First run pending. Seed watch-items carried from the project's conventions:_
 - Repository/model signature change → is the hand-written `_FakeXRepo` in `test/` updated too?
 - Fallbacks match sibling code (`EventType` bad-hex → `#888888`; `toWrite()` empty → null)?
 - `FutureBuilder` screens keep the `_lastData` stale-guard (failed refresh keeps stale data)?
+- **`toRpcParams` shape-change → stale sibling comment (WATCHING, count 1 — Task notes slice):** when
+  a scalar field is added to `toRpcParams()`, the repo's `create()` doc-comment that quotes the OLD
+  literal (`draft.toRpcParams() is exactly {p_title}`) goes stale in the SAME file as the change.
+  Minor (SUGGESTION), but it's the doc-comment-sweep discipline in miniature — grep the entity's repo
+  for a comment quoting the pre-change param literal whenever the create shape grows.
 - **State-lift-vs-`widget.x` trap (WATCHING, count 1 — Decision 29 view-first Tasks):** a thin
   Scaffold host whose AppBar title/state claims (in a comment) to track the LIVE entity but reads
   `widget.task`/`widget.contact` (frozen at push) while the mutation lives in the child body via
@@ -22,6 +27,22 @@ _First run pending. Seed watch-items carried from the project's conventions:_
   dynamic title was introduced.
 
 ## Positive signals (all clean pre-commit, 0 blocking — distilled lessons)
+- **Scalar-field-add slice** (Task notes = Decision 27 follow-on): adding one optional `text` column
+  end-to-end. Win condition traps, all verified clean here: (1) migration is drop-old-signature +
+  create-or-replace-new for BOTH create+update (arity change → PGRST203 without the drop), bodies
+  VERBATIM plus the field, `nullif(trim(p_notes),'')` normalization in both, grants re-issued on the
+  NEW signatures (`create_task(text,text)`/`update_task(uuid,text,boolean,text)`), soft_delete/restore
+  untouched so their grants stand. (2) The clear-path is the subtle one: form passes `_notes.text`
+  (`''` when cleared) → `copyWith(notes:'')` OVERRIDES (empty string is non-null, so `notes ?? this.notes`
+  keeps the `''`) → repo sends `p_notes:''` → server `nullif`→NULL → `_fetchOne` returns null → detail
+  hides. The `notes ?? this.notes` keep-branch is only reached by `_toggleDone` (omits notes → null →
+  kept). Both paths correct; the doc-comment on copyWith correctly states it can't represent an explicit
+  clear and doesn't need to. (3) Keyed-remount stale-notes is a NON-issue: the detail `_edit` does
+  in-place `setState(()=>_task=updated)` after the pushed form pops, so notes refresh regardless of the
+  `id:isArchived:isDone` key (notes deliberately NOT in key — an edit that changes only notes needs no
+  remount because setState already reseeded). (4) Every reconstructing test fake (create/archive/restore
+  in the two `_StatefulTasksRepo`s) threads `notes` through; update fakes store the passed task verbatim.
+  mounted-after-await present in `_save`.
 - **Template-port slices** (contacts/event_types write-RPCs = Decision 26 Slices 1–2; event-comments
   section): when a slice ports a green template, diff the two side-by-side and confirm the divergences
   are only entity-specific — the security posture (`security definer`+`set search_path=public`,
