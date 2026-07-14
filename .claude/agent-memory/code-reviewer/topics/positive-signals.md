@@ -41,8 +41,8 @@ Read on demand. These are the clean, exemplary implementations to compare new co
   `update`, doc-comment on `create` updated from `{p_title}` to `{p_title, p_notes}`) + form
   (a 2nd multiline `TextFormField`, controller disposed, seeded on edit; title's
   `TextInputAction.done`+`onFieldSubmitted:_save` correctly became `.next` now that a field
-  follows) + detail (a read-only inline Notes block). All paths tested in-slice (137 green).
-  Reviewed CLEAN.
+  follows) + detail (a read-only inline Notes block). All paths tested in-slice (138 green,
+  after test-writer added the complete-toggle-keeps-notes test). Reviewed CLEAN.
 - **`tasks_list_screen.dart`** (58b2b5d) — reference-quality list screen with collapsible sections.
   `build()` composes; `_buildBody` does light snapshot partition (`where` on the fetched list into
   active/completed/archived — trivial derived view-state, NOT a heavy transform). `_lastData`
