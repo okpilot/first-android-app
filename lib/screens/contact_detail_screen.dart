@@ -6,6 +6,7 @@ import '../data/contacts_repository.dart';
 import '../models/contact.dart';
 import '../util/format.dart';
 import '../widgets/initials_avatar.dart';
+import '../widgets/subtle_button.dart';
 import 'contact_form_screen.dart';
 
 /// Full-screen read view for one contact — the phone / narrow layout. A thin
@@ -183,11 +184,10 @@ class _ContactDetailViewState extends State<ContactDetailView> {
             InitialsAvatar(name: c.name, radius: 28),
             const SizedBox(width: 16),
             Expanded(child: Text(c.name, style: theme.textTheme.headlineSmall)),
-            IconButton(
-              tooltip: 'Edit',
-              icon: const Icon(Icons.edit_outlined),
-              onPressed: _deleting ? null : _edit,
-            ),
+            const SizedBox(width: 12),
+            // A labeled subtle button, not a bare pencil icon — clearer intent and a real
+            // tap target. Quiet (neutral chip) next to the filled-ink primaries.
+            SubtleButton(onPressed: _deleting ? null : _edit, label: 'Edit'),
           ],
         ),
         const SizedBox(height: 24),

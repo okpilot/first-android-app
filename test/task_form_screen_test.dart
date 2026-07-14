@@ -6,12 +6,12 @@ import 'package:first_android_app/models/task.dart';
 import 'package:first_android_app/screens/task_form_screen.dart';
 import 'package:first_android_app/theme.dart';
 
-/// Records what the screen asked the repository to do.
+/// Records what the screen asked the repository to do. The form is title-only now
+/// (Decision 29) — completion / archive / restore live on the detail view — so this
+/// only needs create + update.
 class _RecordingTasksRepo implements TasksRepository {
   Task? lastCreated;
   Task? lastUpdated;
-  String? archivedId;
-  String? restoredId;
 
   @override
   Future<List<Task>> fetchAll() async => const [];
@@ -28,19 +28,12 @@ class _RecordingTasksRepo implements TasksRepository {
   }
 
   @override
-  Future<Task> archive(String id) async {
-    archivedId = id;
-    return const Task(id: '', title: 'x');
-  }
-
+  Future<Task> archive(String id) async => const Task(id: '', title: 'x');
   @override
-  Future<Task> restore(String id) async {
-    restoredId = id;
-    return const Task(id: '', title: 'x');
-  }
+  Future<Task> restore(String id) async => const Task(id: '', title: 'x');
 }
 
-/// Every mutation throws — to exercise the form's failure snackbars.
+/// Every mutation throws — to exercise the form's failure snackbar.
 class _ThrowingTasksRepo implements TasksRepository {
   @override
   Future<List<Task>> fetchAll() async => const [];
@@ -65,8 +58,6 @@ void main() {
     await tester.pumpWidget(_form(repo));
     await tester.pumpAndSettle();
 
-    // Save now lives solely in the body button (the AppBar action was dropped when the
-    // editor body was extracted into TaskEditView, Decision 28 Slice D).
     await tester.tap(find.widgetWithText(FilledButton, 'Add task'));
     await tester.pumpAndSettle();
 
@@ -91,93 +82,55 @@ void main() {
     expect(repo.lastCreated!.isDone, isFalse);
   });
 
-  testWidgets('the New task form shows no complete toggle or archive action', (
+  testWidgets('the form is title-only: no complete toggle or archive action', (
     tester,
   ) async {
+    // Both New and Edit — the form never offers completion or archive (those are the
+    // detail view's buttons now).
     await tester.pumpWidget(_form(_RecordingTasksRepo()));
     await tester.pumpAndSettle();
-
     expect(find.text('Mark complete'), findsNothing);
-    expect(find.text('Archive task'), findsNothing);
-    expect(find.text('Restore task'), findsNothing);
+    expect(find.byType(Switch), findsNothing);
+    expect(find.text('Archive'), findsNothing);
+    expect(find.text('Restore'), findsNothing);
+
+    await tester.pumpWidget(
+      _form(
+        _RecordingTasksRepo(),
+        existing: const Task(id: 't1', title: 'x'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Mark complete'), findsNothing);
+    expect(find.byType(Switch), findsNothing);
+    expect(find.text('Archive'), findsNothing);
+    expect(find.text('Restore'), findsNothing);
   });
 
-  testWidgets('editing a live task can mark it complete and calls update', (
+  testWidgets('editing renames via update and preserves the completion state', (
     tester,
   ) async {
     final repo = _RecordingTasksRepo();
     await tester.pumpWidget(
       _form(
         repo,
-        existing: const Task(id: 't1', title: 'Call Nadia'),
+        // A DONE task: a title-only edit must NOT clobber isDone back to false.
+        existing: const Task(id: 't1', title: 'Call Nadia', isDone: true),
       ),
     );
     await tester.pumpAndSettle();
 
-    // The complete toggle + Archive are present for a live task; Restore is not.
-    expect(find.text('Mark complete'), findsOneWidget);
-    expect(find.text('Archive task'), findsOneWidget);
-    expect(find.text('Restore task'), findsNothing);
-
-    await tester.tap(find.text('Mark complete'));
-    await tester.pumpAndSettle();
+    expect(find.text('Edit task'), findsOneWidget); // app bar title
+    await tester.enterText(find.byType(TextFormField), 'Call Nadia back');
     await tester.tap(find.widgetWithText(FilledButton, 'Save changes'));
     await tester.pumpAndSettle();
 
     expect(repo.lastUpdated, isNotNull);
     expect(repo.lastUpdated!.id, 't1');
+    expect(repo.lastUpdated!.title, 'Call Nadia back');
+    // copyWith(title:) carried isDone through — the rename didn't reopen the task.
     expect(repo.lastUpdated!.isDone, isTrue);
   });
-
-  testWidgets('editing a live task can archive it', (tester) async {
-    final repo = _RecordingTasksRepo();
-    await tester.pumpWidget(
-      _form(
-        repo,
-        existing: const Task(id: 't1', title: 'Call Nadia'),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Archive task'));
-    await tester.pumpAndSettle();
-
-    expect(repo.archivedId, 't1');
-  });
-
-  testWidgets(
-    'an archived task is read-only: Restore only, no Save/toggle/archive',
-    (tester) async {
-      final repo = _RecordingTasksRepo();
-      await tester.pumpWidget(
-        _form(
-          repo,
-          existing: Task(
-            id: 't9',
-            title: 'Old checklist',
-            deletedAt: DateTime(2026, 7, 11),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Archived task'), findsOneWidget); // app bar title
-      expect(find.text('Mark complete'), findsNothing);
-      expect(find.text('Archive task'), findsNothing);
-      // Read-only: no Save affordances (neither the appBar action nor "Save changes"),
-      // and the title field is readOnly — editing an archived row would hit the
-      // update_task deleted_at guard and fail with a misleading error.
-      expect(find.text('Save'), findsNothing);
-      expect(find.text('Save changes'), findsNothing);
-      final titleField = tester.widget<TextField>(find.byType(TextField));
-      expect(titleField.readOnly, isTrue);
-
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Restore task'));
-      await tester.pumpAndSettle();
-
-      expect(repo.restoredId, 't9');
-    },
-  );
 
   testWidgets('a failed save surfaces a snackbar and stays on the form', (
     tester,
@@ -195,29 +148,11 @@ void main() {
     expect(find.widgetWithText(FilledButton, 'Add task'), findsOneWidget);
   });
 
-  testWidgets('a failed archive surfaces a snackbar and stays on the form', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _form(
-        _ThrowingTasksRepo(),
-        existing: const Task(id: 't1', title: 'Call Nadia'),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Archive task'));
-    await tester.pumpAndSettle();
-
-    expect(find.text("Couldn't archive — please try again"), findsOneWidget);
-    expect(find.text('Edit task'), findsOneWidget); // didn't pop
-  });
-
-  // TaskEditView is the Scaffold-less body embedded in the desktop editor pane, where it
-  // stays mounted after a save (no pop). Guard that a successful save resets `_saving` so the
-  // editor doesn't freeze — the failure mode the pane introduced (Decision 28 Slice D).
+  // TaskEditView is the Scaffold-less body embedded in TaskFormScreen. Guard that a
+  // successful save resets `_saving` (so the AbsorbPointer never freezes it) and reports
+  // the saved task up via onChanged.
   testWidgets(
-    'TaskEditView: a save fires onChanged and leaves the editor usable (no freeze)',
+    'TaskEditView: a save fires onChanged with the saved task and stays usable',
     (tester) async {
       final repo = _RecordingTasksRepo();
       final saved = <Task>[];

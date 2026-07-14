@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:first_android_app/data/tasks_repository.dart';
 import 'package:first_android_app/models/task.dart';
+import 'package:first_android_app/screens/task_detail_screen.dart';
 import 'package:first_android_app/screens/task_form_screen.dart';
 import 'package:first_android_app/screens/tasks_list_screen.dart';
 import 'package:first_android_app/theme.dart';
@@ -228,39 +229,53 @@ void main() {
     },
   );
 
-  testWidgets('tapping a live task row opens the edit form', (tester) async {
-    final repo = _StatefulTasksRepo(const [
-      Task(id: 't1', title: 'Call Nadia'),
-    ]);
-    await _pumpNarrow(tester, repo);
+  testWidgets(
+    'tapping a live task row opens the read-only detail (not the form)',
+    (tester) async {
+      final repo = _StatefulTasksRepo(const [
+        Task(id: 't1', title: 'Call Nadia'),
+      ]);
+      await _pumpNarrow(tester, repo);
 
-    await tester.tap(find.text('Call Nadia'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Call Nadia'));
+      await tester.pumpAndSettle();
 
-    // Navigated to the edit form (live task → "Edit task" + the complete toggle).
-    expect(find.text('Edit task'), findsOneWidget);
-    expect(find.text('Mark complete'), findsOneWidget);
-  });
+      // Navigated to the read-only detail: the "Task" bar, the Complete/Edit buttons, and
+      // NO editable title field (that only appears once you press Edit).
+      expect(find.byType(TaskDetailScreen), findsOneWidget);
+      expect(find.widgetWithText(AppBar, 'Task'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Complete'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Edit'), findsOneWidget);
+      expect(find.byType(TextFormField), findsNothing);
+      expect(find.text('Mark complete'), findsNothing);
+    },
+  );
 
-  testWidgets('tapping an archived task row opens the form in Restore mode', (
-    tester,
-  ) async {
-    final repo = _StatefulTasksRepo([
-      Task(id: 't9', title: 'Old checklist', deletedAt: DateTime(2026, 7, 11)),
-    ]);
-    await _pumpNarrow(tester, repo);
+  testWidgets(
+    'tapping an archived task row opens the read-only detail with Restore',
+    (tester) async {
+      final repo = _StatefulTasksRepo([
+        Task(
+          id: 't9',
+          title: 'Old checklist',
+          deletedAt: DateTime(2026, 7, 11),
+        ),
+      ]);
+      await _pumpNarrow(tester, repo);
 
-    // Expand the collapsed Archived section, then tap the row.
-    await tester.tap(find.text('ARCHIVED'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Old checklist'));
-    await tester.pumpAndSettle();
+      // Expand the collapsed Archived section, then tap the row.
+      await tester.tap(find.text('ARCHIVED'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Old checklist'));
+      await tester.pumpAndSettle();
 
-    // Archived → read-only history: Restore, not the toggle/archive.
-    expect(find.text('Archived task'), findsOneWidget);
-    expect(find.widgetWithText(OutlinedButton, 'Restore task'), findsOneWidget);
-    expect(find.text('Mark complete'), findsNothing);
-  });
+      // Archived → read-only history: Restore, not Complete/Edit.
+      expect(find.widgetWithText(AppBar, 'Archived task'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Restore'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Complete'), findsNothing);
+      expect(find.widgetWithText(FilledButton, 'Edit'), findsNothing);
+    },
+  );
 
   testWidgets('a failed complete-toggle surfaces the update snackbar', (
     tester,
@@ -276,10 +291,10 @@ void main() {
     expect(find.text('Buy milk'), findsOneWidget);
   });
 
-  // ---- wide (desktop) master-detail — Decision 28, Slice D -----------------
+  // ---- wide (desktop) master-detail — Decision 28 Slice D; view-first per Decision 29 ----
 
   testWidgets(
-    'wide: selecting a task opens its editor in place, no push (+ no AppBar/FAB)',
+    'wide: selecting a task opens its DETAIL in place, no push (+ no AppBar/FAB)',
     (tester) async {
       final repo = _StatefulTasksRepo(const [
         Task(id: 't1', title: 'Call Nadia'),
@@ -287,17 +302,18 @@ void main() {
       ]);
       await _pumpWide(tester, repo);
 
-      // No phone chrome; the header (title + inline New) + an in-place editor pane instead
-      // of a pushed form.
+      // No phone chrome; the header (title + inline New) + an in-place read-only detail pane
+      // instead of a pushed screen.
       expect(find.byType(AppBar), findsNothing);
       expect(find.byType(FloatingActionButton), findsNothing);
       expect(find.widgetWithText(FilledButton, 'New'), findsOneWidget);
-      expect(find.byType(TaskEditView), findsOneWidget);
+      expect(find.byType(TaskDetailView), findsOneWidget);
+      expect(find.byType(TaskDetailScreen), findsNothing); // no push
       expect(find.byType(TaskFormScreen), findsNothing);
-      // First active task auto-selected → its title shows in the editor field (not just the row).
+      // First active task auto-selected → its title shows in the detail pane (not just the row).
       expect(
         find.descendant(
-          of: find.byType(TaskEditView),
+          of: find.byType(TaskDetailView),
           matching: find.text('Call Nadia'),
         ),
         findsOneWidget,
@@ -306,10 +322,10 @@ void main() {
       // Selecting the second row swaps the pane in place — still no route push.
       await tester.tap(find.text('Prep demo'));
       await tester.pumpAndSettle();
-      expect(find.byType(TaskFormScreen), findsNothing);
+      expect(find.byType(TaskDetailScreen), findsNothing);
       expect(
         find.descendant(
-          of: find.byType(TaskEditView),
+          of: find.byType(TaskDetailView),
           matching: find.text('Prep demo'),
         ),
         findsOneWidget,
@@ -326,58 +342,54 @@ void main() {
     ]);
     await _pumpWide(tester, repo);
 
-    expect(find.byType(TaskEditView), findsOneWidget);
+    expect(find.byType(TaskDetailView), findsOneWidget);
     expect(
       find.descendant(
-        of: find.byType(TaskEditView),
+        of: find.byType(TaskDetailView),
         matching: find.text('Call Nadia'),
       ),
       findsOneWidget,
     );
-    // Editor-only affordance for a live task confirms it's the editable pane.
-    expect(find.text('Mark complete'), findsOneWidget);
-  });
-
-  testWidgets('wide: New task opens a blank editor in the pane (no push)', (
-    tester,
-  ) async {
-    final repo = _StatefulTasksRepo(const [
-      Task(id: 't1', title: 'Call Nadia'),
-    ]);
-    await _pumpWide(tester, repo);
-
-    await tester.tap(find.widgetWithText(FilledButton, 'New'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(TaskFormScreen), findsNothing);
-    expect(find.byType(TaskEditView), findsOneWidget);
-    // Blank draft: the Add-task button, and no complete toggle (new tasks aren't completable).
-    expect(find.widgetWithText(FilledButton, 'Add task'), findsOneWidget);
-    expect(find.text('Mark complete'), findsNothing);
+    // The live-task Complete button confirms the pane is showing the active task's detail.
+    expect(find.widgetWithText(FilledButton, 'Complete'), findsOneWidget);
   });
 
   testWidgets(
-    'wide: empty-state "New task" opens the blank draft editor (not a dead-end)',
+    'wide: New task pushes the title-only form (not an in-pane draft)',
     (tester) async {
-      await _pumpWide(tester, _StatefulTasksRepo(const []));
+      final repo = _StatefulTasksRepo(const [
+        Task(id: 't1', title: 'Call Nadia'),
+      ]);
+      await _pumpWide(tester, repo);
 
-      // Wide + totally empty → the full-screen empty state (no pane yet).
-      expect(find.text('No tasks yet'), findsOneWidget);
-      expect(find.byType(TaskEditView), findsNothing);
-
-      await tester.tap(find.widgetWithText(FilledButton, 'New task'));
+      await tester.tap(find.widgetWithText(FilledButton, 'New'));
       await tester.pumpAndSettle();
 
-      // The blank draft editor now renders in the pane — previously the button dead-ended
-      // because the empty-list branch returned before reaching the two-pane layout.
-      expect(find.text('No tasks yet'), findsNothing);
-      expect(find.byType(TaskEditView), findsOneWidget);
+      expect(find.byType(TaskFormScreen), findsOneWidget);
+      expect(find.widgetWithText(AppBar, 'New task'), findsOneWidget);
       expect(find.widgetWithText(FilledButton, 'Add task'), findsOneWidget);
     },
   );
 
+  testWidgets('wide: New task from the empty state pushes the form', (
+    tester,
+  ) async {
+    await _pumpWide(tester, _StatefulTasksRepo(const []));
+
+    // Wide + totally empty → the full-screen empty state (no pane yet).
+    expect(find.text('No tasks yet'), findsOneWidget);
+    expect(find.byType(TaskDetailView), findsNothing);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'New task'));
+    await tester.pumpAndSettle();
+
+    // Pushes the title-only form (no in-pane draft anymore).
+    expect(find.byType(TaskFormScreen), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Add task'), findsOneWidget);
+  });
+
   testWidgets(
-    'wide: toggling the selected task done from the list remounts the editor with the new state',
+    'wide: toggling the selected task done from the list remounts the pane with the new state',
     (tester) async {
       final repo = _StatefulTasksRepo(const [
         Task(id: 't1', title: 'Call Nadia'),
@@ -388,27 +400,23 @@ void main() {
       // Select t2 (its row title is unique — t1 is the auto-selected one already in the pane).
       await tester.tap(find.text('Prep demo'));
       await tester.pumpAndSettle();
-      final before = tester.widget<Switch>(
-        find.descendant(
-          of: find.byType(TaskEditView),
-          matching: find.byType(Switch),
-        ),
-      );
-      expect(before.value, isFalse);
+      expect(find.widgetWithText(FilledButton, 'Complete'), findsOneWidget);
 
       // Toggle t2 done from the LEFT list circle — not the pane.
       await tester.tap(find.byKey(const ValueKey('check_t2')));
       await tester.pumpAndSettle();
 
-      // The pane remounted (its key now includes isDone) so the editor reflects the new
-      // completion — guarding against a later "Save changes" overwriting it with a stale value.
-      final after = tester.widget<Switch>(
+      // The pane remounted (its key includes isDone) so the detail now reads as completed:
+      // Complete flipped to Reopen, and the selected task is still shown.
+      expect(find.widgetWithText(FilledButton, 'Reopen'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Complete'), findsNothing);
+      expect(
         find.descendant(
-          of: find.byType(TaskEditView),
-          matching: find.byType(Switch),
+          of: find.byType(TaskDetailView),
+          matching: find.text('Prep demo'),
         ),
+        findsOneWidget,
       );
-      expect(after.value, isTrue);
     },
   );
 }
