@@ -256,6 +256,10 @@ caddy/Caddyfile      /rest/v1 -> PostgREST, + permissive CORS for the Flutter we
   `task_comments` is born on the RPC path via `create_task_comment` / `update_task_comment` /
   `soft_delete_task_comment` / `restore_task_comment` — for uniformity; the `using (true)` policy
   means there was never a 42501 forcing a direct write. Still no hard-`DELETE` grant.
+  **RPCs are the *intended* application write path, not yet an *enforced* security boundary:**
+  the direct `anon`/`authenticated` INSERT/UPDATE grants + permissive policies remain open, so a
+  PostgREST client can still bypass these RPCs until the auth-hardening slice (issue #3) revokes the
+  direct grants (and adds `auth.uid()` owner checks). Same pre-auth posture as `contacts` / `event_types`.
 
 ## To homebase (later)
 Move this stack into `okpilot/selfhost/stacks/`, drop the local Caddy gateway (the
