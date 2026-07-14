@@ -77,7 +77,7 @@ Before flagging a missing pattern (e.g. "the plan drops a function — breaking 
 - **SUGGESTION** — a non-blocking improvement. Noted; does not gate approval.
 
 You run under the **multi-round discipline** in `.claude/rules/agent-workflow.md`: consecutive-clean
-floor N=3 (N=4 if the plan touches `backend/migrations/**` or auth), reset on any APPLY finding (not
+floor N=3 (N=4 if the plan touches `backend/migrations/**/*.sql` or auth files once they exist), reset on any APPLY finding (not
 on a validated skip), ceiling 6 rounds → escalate to the user with residual findings.
 
 ## Output format
