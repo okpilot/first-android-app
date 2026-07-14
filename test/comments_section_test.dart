@@ -11,6 +11,7 @@ import 'package:first_android_app/models/event.dart';
 import 'package:first_android_app/models/event_type.dart';
 import 'package:first_android_app/screens/event_detail_screen.dart';
 import 'package:first_android_app/theme.dart';
+import 'package:first_android_app/widgets/comments_section.dart';
 
 // The Comments section is private to event_detail_screen.dart, so it's exercised through
 // its public host, EventDetailScreen. Only the comments repo does anything here; the other
@@ -26,9 +27,9 @@ class _FakeCommentsRepo implements CommentsRepository {
   bool throwOnFetch = false;
 
   @override
-  Future<List<Comment>> fetchForEvent(String eventId) async {
+  Future<List<Comment>> fetchFor(String parentId) async {
     if (throwOnFetch) throw Exception('offline');
-    return _items.where((c) => c.eventId == eventId).toList()
+    return _items.where((c) => c.parentId == parentId).toList()
       ..sort((a, b) => b.id.compareTo(a.id)); // newest first
   }
 
@@ -36,7 +37,7 @@ class _FakeCommentsRepo implements CommentsRepository {
   Future<Comment> add(Comment draft) async {
     final saved = Comment(
       id: 'c${_seq++}',
-      eventId: draft.eventId,
+      parentId: draft.parentId,
       body: draft.body.trim(),
     );
     _items.add(saved);
@@ -62,7 +63,7 @@ class _FakeCommentsRepo implements CommentsRepository {
     final c = _items[i];
     final next = Comment(
       id: c.id,
-      eventId: c.eventId,
+      parentId: c.parentId,
       body: c.body,
       createdAt: c.createdAt,
       deletedAt: when,
@@ -124,7 +125,19 @@ Widget _detail(_FakeCommentsRepo comments) => MaterialApp(
 );
 
 Comment _live(String id, String body) =>
-    Comment(id: id, eventId: 'e1', body: body);
+    Comment(id: id, parentId: 'e1', body: body);
+
+// Mounts the widget on its own — no EventDetailScreen host — with an arbitrary parentId,
+// the way Slice 2b will wire it onto a task. Proves CommentsSection is genuinely
+// parent-agnostic and doesn't depend on any event-specific plumbing.
+Widget _standalone(_FakeCommentsRepo comments, String parentId) => MaterialApp(
+  theme: AppTheme.light,
+  home: Scaffold(
+    body: SingleChildScrollView(
+      child: CommentsSection(repository: comments, parentId: parentId),
+    ),
+  ),
+);
 
 void main() {
   testWidgets('empty state when there are no comments', (tester) async {
@@ -142,7 +155,7 @@ void main() {
       _live('c1', 'Sent the agenda round.'),
       Comment(
         id: 'c0',
-        eventId: 'e1',
+        parentId: 'e1',
         body: 'Rescheduled to the afternoon.',
         deletedAt: DateTime(2026, 7, 10),
       ),
@@ -321,5 +334,50 @@ void main() {
     await tester.enterText(find.byType(TextField).last, 'Revised');
     await tester.pump();
     expect(saveButton().onPressed, isNotNull);
+  });
+
+  // The whole point of the extraction (Slice 2a): the widget is a standalone, public,
+  // parent-agnostic section ready to hang off a task in Slice 2b. These mount it directly
+  // — no EventDetailScreen — with a task-shaped parentId to prove that contract.
+  group('standalone / parent-agnostic', () {
+    testWidgets('mounts on its own and lists only the given parent\'s comments', (
+      tester,
+    ) async {
+      // Two parents in one repo; the widget must show only 'task-42' and never leak 'e1'.
+      final repo = _FakeCommentsRepo([
+        Comment(id: 'c9', parentId: 'task-42', body: 'Task-scoped note.'),
+        _live('c1', 'Event-scoped note.'),
+      ]);
+      await tester.pumpWidget(_standalone(repo, 'task-42'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Comments'), findsOneWidget);
+      expect(find.text('Task-scoped note.'), findsOneWidget);
+      expect(find.text('Event-scoped note.'), findsNothing);
+    });
+
+    testWidgets(
+      'a comment added standalone is created under the given parentId',
+      (tester) async {
+        final repo = _FakeCommentsRepo();
+        await tester.pumpWidget(_standalone(repo, 'task-42'));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.byType(TextField).first,
+          'From the task view',
+        );
+        await tester.pump();
+        await tester.tap(find.widgetWithText(FilledButton, 'Comment'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('From the task view'), findsOneWidget);
+        // The arbitrary parentId flowed through Comment.draft into the persisted row —
+        // it is retrievable under 'task-42', not the event default.
+        final saved = await repo.fetchFor('task-42');
+        expect(saved, hasLength(1));
+        expect(saved.single.parentId, 'task-42');
+      },
+    );
   });
 }

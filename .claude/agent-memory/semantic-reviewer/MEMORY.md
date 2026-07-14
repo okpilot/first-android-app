@@ -75,6 +75,22 @@ _Seed watch-items carried from the project's conventions:_
   the full form; only Tasks does in-pane create. MetaLine extraction (`lib/widgets/meta_line.dart`)
   keeps the `parts.isEmpty→SizedBox.shrink()` guard; contact call-site retains its own null guard —
   behaviorally faithful merge.
+- **CommentsSection extraction (Slice 2a, `078d03c`) — CLEAN, behavior-preserving.** `_CommentsSection`
+  transplanted verbatim from `event_detail_screen.dart` to public `lib/widgets/comments_section.dart`
+  (only `fetchForEvent`→`fetchFor`, `eventId`→`parentId`, and a `_run` doc-comment losing its
+  now-irrelevant `_confirmDelete`-idiom aside). All async invariants preserved: `_load()` triple
+  `identical(future,_future)` stale-guard, `_lastData` FutureBuilder fallback, `_busy` re-entrancy,
+  `if(!mounted)return` after every await, messenger-before-await. The PostgREST **select-only alias**
+  `parent_id:event_id` in `_columns` is correct: reads `.eq('event_id', parentId)` and `_fetchOne`
+  `.eq('id', id)` use REAL column names; `_columns` (with alias) is shared by list-read and `_fetchOne`
+  so `Comment.fromJson` reads `json['parent_id']` uniformly on both paths. RPC maps verified against the
+  binding migration (`20260712150000_comment_write_rpcs.sql`): `create_comment(p_event_id,p_body)` with
+  `body.trim()` preserved, `update_comment(p_id,p_body)` body-only (no `p_event_id` ⇒ edit can't reparent),
+  `soft_delete_comment(p_id)`/`restore_comment(p_id)`. `toRpcParams` moved model→repo (repo now owns the
+  `p_event_id` vs future `p_task_id` divergence). Do NOT flag the alias/real-column split as a bug — it's
+  the deliberate mechanism letting one `Comment` model serve both `*_comments` tables. Minor coverage
+  note (test-writer's lane): the removed `Comment.toRpcParams` unit test means create-body-trim is no
+  longer model-unit-tested, but `_add` pre-trims and the repo re-trims — functionally covered.
 - **Comments `_CommentsSection` (3a87cc8)** — `identical(future,_future)` stale-guard holds through
   the initState-fetch-vs-user-add race; mutation ops clear controllers/`_editingId` AFTER the await
   so a failed write preserves text + keeps edit mode open; `_run` = capture messenger + `mounted`
