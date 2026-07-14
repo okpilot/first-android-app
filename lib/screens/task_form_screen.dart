@@ -29,11 +29,12 @@ class TaskFormScreen extends StatelessWidget {
   }
 }
 
-/// The shared editor *body* for a task's **title** — create or rename. It has no
+/// The shared editor *body* for a task's **title + notes** — create or edit. It has no
 /// `Scaffold`/`AppBar` and NEVER pops — it reports the saved task up via [onChanged] and
-/// lets the host ([TaskFormScreen]) decide navigation. Title-only by design: completion
-/// is the detail view's Complete button, and `copyWith(title: …)` preserves `isDone` /
-/// `deletedAt` on an edit so a rename can't clobber the completion state.
+/// lets the host ([TaskFormScreen]) decide navigation. Completion is NOT here (it's the
+/// detail view's Complete button): `copyWith(title:, notes:)` preserves `isDone` /
+/// `deletedAt` on an edit so a save can't clobber the completion state. Notes are optional —
+/// a blank box is normalized to NULL by the server.
 class TaskEditView extends StatefulWidget {
   const TaskEditView({
     super.key,
@@ -55,6 +56,7 @@ class TaskEditView extends StatefulWidget {
 class _TaskEditViewState extends State<TaskEditView> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _title;
+  late final TextEditingController _notes;
   bool _saving = false;
 
   bool get _isEditing => widget.existing != null;
@@ -63,11 +65,13 @@ class _TaskEditViewState extends State<TaskEditView> {
   void initState() {
     super.initState();
     _title = TextEditingController(text: widget.existing?.title ?? '');
+    _notes = TextEditingController(text: widget.existing?.notes ?? '');
   }
 
   @override
   void dispose() {
     _title.dispose();
+    _notes.dispose();
     super.dispose();
   }
 
@@ -77,13 +81,16 @@ class _TaskEditViewState extends State<TaskEditView> {
 
     final messenger = ScaffoldMessenger.of(context);
     try {
-      // Edit is title-only: copyWith preserves isDone / deletedAt so a rename can't
-      // clobber the completion the detail's Complete button owns.
+      // copyWith preserves isDone / deletedAt so an edit can't clobber the completion the
+      // detail's Complete button owns. notes go through unchanged — a cleared box sends '',
+      // which the server normalizes to NULL.
       final Task saved = _isEditing
           ? await widget.repository.update(
-              widget.existing!.copyWith(title: _title.text),
+              widget.existing!.copyWith(title: _title.text, notes: _notes.text),
             )
-          : await widget.repository.create(Task.draft(title: _title.text));
+          : await widget.repository.create(
+              Task.draft(title: _title.text, notes: _notes.text),
+            );
       if (!mounted) return;
       setState(() => _saving = false);
       widget.onChanged?.call(saved);
@@ -114,10 +121,9 @@ class _TaskEditViewState extends State<TaskEditView> {
               children: [
                 TextFormField(
                   controller: _title,
-                  textInputAction: TextInputAction.done,
+                  textInputAction: TextInputAction.next,
                   textCapitalization: TextCapitalization.sentences,
                   autofocus: !_isEditing,
-                  onFieldSubmitted: (_) => _save(),
                   decoration: const InputDecoration(
                     labelText: 'Title',
                     border: OutlineInputBorder(),
@@ -125,6 +131,21 @@ class _TaskEditViewState extends State<TaskEditView> {
                   validator: (v) => (v == null || v.trim().isEmpty)
                       ? 'Title is required'
                       : null,
+                ),
+                const SizedBox(height: 22),
+                // Notes: a single optional freeform description. Multi-line; no validator —
+                // an empty box is fine (the server stores NULL). Grows with content.
+                TextFormField(
+                  controller: _notes,
+                  textCapitalization: TextCapitalization.sentences,
+                  keyboardType: TextInputType.multiline,
+                  minLines: 4,
+                  maxLines: null,
+                  decoration: const InputDecoration(
+                    labelText: 'Notes',
+                    alignLabelWithHint: true,
+                    border: OutlineInputBorder(),
+                  ),
                 ),
                 const SizedBox(height: 28),
                 FilledButton(

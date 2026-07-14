@@ -22,7 +22,11 @@ class _StatefulTasksRepo implements TasksRepository {
 
   @override
   Future<Task> create(Task draft) async {
-    final t = Task(id: 'new-${_tasks.length}', title: draft.title.trim());
+    final t = Task(
+      id: 'new-${_tasks.length}',
+      title: draft.title.trim(),
+      notes: draft.notes,
+    );
     _tasks.add(t);
     return t;
   }
@@ -40,10 +44,12 @@ class _StatefulTasksRepo implements TasksRepository {
     archivedId = id;
     final i = _tasks.indexWhere((t) => t.id == id);
     final t = _tasks[i];
+    // Archive changes only deleted_at server-side — notes (and title/is_done) survive.
     _tasks[i] = Task(
       id: t.id,
       title: t.title,
       isDone: t.isDone,
+      notes: t.notes,
       deletedAt: DateTime(2026, 7, 12),
     );
     return _tasks[i];
@@ -54,7 +60,12 @@ class _StatefulTasksRepo implements TasksRepository {
     restoredId = id;
     final i = _tasks.indexWhere((t) => t.id == id);
     final t = _tasks[i];
-    _tasks[i] = Task(id: t.id, title: t.title, isDone: t.isDone);
+    _tasks[i] = Task(
+      id: t.id,
+      title: t.title,
+      isDone: t.isDone,
+      notes: t.notes,
+    );
     return _tasks[i];
   }
 }
@@ -216,7 +227,61 @@ void main() {
 
     expect(find.byType(TaskFormScreen), findsOneWidget);
     expect(find.widgetWithText(AppBar, 'Edit task'), findsOneWidget);
-    expect(find.byType(TextFormField), findsOneWidget); // the title field
+    expect(find.byType(TextFormField), findsNWidgets(2)); // title + notes
+  });
+
+  testWidgets('notes render (read-only) under the pill when present', (
+    tester,
+  ) async {
+    final repo = _StatefulTasksRepo(const [
+      Task(id: 't1', title: 'Call Nadia', notes: 'Prefers a call after 15:00.'),
+    ]);
+    await tester.pumpWidget(
+      _detail(
+        repo,
+        const Task(
+          id: 't1',
+          title: 'Call Nadia',
+          notes: 'Prefers a call after 15:00.',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Notes'), findsOneWidget); // the section label
+    expect(find.text('Prefers a call after 15:00.'), findsOneWidget);
+    // Read-only: the notes are plain text, not an editable field.
+    expect(find.byType(TextFormField), findsNothing);
+  });
+
+  testWidgets('no Notes section when the task has none', (tester) async {
+    final repo = _StatefulTasksRepo(const [
+      Task(id: 't1', title: 'Call Nadia'),
+    ]);
+    await tester.pumpWidget(
+      _detail(repo, const Task(id: 't1', title: 'Call Nadia')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Notes'), findsNothing);
+  });
+
+  testWidgets('an archived task still shows its notes (read-only history)', (
+    tester,
+  ) async {
+    final archived = Task(
+      id: 't9',
+      title: 'Old checklist',
+      notes: 'Superseded by the new onboarding flow.',
+      deletedAt: DateTime(2026, 7, 11),
+    );
+    await tester.pumpWidget(_detail(_StatefulTasksRepo([archived]), archived));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Notes'), findsOneWidget);
+    expect(find.text('Superseded by the new onboarding flow.'), findsOneWidget);
+    // Archived → no Edit, notes are history.
+    expect(find.widgetWithText(FilledButton, 'Edit'), findsNothing);
   });
 
   testWidgets('a failed complete surfaces a snackbar and stays put', (
