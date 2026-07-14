@@ -5,24 +5,26 @@ import 'package:flutter/material.dart';
 import '../data/tasks_repository.dart';
 import '../models/task.dart';
 import '../widgets/empty_state.dart';
+import 'task_detail_screen.dart';
 import 'task_form_screen.dart';
 
 /// Fixed width of the master (list) pane in the desktop two-pane layout.
 const double kTaskListPaneWidth = 320;
 
 /// Content-area width at/above which Tasks becomes a two-pane master-detail (list + an
-/// in-place [TaskEditView]) instead of the phone's push-to-form flow (Decision 28,
-/// Slice D). = [kTaskListPaneWidth] beside a ≥320dp editor. Measured on the
+/// in-place [TaskDetailView]) instead of the phone's push-to-detail flow (Decision 28
+/// Slice D; view-first per Decision 29). = [kTaskListPaneWidth] beside a ≥320dp pane. Measured on the
 /// [LayoutBuilder] content area (not the whole window), so it composes with the nav
 /// sidebar. == `kTwoPaneBreakpoint` (contacts_list_screen.dart) today, so the whole app
 /// changes shape at one window width.
 const double kTasksWideBreakpoint = kTaskListPaneWidth + 320;
 
 /// The Tasks screen: active tasks up top, then collapsible **Completed** and **Archived**
-/// sections. Owns loading / empty / error states and the entry points to add, complete, edit,
-/// and archive a task. Mirrors [ContactsListScreen]'s Future + `_lastData` stale-guard. On a wide
-/// content area it becomes a master-detail: the list on the left, an in-place [TaskEditView] on
-/// the right (narrow keeps the phone push-to-form flow).
+/// sections. Owns loading / empty / error states and the entry points to add and open a task.
+/// Mirrors [ContactsListScreen]'s Future + `_lastData` stale-guard. On a wide content area it
+/// becomes a master-detail: the list on the left, an in-place read-only [TaskDetailView] on the
+/// right (narrow pushes [TaskDetailScreen]). Tapping a row opens the task read-first (Decision 29);
+/// tapping the row's circle still quick-completes it.
 class TasksListScreen extends StatefulWidget {
   const TasksListScreen({super.key, required this.repository});
 
@@ -42,9 +44,10 @@ class _TasksListScreenState extends State<TasksListScreen> {
   bool _showCompleted = false;
   bool _showArchived = false;
 
-  // Desktop master-detail state. The task shown in the editor pane, tracked by id so a list
-  // reload can't strand a stale object; `_creatingNew` is the "New task" blank-draft pane and
-  // takes precedence over the selection. Both unused in the narrow (push) layout.
+  // Desktop master-detail state. The task shown in the detail pane, tracked by id so a list
+  // reload can't strand a stale object; `_creatingNew` shows the title form in the pane (New on
+  // wide) and takes precedence over the selection. Both unused in the narrow (push) layout —
+  // there New pushes a full-screen form (Decision 29 chose in-pane create for desktop only).
   String? _selectedId;
   bool _creatingNew = false;
 
@@ -70,48 +73,54 @@ class _TasksListScreenState extends State<TasksListScreen> {
     }
   }
 
-  /// Narrow layout: push the full-screen form. Reloads on a successful mutation.
-  Future<void> _openForm({Task? existing}) async {
+  /// Narrow layout: add a task by pushing the title-only full-screen form. On save, select
+  /// the new task and reload. (Wide uses the in-pane [_startNew] instead.)
+  Future<void> _openForm() async {
+    final saved = await Navigator.of(context).push<Task>(
+      MaterialPageRoute(
+        builder: (_) => TaskFormScreen(repository: widget.repository),
+      ),
+    );
+    if (saved != null && mounted) {
+      setState(() => _selectedId = saved.id);
+      unawaited(_load());
+    }
+  }
+
+  /// Wide layout: open a blank title form in the detail pane (no full-screen push — that would
+  /// float a single field in an empty window; Decision 29).
+  void _startNew() => setState(() {
+    _creatingNew = true;
+    _selectedId = null;
+  });
+
+  /// Wide layout: the in-pane create form saved — select the new task (its read-only detail
+  /// takes the pane) and reload.
+  void _onCreated(Task saved) {
+    setState(() {
+      _creatingNew = false;
+      _selectedId = saved.id;
+    });
+    unawaited(_load());
+  }
+
+  /// Narrow layout: push the read-only detail. Reloads if anything changed while there.
+  Future<void> _openDetail(Task task) async {
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) =>
-            TaskFormScreen(repository: widget.repository, existing: existing),
+            TaskDetailScreen(repository: widget.repository, task: task),
       ),
     );
     if (changed == true && mounted) unawaited(_load());
   }
 
-  /// Wide layout: select a task into the editor pane (no navigation).
+  /// Wide layout: select a task into the detail pane (no navigation). Cancels an in-progress
+  /// new-task draft.
   void _selectTask(Task task) => setState(() {
     _selectedId = task.id;
     _creatingNew = false;
   });
-
-  /// Wide layout: open a blank draft in the editor pane.
-  void _startNew() => setState(() => _creatingNew = true);
-
-  /// Wide layout: an in-pane save/archive/restore landed — reload and keep the row selected.
-  void _onEditorChanged(Task result) {
-    setState(() {
-      _creatingNew = false;
-      _selectedId = result.id;
-      // Apply the result optimistically so the pane/selection stay stable while _load() runs
-      // (the stale-guard renders _lastData meanwhile — without this a create would fall back to
-      // another active task and archive/restore would flash the old control set).
-      final current = _lastData;
-      if (current != null) {
-        final updated = [...current];
-        final index = updated.indexWhere((t) => t.id == result.id);
-        if (index == -1) {
-          updated.insert(0, result);
-        } else {
-          updated[index] = result;
-        }
-        _lastData = updated;
-      }
-    });
-    unawaited(_load());
-  }
 
   /// Toggle a task's done state from the list (the circle tap). Reuses the one update path
   /// (title re-sent unchanged — a stated v0 skip). Reloads to reflect the section move.
@@ -132,8 +141,8 @@ class _TasksListScreenState extends State<TasksListScreen> {
   @override
   Widget build(BuildContext context) {
     // Decide the layout from the content-area width (the screen sits in HomeShell's Expanded
-    // beside the sidebar). Wide is a two-pane master-detail (list + in-place editor); narrow
-    // keeps the phone AppBar + FAB + push-to-form flow untouched.
+    // beside the sidebar). Wide is a two-pane master-detail (list + in-place detail); narrow
+    // keeps the phone AppBar + FAB + push-to-detail flow untouched.
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= kTasksWideBreakpoint;
@@ -182,7 +191,7 @@ class _TasksListScreenState extends State<TasksListScreen> {
 
     // Nothing at all → the inviting full-screen empty state (with a New task action), in both
     // layouts (no pane) — mirrors Contacts. Exception: on wide, once "New task" sets _creatingNew
-    // we fall through to _twoPane so the blank draft editor renders (else the button dead-ends).
+    // we fall through to _twoPane so the blank in-pane form renders (else the button dead-ends).
     if (active.isEmpty &&
         completed.isEmpty &&
         archived.isEmpty &&
@@ -192,6 +201,7 @@ class _TasksListScreenState extends State<TasksListScreen> {
         title: 'No tasks yet',
         message: 'Add your first task to get started.',
         action: FilledButton.icon(
+          // Wide opens the in-pane form; narrow pushes the full-screen form.
           onPressed: () => wide ? _startNew() : _openForm(),
           icon: const Icon(Icons.add),
           label: const Text('New task'),
@@ -201,7 +211,8 @@ class _TasksListScreenState extends State<TasksListScreen> {
 
     if (wide) return _twoPane(active, completed, archived);
 
-    // Narrow (phone): unchanged. AlwaysScrollable so pull-to-refresh works when content is short.
+    // Narrow (phone): tap a row to open its read-only detail. AlwaysScrollable so pull-to-refresh
+    // works when content is short.
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.only(top: 8, bottom: 96),
@@ -209,19 +220,21 @@ class _TasksListScreenState extends State<TasksListScreen> {
         active,
         completed,
         archived,
-        onTap: (t) => _openForm(existing: t),
+        onTap: _openDetail,
       ),
     );
   }
 
-  /// The desktop master-detail: the list on the left, an in-place [TaskEditView] on the right.
+  /// The desktop master-detail: the list on the left; on the right an in-place read-only
+  /// [TaskDetailView] for the selected task, the title [TaskEditView] while creating, or the empty
+  /// prompt. (Edit of an existing task still pushes the form from the detail view.)
   Widget _twoPane(
     List<Task> active,
     List<Task> completed,
     List<Task> archived,
   ) {
-    // Selection precedence: creating → blank draft; else the selected id if still present; else
-    // the first ACTIVE task; else the empty prompt. (Never auto-open a completed/archived task.)
+    // Selection precedence: creating → blank form; else the selected id if still present; else the
+    // first ACTIVE task; else the empty prompt. (Never auto-open a completed/archived task.)
     final Task? selected = _creatingNew
         ? null
         : _resolveSelected(active, completed, archived);
@@ -231,22 +244,19 @@ class _TasksListScreenState extends State<TasksListScreen> {
       pane = TaskEditView(
         key: const ValueKey('new'),
         repository: widget.repository,
-        onChanged: _onEditorChanged,
-        showHeader: true,
+        onChanged: _onCreated,
       );
     } else if (selected != null) {
-      pane = TaskEditView(
+      pane = TaskDetailView(
         // Key on archived + done state too: archive/restore keeps the id but flips the control
         // set, and toggling done from the list keeps the id but changes completion — both must
-        // remount (id-only would strand live controls on an archived task, or let a later "Save
-        // changes" overwrite a list-toggled completion with the pane's stale value).
+        // remount (id-only would strand the detail's `_task` on stale state).
         key: ValueKey(
           '${selected.id}:${selected.isArchived}:${selected.isDone}',
         ),
         repository: widget.repository,
-        existing: selected,
-        onChanged: _onEditorChanged,
-        showHeader: true,
+        task: selected,
+        onChanged: (_) => unawaited(_load()),
       );
     } else {
       pane = const _SelectPrompt();
@@ -282,7 +292,7 @@ class _TasksListScreenState extends State<TasksListScreen> {
     );
   }
 
-  /// Resolve which task the editor pane shows: the selected id if it's still in the list,
+  /// Resolve which task the detail pane shows: the selected id if it's still in the list,
   /// otherwise the first active task, otherwise none (empty prompt).
   Task? _resolveSelected(
     List<Task> active,
@@ -352,7 +362,7 @@ class _TasksListScreenState extends State<TasksListScreen> {
                 task: t,
                 selected: t.id == selectedId,
                 onToggle:
-                    null, // archived rows aren't completable — tap opens the editor/Restore
+                    null, // archived rows aren't completable — tap opens the read-only detail
                 onTap: () => onTap(t),
               ),
           ],
@@ -422,7 +432,7 @@ class _TasksHeader extends StatelessWidget {
   }
 }
 
-/// Shown in the desktop editor pane when nothing is selected (there are tasks, but none active
+/// Shown in the desktop detail pane when nothing is selected (there are tasks, but none active
 /// and none picked). Distinct from the zero-tasks [EmptyState].
 class _SelectPrompt extends StatelessWidget {
   const _SelectPrompt();
@@ -432,7 +442,7 @@ class _SelectPrompt extends StatelessWidget {
     return const EmptyState(
       icon: Icons.check_circle_outline,
       title: 'No task selected',
-      message: 'Select a task to edit, or add one.',
+      message: 'Select a task to view, or add one.',
     );
   }
 }

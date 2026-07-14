@@ -6,6 +6,8 @@ import '../data/contacts_repository.dart';
 import '../models/contact.dart';
 import '../util/format.dart';
 import '../widgets/initials_avatar.dart';
+import '../widgets/meta_line.dart';
+import '../widgets/subtle_button.dart';
 import 'contact_form_screen.dart';
 
 /// Full-screen read view for one contact — the phone / narrow layout. A thin
@@ -183,11 +185,10 @@ class _ContactDetailViewState extends State<ContactDetailView> {
             InitialsAvatar(name: c.name, radius: 28),
             const SizedBox(width: 16),
             Expanded(child: Text(c.name, style: theme.textTheme.headlineSmall)),
-            IconButton(
-              tooltip: 'Edit',
-              icon: const Icon(Icons.edit_outlined),
-              onPressed: _deleting ? null : _edit,
-            ),
+            const SizedBox(width: 12),
+            // A labeled subtle button, not a bare pencil icon — clearer intent and a real
+            // tap target. Quiet (neutral chip) next to the filled-ink primaries.
+            SubtleButton(onPressed: _deleting ? null : _edit, label: 'Edit'),
           ],
         ),
         const SizedBox(height: 24),
@@ -224,7 +225,7 @@ class _ContactDetailViewState extends State<ContactDetailView> {
         ),
         if (c.createdAt != null || c.updatedAt != null) ...[
           const SizedBox(height: 24),
-          _MetaLine(created: c.createdAt, updated: c.updatedAt),
+          MetaLine(created: c.createdAt, updated: c.updatedAt),
         ],
       ],
     );
@@ -272,30 +273,6 @@ class _Field extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// A muted date-only "Added / Updated" footer. Date-only via [ymd] (no time-of-day)
-/// keeps clear of the project's `timestamptz`/UTC time trap.
-class _MetaLine extends StatelessWidget {
-  const _MetaLine({required this.created, required this.updated});
-
-  final DateTime? created;
-  final DateTime? updated;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final parts = [
-      if (created != null) 'Added ${ymd(created!)}',
-      if (updated != null) 'Updated ${ymd(updated!)}',
-    ];
-    return Text(
-      parts.join('  ·  '),
-      style: theme.textTheme.bodyMedium?.copyWith(
-        color: theme.colorScheme.onSurfaceVariant,
       ),
     );
   }

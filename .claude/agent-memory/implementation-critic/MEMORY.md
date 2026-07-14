@@ -12,6 +12,14 @@ _First run pending. Seed watch-items carried from the project's conventions:_
 - Repository/model signature change → is the hand-written `_FakeXRepo` in `test/` updated too?
 - Fallbacks match sibling code (`EventType` bad-hex → `#888888`; `toWrite()` empty → null)?
 - `FutureBuilder` screens keep the `_lastData` stale-guard (failed refresh keeps stale data)?
+- **State-lift-vs-`widget.x` trap (WATCHING, count 1 — Decision 29 view-first Tasks):** a thin
+  Scaffold host whose AppBar title/state claims (in a comment) to track the LIVE entity but reads
+  `widget.task`/`widget.contact` (frozen at push) while the mutation lives in the child body via
+  `onChanged`. If the host title has a state-dependent split (`'Task'`/`'Archived task'`), the host
+  must seed `late _task` and `setState` it in `onChanged` — otherwise an in-place archive/restore
+  flips the BODY (Restore-only) but leaves the AppBar stale, contradicting the comment. Const-title
+  hosts (ContactDetailScreen = `'Contact'`) are immune, which is why the pattern was safe until a
+  dynamic title was introduced.
 
 ## Positive signals (all clean pre-commit, 0 blocking — distilled lessons)
 - **Template-port slices** (contacts/event_types write-RPCs = Decision 26 Slices 1–2; event-comments

@@ -16,7 +16,10 @@
   but kept the title editable + BOTH Save affordances live → Save → `update_task` guarded
   `deleted_at is null` → `no_data_found` → misleading "Couldn't save" (retry always fails). Fix =
   gate ALL write affordances (Save button + input field + `onFieldSubmitted`) on the same read-only
-  flag. Watch new edit/detail forms that gate ONE affordance but not its siblings.
+  flag. Watch new edit/detail forms that gate ONE affordance but not its siblings. Decision 29
+  (view-first Tasks, `cfbfe7f`) removes the whole risk STRUCTURALLY: the archived-readonly branch is
+  gone from `TaskEditView` (title-only form, live-only) and an archived task can no longer reach the
+  form at all — the read-only detail drops Edit/Complete and offers Restore only. Preferred shape.
 
 _Seed watch-items carried from the project's conventions:_
 - **`mounted`-after-`await`** — a new `await` in a `State` method that then touches `context` /
@@ -46,6 +49,32 @@ _Seed watch-items carried from the project's conventions:_
 - **Decision 26 write-RPC ports (contacts 1988e26, event-types 20970ea, comments 3296258)** —
   [topics/write-rpc-ports.md](topics/write-rpc-ports.md). Reusable 4-check port shape; `.single()`
   and the non-atomic RPC-then-`_fetchOne` re-fetch are correct by design — do NOT flag as races.
+- **Tasks view-first (Decision 29, `cfbfe7f`)** — the state-lift-vs-`widget.x` trap
+  (impl-critic WATCHING) is RESOLVED: `TaskDetailScreen` host seeds `late _task` AND `setState`s it in
+  every `onChanged`, so the dynamic AppBar ('Task'/'Archived task') can't go stale on in-place
+  archive/restore. Desktop `_task`↔`_load()` consistency holds via the compound pane key
+  `id:isArchived:isDone` — a body archive/restore/complete flips its own `_task` first (no flash while
+  stale `_lastData` keeps the key unchanged), then `_load()` reseeds on remount. `_openForm` create
+  (push form → `_selectedId=saved.id` → `_load()`, NO optimistic `_lastData` patch) is a byte-for-byte
+  mirror of the accepted Contacts template — the removed `_onEditorChanged` patch was only needed for
+  the OLD in-pane create; the brief fall-to-`active.first` during the load window is the same
+  consistent-by-design transient Contacts already ships. Do NOT flag it. `_run` =
+  messenger-before-await + `mounted` re-check in both branches.
+- **Tasks in-pane create reintroduced, wide-only (Decision 29 amend, `acb0043`) — CLEAN.** Wide "New"
+  is now `_creatingNew` bool → `TaskEditView(key ValueKey('new'), onChanged: _onCreated)` in the
+  detail pane; narrow still pushes `TaskFormScreen` via `_openForm`. `_creatingNew` set true ONLY in
+  `_startNew`, cleared in BOTH `_onCreated` and `_selectTask` (row-select) — no wide path strands it.
+  `_startNew`/`_selectTask`/`_onCreated` are synchronous `setState` (no await before setState) and
+  `onChanged` fires from a mounted child ⇒ parent guaranteed mounted — no `mounted`-after-`await` gap.
+  `_onCreated` = setState(creating=false, `_selectedId=saved.id`) + `unawaited(_load())`, NO optimistic
+  `_lastData` patch — same accepted create→reload transient (pane briefly falls to `active.first`, or
+  first-task flashes the zero-state EmptyState during the load window, exactly like Contacts). A
+  background `_load()` during creation can't clobber the draft: stable `ValueKey('new')` ⇒ no remount ⇒
+  text preserved. Do NOT flag any of this. Dartdoc key-order nit RESOLVED (`id:isArchived:isDone` now
+  matches real key). NOTE: Tasks now diverges from Contacts here — Contacts wide `onNew` still pushes
+  the full form; only Tasks does in-pane create. MetaLine extraction (`lib/widgets/meta_line.dart`)
+  keeps the `parts.isEmpty→SizedBox.shrink()` guard; contact call-site retains its own null guard —
+  behaviorally faithful merge.
 - **Comments `_CommentsSection` (3a87cc8)** — `identical(future,_future)` stale-guard holds through
   the initState-fetch-vs-user-add race; mutation ops clear controllers/`_editingId` AFTER the await
   so a failed write preserves text + keeps edit mode open; `_run` = capture messenger + `mounted`

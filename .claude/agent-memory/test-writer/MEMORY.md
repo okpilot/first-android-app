@@ -86,6 +86,21 @@ _First run pending. Seed watch-items from conventions:_
   `_RefreshFailsRepo` test would still go RED here — do NOT port it. Only the success-path
   `_OrderedRepo` stale-guard test is now portable, if coverage of the guard is wanted later.
 
+## `task_detail_screen` view-first (Decision 29) — testing notes
+- Two classes: `TaskDetailView` (the shared read-body, no Scaffold, reports up via `onChanged`) and
+  `TaskDetailScreen` (thin phone wrapper = AppBar + `PopScope`). The VIEW is covered exhaustively
+  (read/Complete↔Reopen/Archive→Restore/Edit-pushes-form/failure snackbars) in the same file.
+- The WRAPPER's distinct behaviour is separately testable and was the real gap: (1) its `PopScope`
+  `_dirty` back-signal — `canPop:false` + a deferred `Future.microtask(navigator.pop(_dirty))` — pops
+  **true** only after an `onChanged` fired (so the phone list reloads), **false** otherwise; (2) the
+  lifted `_task` retitles the AppBar 'Task'→'Archived task' on in-place archive. To test the pop
+  RESULT: push `TaskDetailScreen` from a Builder host, `await Navigator.push<Object?>` into a captured
+  var, then `tester.tap(find.byType(BackButton))` + pumpAndSettle (the microtask settles) and assert
+  the captured result. Added 3 wrapper tests (2026-07-14, commit cfbfe7f).
+- `SubtleButton` (lib/widgets/) is a pure presenter atom — no test (DO NOT #3); both branches
+  (`icon==null` → `FilledButton`, else `FilledButton.icon`) are exercised through the detail tests
+  (Edit has no icon; Complete/Archive/Restore do). Do not pad a widget test for it.
+
 ## `home_shell` sidebar (Decision 28, adaptive nav) — testing notes
 - `HomeShell` puts all four screens in an `IndexedStack`; finders skip the non-selected children
   (treated as offstage), so a screen's own content text (e.g. `ContactsListScreen` "New contact",
