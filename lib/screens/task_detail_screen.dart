@@ -3,9 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../data/comments_repository.dart';
+import '../data/contacts_repository.dart';
 import '../data/tasks_repository.dart';
+import '../models/contact.dart';
 import '../models/task.dart';
 import '../widgets/comments_section.dart';
+import '../widgets/initials_avatar.dart';
 import '../widgets/meta_line.dart';
 import '../widgets/subtle_button.dart';
 import 'task_form_screen.dart';
@@ -20,11 +23,13 @@ class TaskDetailScreen extends StatefulWidget {
     super.key,
     required this.repository,
     required this.commentsRepository,
+    required this.contactsRepository,
     required this.task,
   });
 
   final TasksRepository repository;
   final CommentsRepository commentsRepository;
+  final ContactsRepository contactsRepository;
   final Task task;
 
   @override
@@ -56,6 +61,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         body: TaskDetailView(
           repository: widget.repository,
           commentsRepository: widget.commentsRepository,
+          contactsRepository: widget.contactsRepository,
           task: widget.task,
           onChanged: (t) => setState(() {
             _dirty = true;
@@ -88,12 +94,14 @@ class TaskDetailView extends StatefulWidget {
     super.key,
     required this.repository,
     required this.commentsRepository,
+    required this.contactsRepository,
     required this.task,
     this.onChanged,
   });
 
   final TasksRepository repository;
   final CommentsRepository commentsRepository;
+  final ContactsRepository contactsRepository;
   final Task task;
 
   /// Called with the resulting task after any successful edit / complete / reopen /
@@ -121,8 +129,11 @@ class _TaskDetailViewState extends State<TaskDetailView> {
   Future<void> _edit() async {
     final updated = await Navigator.of(context).push<Task>(
       MaterialPageRoute(
-        builder: (_) =>
-            TaskFormScreen(repository: widget.repository, existing: _task),
+        builder: (_) => TaskFormScreen(
+          repository: widget.repository,
+          contactsRepository: widget.contactsRepository,
+          existing: _task,
+        ),
       ),
     );
     if (updated == null || !mounted) return;
@@ -228,6 +239,12 @@ class _TaskDetailViewState extends State<TaskDetailView> {
                 const SizedBox(height: 6),
                 Text(_task.notes!, style: theme.textTheme.bodyLarge),
               ],
+              // People — the linked contacts, read-only (edited via the form, like attendees).
+              // Shown only when the task has any; hidden entirely otherwise.
+              if (_task.contacts.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                _PeopleList(contacts: _task.contacts),
+              ],
               const SizedBox(height: 22),
               MetaLine(created: _task.createdAt, updated: _task.updatedAt),
               const SizedBox(height: 30),
@@ -272,6 +289,57 @@ class _TaskDetailViewState extends State<TaskDetailView> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The read-only People roster on a task detail (avatar + name + company), header "PEOPLE · N".
+/// Only rendered when the task has People (the caller guards empty). Mirrors the event detail's
+/// `_AttendeeList`.
+class _PeopleList extends StatelessWidget {
+  const _PeopleList({required this.contacts});
+
+  final List<Contact> contacts;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'PEOPLE · ${contacts.length}',
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 8),
+        for (final c in contacts)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Row(
+              children: [
+                InitialsAvatar(name: c.name),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(c.name, style: theme.textTheme.bodyLarge),
+                      if (c.company != null && c.company!.isNotEmpty)
+                        Text(
+                          c.company!,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

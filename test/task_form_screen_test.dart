@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:first_android_app/data/contacts_repository.dart';
 import 'package:first_android_app/data/tasks_repository.dart';
+import 'package:first_android_app/models/contact.dart';
 import 'package:first_android_app/models/task.dart';
 import 'package:first_android_app/screens/task_form_screen.dart';
 import 'package:first_android_app/theme.dart';
@@ -47,9 +49,32 @@ class _ThrowingTasksRepo implements TasksRepository {
   Future<Task> restore(String id) => throw Exception('offline');
 }
 
-Widget _form(TasksRepository repo, {Task? existing}) => MaterialApp(
+/// A minimal fake contacts repo for the People picker. Returns a fixed roster; writes unused.
+class _FakeContactsRepo implements ContactsRepository {
+  _FakeContactsRepo([this._all = const []]);
+  final List<Contact> _all;
+
+  @override
+  Future<List<Contact>> fetchAll() async => _all;
+  @override
+  Future<Contact> create(Contact draft) async => draft;
+  @override
+  Future<Contact> update(Contact contact) async => contact;
+  @override
+  Future<void> softDelete(String id) async {}
+}
+
+Widget _form(
+  TasksRepository repo, {
+  Task? existing,
+  ContactsRepository? contactsRepo,
+}) => MaterialApp(
   theme: AppTheme.light,
-  home: TaskFormScreen(repository: repo, existing: existing),
+  home: TaskFormScreen(
+    repository: repo,
+    contactsRepository: contactsRepo ?? _FakeContactsRepo(),
+    existing: existing,
+  ),
 );
 
 void main() {
@@ -173,6 +198,108 @@ void main() {
     expect(repo.lastUpdated!.isDone, isTrue);
   });
 
+  testWidgets('editing seeds existing People as chips and saves them through', (
+    tester,
+  ) async {
+    final repo = _RecordingTasksRepo();
+    await tester.pumpWidget(
+      _form(
+        repo,
+        existing: const Task(
+          id: 't1',
+          title: 'Prep the pitch',
+          contacts: [Contact(id: 'c1', name: 'Nadia')],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The People section shows the seeded contact as a chip.
+    expect(find.text('PEOPLE'), findsOneWidget);
+    expect(find.widgetWithText(InputChip, 'Nadia'), findsOneWidget);
+
+    // A title-only edit preserves the People through copyWith(contacts:).
+    await tester.enterText(find.byType(TextFormField).first, 'Prep the deck');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save changes'));
+    await tester.pumpAndSettle();
+    expect(repo.lastUpdated!.contacts.map((c) => c.id), ['c1']);
+  });
+
+  testWidgets('removing a seeded chip drops that person from the save', (
+    tester,
+  ) async {
+    final repo = _RecordingTasksRepo();
+    await tester.pumpWidget(
+      _form(
+        repo,
+        existing: const Task(
+          id: 't1',
+          title: 'Prep the pitch',
+          contacts: [
+            Contact(id: 'c1', name: 'Nadia'),
+            Contact(id: 'c2', name: 'Bo'),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Both seeded People show as chips.
+    expect(find.widgetWithText(InputChip, 'Nadia'), findsOneWidget);
+    expect(find.widgetWithText(InputChip, 'Bo'), findsOneWidget);
+
+    // Tap Nadia's delete affordance (the InputChip's onDeleted → _removeContact).
+    // The People section sits low on the form — scroll it into view before hit-testing.
+    final nadiaDelete = find.descendant(
+      of: find.widgetWithText(InputChip, 'Nadia'),
+      matching: find.byIcon(Icons.clear),
+    );
+    await tester.ensureVisible(nadiaDelete);
+    await tester.pumpAndSettle();
+    await tester.tap(nadiaDelete);
+    await tester.pumpAndSettle();
+
+    // Her chip is gone; Bo's remains, and the save carries only the survivor.
+    expect(find.widgetWithText(InputChip, 'Nadia'), findsNothing);
+    expect(find.widgetWithText(InputChip, 'Bo'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Save changes'));
+    await tester.pumpAndSettle();
+    expect(repo.lastUpdated!.contacts.map((c) => c.id), ['c2']);
+  });
+
+  testWidgets('adding People via the picker round-trips into create', (
+    tester,
+  ) async {
+    final repo = _RecordingTasksRepo();
+    await tester.pumpWidget(
+      _form(
+        repo,
+        contactsRepo: _FakeContactsRepo(const [
+          Contact(id: 'c1', name: 'Nadia'),
+          Contact(id: 'c2', name: 'Bo'),
+        ]),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).first, 'Prep');
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Add people'));
+    await tester.pumpAndSettle();
+
+    // The picker AppBar uses the 'people' role noun.
+    expect(find.text('Add people'), findsWidgets);
+    await tester.tap(find.widgetWithText(CheckboxListTile, 'Nadia'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Done'));
+    await tester.pumpAndSettle();
+
+    // Back on the form, the picked contact is now a chip; saving carries it into create.
+    expect(find.widgetWithText(InputChip, 'Nadia'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Add task'));
+    await tester.pumpAndSettle();
+    expect(repo.lastCreated!.contacts.map((c) => c.id), ['c1']);
+  });
+
   testWidgets('a failed save surfaces a snackbar and stays on the form', (
     tester,
   ) async {
@@ -203,6 +330,7 @@ void main() {
           home: Scaffold(
             body: TaskEditView(
               repository: repo,
+              contactsRepository: _FakeContactsRepo(),
               existing: const Task(id: 't1', title: 'Call Nadia'),
               onChanged: saved.add,
             ),

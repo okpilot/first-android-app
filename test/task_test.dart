@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:first_android_app/models/contact.dart';
 import 'package:first_android_app/models/task.dart';
 
 void main() {
@@ -85,14 +86,62 @@ void main() {
       });
       expect(t.createdAt, isNull);
     });
+
+    test('parses the task_contacts embed into People (id/name/company)', () {
+      final t = Task.fromJson({
+        'id': 't7',
+        'title': 'Prep the pitch',
+        'is_done': false,
+        'task_contacts': [
+          {
+            'contact_id': 'c1',
+            'contacts': {'id': 'c1', 'name': 'Nadia', 'company': 'Acme'},
+          },
+          {
+            'contact_id': 'c2',
+            'contacts': {'id': 'c2', 'name': 'Bo', 'company': null},
+          },
+        ],
+      });
+      expect(t.contacts.map((c) => c.id), ['c1', 'c2']);
+      expect(t.contacts.first.name, 'Nadia');
+      expect(t.contacts.first.company, 'Acme');
+    });
+
+    test(
+      'skips a join row whose contact is null (soft-deleted, RLS-hidden)',
+      () {
+        final t = Task.fromJson({
+          'id': 't8',
+          'title': 'x',
+          'task_contacts': [
+            {'contact_id': 'c1', 'contacts': null},
+            {
+              'contact_id': 'c2',
+              'contacts': {'id': 'c2', 'name': 'Bo'},
+            },
+          ],
+        });
+        expect(t.contacts.map((c) => c.id), ['c2']);
+      },
+    );
+
+    test('absent task_contacts → empty People (no crash)', () {
+      final t = Task.fromJson({'id': 't9', 'title': 'x'});
+      expect(t.contacts, isEmpty);
+    });
   });
 
   group('Task.toRpcParams', () {
-    test('maps to trimmed p_title + p_notes (the create shape)', () {
+    test('maps to trimmed p_title + p_notes + p_contacts (the create shape)', () {
       final p = Task.draft(title: '  Prep the demo  ').toRpcParams();
-      // p_notes is always present (create_task(p_title, p_notes)); a draft without
-      // notes sends null, which the server normalizes to NULL.
-      expect(p, {'p_title': 'Prep the demo', 'p_notes': null});
+      // p_notes + p_contacts are always present (create_task(p_title, p_notes, p_contacts)); a
+      // draft without notes sends null (server → NULL); with no People, an empty id list.
+      expect(p, {
+        'p_title': 'Prep the demo',
+        'p_notes': null,
+        'p_contacts': [],
+      });
       // is_done is written by update_task, never create_task — must not leak in.
       expect(p.containsKey('p_is_done'), isFalse);
       expect(p.containsKey('p_id'), isFalse);
@@ -103,6 +152,17 @@ void main() {
     test('carries notes verbatim (the server does the trim/nullif)', () {
       final p = Task.draft(title: 'x', notes: '  jot this  ').toRpcParams();
       expect(p['p_notes'], '  jot this  ');
+    });
+
+    test('p_contacts is the linked-People id list', () {
+      final p = Task.draft(
+        title: 'x',
+        contacts: const [
+          Contact(id: 'c1', name: 'Nadia'),
+          Contact(id: 'c2', name: 'Bo'),
+        ],
+      ).toRpcParams();
+      expect(p['p_contacts'], ['c1', 'c2']);
     });
   });
 
@@ -153,6 +213,32 @@ void main() {
       // The form clears by passing '': non-null, so it overrides. (The server then
       // normalizes '' → NULL on the round-trip.)
       expect(t.copyWith(notes: '').notes, '');
+    });
+
+    test(
+      'toggling isDone alone preserves the People (the toggle-safety invariant)',
+      () {
+        const t = Task(
+          id: 't1',
+          title: 'x',
+          contacts: [Contact(id: 'c1', name: 'Nadia')],
+        );
+        // A null contacts arg means "keep" — this is what stops a list/detail complete-toggle
+        // from wiping the links when update() re-sends the whole p_contacts set.
+        expect(t.copyWith(isDone: true).contacts.map((c) => c.id), ['c1']);
+      },
+    );
+
+    test('replaces People when given', () {
+      const t = Task(
+        id: 't1',
+        title: 'x',
+        contacts: [Contact(id: 'c1', name: 'Nadia')],
+      );
+      final edited = t.copyWith(
+        contacts: const [Contact(id: 'c2', name: 'Bo')],
+      );
+      expect(edited.contacts.map((c) => c.id), ['c2']);
     });
   });
 }

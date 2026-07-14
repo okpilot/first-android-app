@@ -19,10 +19,12 @@ disposable vehicle for learning app development end to end.
 - **Event comments** — attach notes and decisions to an event. Archive old comments to
   keep them but hide them by default; unarchive to show them again.
 - **Tasks** — a lightweight to-do list: add a task, then tap it to see its details (title,
-  status, optional notes, dates). **Edit** to change it; **Complete** (or **Reopen**) toggles
+  status, optional notes, dates, and linked People). **Edit** to change it; **Complete** (or **Reopen**) toggles
   done status, and **Archive** (or **Restore**) tidies away finished tasks. Completed and
   archived tasks tuck into their own sections so your active list stays clean, and nothing is
   ever hard-deleted.
+- **Task People** — link contacts to a task so you know who's involved. Add or remove people on
+  the task form; see them listed on the detail.
 - **Task comments** — attach notes to a task, just like on events. Archive old comments to
   keep them but hide them by default; unarchive to show them again. On archived tasks, the log
   is read-only (frozen history).

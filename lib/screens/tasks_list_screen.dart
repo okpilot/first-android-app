@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../data/comments_repository.dart';
+import '../data/contacts_repository.dart';
 import '../data/tasks_repository.dart';
 import '../models/task.dart';
 import '../widgets/empty_state.dart';
@@ -31,10 +32,12 @@ class TasksListScreen extends StatefulWidget {
     super.key,
     required this.repository,
     required this.commentsRepository,
+    required this.contactsRepository,
   });
 
   final TasksRepository repository;
   final CommentsRepository commentsRepository;
+  final ContactsRepository contactsRepository;
 
   @override
   State<TasksListScreen> createState() => _TasksListScreenState();
@@ -84,7 +87,10 @@ class _TasksListScreenState extends State<TasksListScreen> {
   Future<void> _openForm() async {
     final saved = await Navigator.of(context).push<Task>(
       MaterialPageRoute(
-        builder: (_) => TaskFormScreen(repository: widget.repository),
+        builder: (_) => TaskFormScreen(
+          repository: widget.repository,
+          contactsRepository: widget.contactsRepository,
+        ),
       ),
     );
     if (saved != null && mounted) {
@@ -117,6 +123,7 @@ class _TasksListScreenState extends State<TasksListScreen> {
         builder: (_) => TaskDetailScreen(
           repository: widget.repository,
           commentsRepository: widget.commentsRepository,
+          contactsRepository: widget.contactsRepository,
           task: task,
         ),
       ),
@@ -253,6 +260,7 @@ class _TasksListScreenState extends State<TasksListScreen> {
       pane = TaskEditView(
         key: const ValueKey('new'),
         repository: widget.repository,
+        contactsRepository: widget.contactsRepository,
         onChanged: _onCreated,
       );
     } else if (selected != null) {
@@ -265,6 +273,7 @@ class _TasksListScreenState extends State<TasksListScreen> {
         ),
         repository: widget.repository,
         commentsRepository: widget.commentsRepository,
+        contactsRepository: widget.contactsRepository,
         task: selected,
         onChanged: (_) => unawaited(_load()),
       );

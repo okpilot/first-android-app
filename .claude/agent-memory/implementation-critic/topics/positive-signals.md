@@ -115,3 +115,28 @@ know where to look. Referenced one-line from MEMORY.md.
   just steady state.
 - **Config / asset slices** (app-icon): pixel-sample corner-vs-center alpha rather than trusting the PNG
   colortype / SVG header — catches the transparent-glyph-vs-opaque-tile split.
+- **Join-table + picker-generalization slice** (People on a task = contacts↔tasks via `task_contacts`,
+  mirroring event_attendees; Jul 14). Two moves in one slice, both clean. (A) The many-to-many mirror:
+  new join table (composite PK, cascade FKs, reverse index on the non-PK col, RLS enabled), both write
+  RPCs drop-old-signature + create-or-replace-new for the arity change (`create_task(text,text)` /
+  `update_task(uuid,text,boolean,text)` — verified against the LATEST prior def in add_notes, not the
+  original create), bodies VERBATIM + People handling, `delete from <join> where task_id=p_id` placed
+  AFTER the not-found raise (so an unknown/archived id rolls back before any join mutation), reinsert via
+  `unnest(p_contacts) on conflict do nothing`, grants re-issued on the NEW signatures. RLS divergence
+  documented: `using(true)` NOT the parent-live EXISTS gate event_attendees uses, because archived tasks
+  stay readable so their roster must too — header-annotated, correctly kept OFF database.md #4's list (no
+  `deleted_at`, not self-soft-deletable). (B) The picker generalization: rename
+  `AttendeePickerScreen`→`ContactPickerScreen` + a `title` role-noun param driving AppBar copy only;
+  event caller passes `title:'attendees'` so its strings stay byte-identical (`Add attendees`/
+  `Attendees · N`), grep confirms zero dangling old refs. THE LOAD-BEARING INVARIANT (a complete-toggle
+  must not wipe links): verified on all THREE update paths — list `_toggleDone` + detail `_toggleDone`
+  both `copyWith(isDone:!)` WITHOUT contacts, form `_save` passes `contacts:_contacts` — all preserved by
+  `copyWith`'s `contacts: contacts ?? this.contacts` default, and every in-memory Task carries People
+  because `_columns` embeds `task_contacts(contact_id, contacts(id,name,company))` on BOTH fetchAll and
+  _fetchOne. `_openPeople` has the `if (result != null && mounted)` guard; `_save` has `if(!mounted)
+  return`; `_PeopleList` null-guards `c.company`. The AppBar-title-vs-widget.x trap (MEMORY watch item)
+  is handled: the detail host seeds `late _task=widget.task` and `setState`s it in `onChanged`, so the
+  `'Task'`/`'Archived task'` split tracks the live entity. Every reconstructing test fake threads
+  `contacts:` in create/archive/restore (both list + detail `_StatefulTasksRepo`); the exact-map
+  toRpcParams assertion amended with `p_contacts:[]`; per-file private `_FakeContactsRepo` (no shared
+  fake, per plan-critic).

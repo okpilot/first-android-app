@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:first_android_app/data/comments_repository.dart';
+import 'package:first_android_app/data/contacts_repository.dart';
 import 'package:first_android_app/data/tasks_repository.dart';
 import 'package:first_android_app/models/comment.dart';
+import 'package:first_android_app/models/contact.dart';
 import 'package:first_android_app/models/task.dart';
 import 'package:first_android_app/screens/task_detail_screen.dart';
 import 'package:first_android_app/screens/task_form_screen.dart';
@@ -62,6 +64,7 @@ class _StatefulTasksRepo implements TasksRepository {
       id: 'new-${_tasks.length}',
       title: draft.title.trim(),
       notes: draft.notes,
+      contacts: draft.contacts,
     );
     _tasks.add(t);
     return t;
@@ -80,12 +83,13 @@ class _StatefulTasksRepo implements TasksRepository {
     archivedId = id;
     final i = _tasks.indexWhere((t) => t.id == id);
     final t = _tasks[i];
-    // Archive changes only deleted_at server-side — notes (and title/is_done) survive.
+    // Archive changes only deleted_at server-side — notes, People (and title/is_done) survive.
     _tasks[i] = Task(
       id: t.id,
       title: t.title,
       isDone: t.isDone,
       notes: t.notes,
+      contacts: t.contacts,
       deletedAt: DateTime(2026, 7, 12),
     );
     return _tasks[i];
@@ -101,6 +105,7 @@ class _StatefulTasksRepo implements TasksRepository {
       title: t.title,
       isDone: t.isDone,
       notes: t.notes,
+      contacts: t.contacts,
     );
     return _tasks[i];
   }
@@ -120,15 +125,30 @@ class _ThrowingTasksRepo implements TasksRepository {
   Future<Task> restore(String id) => throw Exception('offline');
 }
 
+/// A minimal fake contacts repo for the Edit → form → People picker path. Roster unused by
+/// most detail tests (People are seeded on the Task directly), but the param is required.
+class _FakeContactsRepo implements ContactsRepository {
+  @override
+  Future<List<Contact>> fetchAll() async => const [];
+  @override
+  Future<Contact> create(Contact draft) async => draft;
+  @override
+  Future<Contact> update(Contact contact) async => contact;
+  @override
+  Future<void> softDelete(String id) async {}
+}
+
 Widget _detail(
   TasksRepository repo,
   Task task, {
   CommentsRepository? comments,
+  ContactsRepository? contacts,
 }) => MaterialApp(
   theme: AppTheme.light,
   home: TaskDetailScreen(
     repository: repo,
     commentsRepository: comments ?? _FakeCommentsRepo(),
+    contactsRepository: contacts ?? _FakeContactsRepo(),
     task: task,
   ),
 );
@@ -357,6 +377,52 @@ void main() {
     expect(find.widgetWithText(FilledButton, 'Edit'), findsNothing);
   });
 
+  testWidgets('the People roster renders (read-only) when the task has any', (
+    tester,
+  ) async {
+    const t = Task(
+      id: 't1',
+      title: 'Prep the pitch',
+      contacts: [Contact(id: 'c1', name: 'Nadia', company: 'Acme')],
+    );
+    await tester.pumpWidget(_detail(_StatefulTasksRepo(const [t]), t));
+    await tester.pumpAndSettle();
+
+    expect(find.text('PEOPLE · 1'), findsOneWidget);
+    expect(find.text('Nadia'), findsOneWidget);
+    expect(find.text('Acme'), findsOneWidget);
+  });
+
+  testWidgets('no People section when the task has none', (tester) async {
+    const t = Task(id: 't1', title: 'Call Nadia');
+    await tester.pumpWidget(_detail(_StatefulTasksRepo(const [t]), t));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('PEOPLE'), findsNothing);
+  });
+
+  testWidgets(
+    'completing a task keeps its People (the toggle preserves links)',
+    (tester) async {
+      const t = Task(
+        id: 't1',
+        title: 'Prep the pitch',
+        contacts: [Contact(id: 'c1', name: 'Nadia')],
+      );
+      final repo = _StatefulTasksRepo(const [t]);
+      await tester.pumpWidget(_detail(repo, t));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Complete'));
+      await tester.pumpAndSettle();
+
+      // The toggle re-sent the People via copyWith(isDone:) — not wiped.
+      expect(repo.lastUpdated!.contacts.map((c) => c.id), ['c1']);
+      // ...and they still render after the re-mount.
+      expect(find.text('PEOPLE · 1'), findsOneWidget);
+    },
+  );
+
   testWidgets('a failed complete surfaces a snackbar and stays put', (
     tester,
   ) async {
@@ -433,6 +499,7 @@ void main() {
                       builder: (_) => TaskDetailScreen(
                         repository: repo,
                         commentsRepository: _FakeCommentsRepo(),
+                        contactsRepository: _FakeContactsRepo(),
                         task: const Task(id: 't1', title: 'Call Nadia'),
                       ),
                     ),
@@ -481,6 +548,7 @@ void main() {
                       builder: (_) => TaskDetailScreen(
                         repository: repo,
                         commentsRepository: _FakeCommentsRepo(),
+                        contactsRepository: _FakeContactsRepo(),
                         task: const Task(id: 't1', title: 'Call Nadia'),
                       ),
                     ),

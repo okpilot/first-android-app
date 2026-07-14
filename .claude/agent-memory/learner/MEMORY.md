@@ -13,7 +13,7 @@ columns by header, not position.
 | Issue Type | Count | Last Seen | Status (→ rule loc) |
 |---|---|---|---|
 | `setState(() => …)` arrow discards a returned Future (invisible to analyze; tests only). First: Contacts `fa4fc45`. | 2 | 3a87cc8 | PROMOTED → `analysis_options.yaml` `discarded_futures` (`0e4a7af`) |
-| RLS/soft-delete linchpin verify-curl run live but not recorded in `backend/README.md` (red-team re-raises). First: #13→#19. | 2 | 3296258 | PROMOTED → `docs/database.md` #11 (`4911243`); held clean across all of Decision 26 → RESOLVED-WATCH. |
+| RLS/soft-delete linchpin verify-curl run live but not recorded in `backend/README.md` (red-team re-raises). First: #13→#19. | 2 | 2b100b7 | PROMOTED → `docs/database.md` #11 (`4911243`); RESOLVED-WATCH. Held again at `2b100b7` — task_contacts join-table curl was a minor coverage nit, added same-cycle, no structural re-raise. |
 | Rule reversal mid-multi-slice migration leaves a contradictory sibling doc-comment / migration header citing the OLD rule. First: D25 amendment mismatch (crlocal). | 2 | 3296258 | PROMOTED → `CLAUDE.md` "How we work". Divergent-slice test PASSED at `3296258` (nothing stale reached main); but sweep is leaky at plan stage — see subsection-hiding watch below. |
 | **Refinement:** stale rule-reversal citations hide in secondary summaries & decision-entry SUBSECTIONS (Impl/Why-safe/Principle), not the obvious rule line. First: `3296258`. | 1 | 3296258 | WATCHING — single commit, do NOT sharpen `CLAUDE.md` yet. doc-updater has the mechanical lesson ("grep the WHOLE file + every subsection"). Next reversal leaking same way → RULE CANDIDATE. |
 | **`toRpcParams()` spread must match the RPC's param list exactly or PostgREST throws PGRST202.** Body-only `update_*` / mismatched-arity `create_*` → blind `{...toRpcParams()}` sends a param the fn lacks. First: `1e7574d` (`update_comment` body-only). | 2 | 258cb6c | RULE CANDIDATE — recurred at tasks `258cb6c` (`create_task` arity). Propose ONE line under `docs/database.md` #2. Both caught at PLAN time (plan-critic); rule makes it explicit so it's not re-derived. |
@@ -26,6 +26,8 @@ columns by header, not position.
 | **A component-level `ThemeData` override silently defeats a variant constructor** — `theme.dart`'s `filledButtonTheme` pins EVERY `FilledButton` incl `.tonal` to `scheme.primary`; a "subtle" tonal rendered identical to primary. LIVE-QA only. Fix = `SubtleButton` atom. First: `cfbfe7f`. | 1 | cfbfe7f | WATCHING — single sighting, NO rule. Captured at `subtle_button.dart` dartdoc + code-reviewer tracker. Future variant (`.tonal`/`.outlined`) defeated by an override → count 2 → RULE CANDIDATE (`docs/design-principles.md`). |
 | **Read-only entity leaves a write affordance live — incl. STATE-DEPENDENT ones** (open inline editor, submit-on-enter). First: archived `TaskFormScreen` `58b2b5d`→`258cb6c`. | 2 | adab034 | RULE CANDIDATE — recurred DISTINCT-mechanism at `CommentsSection` `643bbeb`→fixed `adab034` (inline-edit branch keyed on `_editingId` alone, not `readOnly`). **learner-PROPOSED this cycle → `docs/design-principles.md`**; semantic-reviewer owns the row (already RULE CANDIDATE, count 2). Not gated by analyze/lint/hooks/CR. Mark PROMOTED once written. |
 | **Byte-faithful per-parent repository duplication** — `SupabaseTaskCommentsRepository` ≈ `SupabaseEventCommentsRepository` (~70 lines, 6 strings differ). First: `adab034`. | 1 | adab034 | WATCHING — code-reviewer-owned; interface docstring commits to N per-parent impls, extraction pays off at **N=3**. Now N=2 → NO promotion. A 3rd `*_comments` repo → count 2 → RULE CANDIDATE (shared base/generic repo). |
+| **Byte-faithful per-parent WIDGET duplication** — `_PeopleSection`/`_PeopleList` (task screens) ≈ event's `_AttendeesSection`/`_AttendeeList`, differ by string literals only. Same shape that produced the extracted `MetaLine` atom. First: `2b100b7`. | 1 | 2b100b7 | WATCHING — code-reviewer-owned, N=2 parents (event+task) → NOT extracted (same N=3 threshold as the repo-dup row). DISTINCT surface from repo-dup (widget vs repo) but SAME meta-principle. A 3rd contact-roster parent → count 2 → RULE CANDIDATE (extract shared roster widget). NOT a defect — deliberate deferral. |
+| **Stale sibling INLINE COMMENT cites the OLD `p_*` param shape after an RPC gains a param** — `tasks_repository.dart` comment said `{p_title, p_notes}` after `toRpcParams` gained `p_contacts`. Doc/comment drift, NOT runtime PGRST202. First: `2b100b7` (semantic-reviewer, fixed in-cycle). | 1 | 2b100b7 | WATCHING — single sighting, NO rule. DISTINCT from the `toRpcParams`-arity RULE CANDIDATE (that = runtime PGRST202; this = stale prose) and from rule-reversal-sync (that = rule flip, this = param ADD). Sub-species of the sibling-surface-sweep cluster. Recurs → strengthens broadening the CLAUDE.md sibling-sweep line to cover param ADD, not just rule reversal. |
 
 ## Durable cross-agent lessons (edit in place; don't stack)
 - **`setState(() => Future)` is invisible to analyze** (legal void-context arrow; no `flutter_lints`
@@ -49,10 +51,14 @@ columns by header, not position.
   `f39649f`); (d) ADD an optional scalar → reconstructing fakes silently DROP it + exact-map
   `toRpcParams()` assertion breaks on the new `p_*` key (count 1, `5cfc2b3`). Common shape: a slice
   ADD/REMOVE/REVERSE of a model surface X, plan enumerates only obvious sites, misses siblings. Each
-  concrete mechanism except (a) is count 1 → NO rule (all four caught by plan-critic, no leak). Trip:
-  if ANY test-surface mechanism (b/c/d) recurs → BROADEN the `CLAUDE.md` rule-reversal-sync line to
-  "grep docs AND `test/` (reconstructing fakes + exact-map assertions) on any model field/method/
-  affordance change (add OR remove)", not a second convention. NOT gated (surfaces at `flutter test`).
+  concrete mechanism except (a) is count 1 → NO rule (all four caught by plan-critic, no leak). NEW
+  sub-mechanism (e), count 1, `2b100b7`: ADD a `p_*` param to an RPC → a sibling INLINE COMMENT still
+  cites the OLD param shape (`{p_title, p_notes}` after `p_contacts` landed) — a *comment/prose* miss,
+  not a test miss; caught by semantic-reviewer, fixed in-cycle. Trip:
+  if ANY test-surface mechanism (b/c/d) OR the comment-drift (e) recurs → BROADEN the `CLAUDE.md`
+  sweep line to "grep docs, sibling inline COMMENTS, AND `test/` (reconstructing fakes + exact-map
+  assertions) on any model field/method/affordance/`p_*`-param change (add OR remove)", not a second
+  convention. NOT gated (surfaces at `flutter test` / review, never analyze).
 - **A CREATE OR REPLACE recreating an RPC to add ONE param must re-carry the WHOLE prior body**
   (SECURITY DEFINER, `SET search_path`, `deleted_at is null` guard, `if not found raise`, trims) — a
   terse "also set notes=…" risks dropping guards. Once (plan-critic ISSUE, `5cfc2b3`, folded in). Log
