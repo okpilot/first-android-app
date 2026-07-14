@@ -32,6 +32,41 @@ MEMORY.md keeps one-line pointers here.
   the `throwOnFetch`-after-pump test; the success-branch out-of-order overwrite is covered on the
   shared pattern in `event_types_screen_test.dart`. Not a gap — do not flag it.
 
+## `CommentsSection` read-only mode + task wiring (Slice 2b, 2026-07-14)
+- New `readOnly` bool param (default false — event caller unaffected). Gates: composer row
+  (`if (!widget.readOnly)`), `_viewBody` `Edit`/`Archive` actions, `_archivedTile` `Unarchive`.
+  The live/archived split and "Show archived" toggle STILL work in read-only — assert bodies
+  render but the mutating `TextButton`s are `findsNothing`; composer gone = `find.byType(TextField)`
+  findsNothing AND `find.widgetWithText(FilledButton,'Comment')` findsNothing. Always pair with a
+  `readOnly:false` contrast test (same seed) so the assertion proves the gate, not a missing seed.
+  Standalone helper takes an optional `readOnly` param — reuse it, don't fork a second helper.
+- **`taskCommentsRepository`** is now a SECOND required `CommentsRepository` on `ContactsApp` AND
+  `HomeShell` (parallel to the event `commentsRepository`) — every call site of those two in tests
+  needs BOTH. `TaskDetailScreen`/`TaskDetailView`/`TasksListScreen` gained a required
+  `commentsRepository`. Inert fake (fetchFor→`const []`, add→draft, edit→arg, archive/unarchive→
+  `Comment.draft(parentId:'',body:'')`) suffices where comments aren't exercised.
+- Task detail wires `CommentsSection(readOnly: _isArchived)` below the actions: LIVE task → composer
+  present (`FilledButton('Comment')` + one `TextField`); ARCHIVED task → section present, read-only,
+  no composer. Seed the fake via `fetchFor` (filter by parentId == task.id) and assert the body shows.
+- **`readOnly` keys ONLY off `_isArchived`, NOT `isDone`** — a COMPLETED-but-live task
+  (`isDone:true, deletedAt:null`) STILL gets the composer (design: live/completed are commentable).
+  Assert it: seed a done task + a comment, expect status pill `'Completed'` AND
+  `FilledButton('Comment')` present. Added to `task_detail_screen_test` 2026-07-14.
+- **Same-State readOnly flip regression** (the in-place-archive editor leak, fixed 2b): the tile gates
+  the editor on `(editing && !widget.readOnly)` AND `didUpdateWidget` clears `_editingId` on a
+  false→true readOnly flip. To drive it you need the SAME `CommentsSection` State to survive the flip
+  (a key-swap remount would reset `_editingId` for free and prove nothing). Use a tiny host
+  `StatefulWidget` that holds `bool _readOnly` in ITS state and rebuilds the section in place on a
+  `setState` (no key change → element reused → `didUpdateWidget` fires). Open the editor, tap the host's
+  flip button, assert `Save`/editor `TextField` GONE + body still shows. This test goes RED against
+  the pre-fix `child: editing ? _editBody : _viewBody` — verified 2026-07-14. In `comments_section_test.dart`.
+- **Wide tasks pane comments** (`tasks_list_screen_test`): the existing `_screen`/`_pumpWide` helpers
+  hardcoded an inert comments repo — thread an optional `CommentsRepository?` through both and add a
+  seedable `_SeededCommentsRepo` (fetchFor filters by parentId) to prove the pane's embedded
+  `CommentsSection` loads. First ACTIVE task auto-selects → live composer; selecting an ARCHIVED row
+  (expand `ARCHIVED`, tap it) remounts the pane read-only via its `ValueKey('$id:$isArchived:$isDone')`
+  → composer gone. Import `widgets/comments_section.dart` for the `find.byType`.
+
 ## `tasks_list_screen` stale-guard — RESOLVED (cloud-CR PR #30, 2026-07-12)
 - `TasksListScreen._load` HAS the `identical(future, _future)` guard, matching `event_types_screen`
   (a late older load can't overwrite `_lastData`). Added per a cloud CodeRabbit finding.

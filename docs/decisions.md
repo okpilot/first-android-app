@@ -374,6 +374,38 @@ shared `CommentsSection` off the task detail.
 
 ---
 
+## Decision 33: Task comments — an archivable log on tasks (Slice 2b) (2026-07-14)
+**Context:** The second half of the original ask (Decision 31 covered notes): add **comments** to a
+task with the same soft-delete archive as `event_comments`. Slice 2a extracted the shared
+`CommentsSection` widget (Decision 32); this slice delivers the task-side feature through it.
+**Decided:**
+- **`task_comments` table = the twin of `event_comments`** — `task_id → tasks(id) on delete restrict`,
+  `body` (check non-blank), `created_at/updated_at` (trigger), `deleted_at` archive marker. RLS with a
+  **`using (true)` SELECT policy** so archived comments stay readable (the "Show archived" toggle) —
+  the third such exception in `docs/database.md` #4 (with `event_comments` + `tasks`). Delivered as
+  **ONE migration** (table + RPCs together), unlike `event_comments`' two-step history, because it's
+  born on the RPC path — no direct-write era to convert.
+- **4 SECURITY DEFINER RPCs** (`set search_path = public`): `create_task_comment(p_task_id, p_body)`,
+  `update_task_comment(p_id, p_body)` (body-only — an edit can't reparent), `soft_delete_task_comment`,
+  `restore_task_comment`. Direct insert/update grants + policies left in place (closing them is auth
+  hardening, issue #3), same posture as every sibling.
+- **Second repo, not a fork of the widget:** `SupabaseTaskCommentsRepository` is the 2nd
+  `CommentsRepository` impl (reads alias `parent_id:task_id`); the param maps live in the repo (it
+  knows `p_task_id` vs the event repo's `p_event_id`). A **separate `taskCommentsRepository`** threads
+  `ContactsApp → HomeShell → TasksListScreen → task detail`, parallel to the event `commentsRepository`
+  (calendar → event detail) — the two never cross.
+- **Placement + read-only-when-archived:** the `CommentsSection` sits **below the actions** on the task
+  detail (both the phone screen and the desktop pane, via the shared `TaskDetailView`). Live/completed
+  tasks get the composer + per-comment Edit/Archive; an **archived** task shows the log **read-only**
+  (new `CommentsSection.readOnly` flag — default false, so events are unaffected). The view already
+  remounts on the `isArchived` key, so `readOnly` flips cleanly.
+**Verification:** analyze clean; suite green; the security review path (db-security-reviewer + red-team
++ CR-local M=2 + fleet floor N=4) since it's a new table + RLS + RPCs.
+**Deploy:** the `task_comments` migration ships to homebase paired with the still-owed Decision 31
+notes migration; light/dark emulator + Linux QA of task comments **and** notes in that session.
+
+---
+
 ## OPEN QUESTIONS
 - [x] Backend hosting: **self-host trimmed on homebase** (vs Supabase cloud). Settled 2026-07-07; revisit only if homebase load becomes a problem.
 - [x] First walking-skeleton slice entity: **`contacts`** (name, dob, email, phone, company, remarks). Settled 2026-07-08 — Slice 1.

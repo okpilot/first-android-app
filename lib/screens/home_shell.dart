@@ -29,6 +29,7 @@ class HomeShell extends StatefulWidget {
     required this.eventsRepository,
     required this.eventTypesRepository,
     required this.commentsRepository,
+    required this.taskCommentsRepository,
     required this.tasksRepository,
   });
 
@@ -36,6 +37,9 @@ class HomeShell extends StatefulWidget {
   final EventsRepository eventsRepository;
   final EventTypesRepository eventTypesRepository;
   final CommentsRepository commentsRepository;
+  // A SECOND CommentsRepository, for task comments — parallel to the event `commentsRepository`
+  // above (both implement CommentsRepository; each targets its own *_comments table).
+  final CommentsRepository taskCommentsRepository;
   final TasksRepository tasksRepository;
 
   @override
@@ -82,7 +86,10 @@ class _HomeShellState extends State<HomeShell> {
           eventTypesRepository: widget.eventTypesRepository,
           commentsRepository: widget.commentsRepository,
         ),
-        TasksListScreen(repository: widget.tasksRepository),
+        TasksListScreen(
+          repository: widget.tasksRepository,
+          commentsRepository: widget.taskCommentsRepository,
+        ),
         SettingsScreen(eventTypesRepository: widget.eventTypesRepository),
       ],
     );

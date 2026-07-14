@@ -69,9 +69,10 @@
   or mis-keyed field (e.g. `p_phone`) otherwise slips through.
 
 ## Per-slice screen testing notes → [screen-testing-notes](topics/screen-testing-notes.md)
-How to test / what's a non-gap, one section per slice: `CommentsSection` (shared, Slice 2a),
-`tasks_list_screen` stale-guard (RESOLVED), `task_detail_screen` wrapper, task `notes`, `home_shell`
-sidebar, `contacts` master-detail + search header. Read it before testing any of those screens.
+How to test / what's a non-gap, one section per slice: `CommentsSection` (shared, Slice 2a +
+Slice 2b `readOnly`/task-wiring + `taskCommentsRepository` 2nd repo), `tasks_list_screen` stale-guard
+(RESOLVED), `task_detail_screen` wrapper, task `notes`, `home_shell` sidebar, `contacts` master-detail
++ search header. Read it before testing any of those screens.
 
 ## Known false-positive traps (do not flag / do not do)
 - Pure presenter widgets in `lib/widgets/` (`EmptyState`, `TypeLabel`, `InitialsAvatar`, `SubtleButton`)

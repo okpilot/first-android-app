@@ -85,3 +85,73 @@ class SupabaseEventCommentsRepository implements CommentsRepository {
     return Comment.fromJson(row);
   }
 }
+
+/// Task comments — the task-side twin of [SupabaseEventCommentsRepository] (Decision 32 /
+/// Slice 2b). Identical shape: reads go direct (FK `task_id` aliased to `parent_id` so the shared
+/// [Comment] model reads it uniformly); all writes go through the SECURITY DEFINER RPCs
+/// `create_task_comment` / `update_task_comment` / `soft_delete_task_comment` /
+/// `restore_task_comment` (Decision 26). The only differences from the event repo are the table
+/// (`task_comments`), the FK column (`task_id`), and the RPC names — which is exactly why the
+/// param maps live here (per-repo) and not on the parent-agnostic [Comment] model.
+class SupabaseTaskCommentsRepository implements CommentsRepository {
+  SupabaseTaskCommentsRepository(this._client);
+
+  final SupabaseClient _client;
+  static const _table = 'task_comments';
+  // The FK column is aliased to `parent_id` so the shared Comment.fromJson reads it uniformly.
+  static const _columns =
+      'id, parent_id:task_id, body, created_at, updated_at, deleted_at';
+
+  @override
+  Future<List<Comment>> fetchFor(String parentId) async {
+    final rows = await _client
+        .from(_table)
+        .select(_columns)
+        .eq('task_id', parentId) // real column name — the alias is select-only
+        .order('created_at', ascending: false)
+        .order('id'); // stable tiebreaker for same-instant rows
+    return rows.map(Comment.fromJson).toList();
+  }
+
+  @override
+  Future<Comment> add(Comment draft) async {
+    // p_task_id is this table's FK param; the shared model exposes it as parentId.
+    final id = await _client.rpc(
+      'create_task_comment',
+      params: {'p_task_id': draft.parentId, 'p_body': draft.body.trim()},
+    );
+    return _fetchOne(id as String);
+  }
+
+  @override
+  Future<Comment> edit(Comment comment) async {
+    // Body-only on purpose — update_task_comment takes no p_task_id, so an edit can't
+    // move a comment to another task.
+    await _client.rpc(
+      'update_task_comment',
+      params: {'p_id': comment.id, 'p_body': comment.body.trim()},
+    );
+    return _fetchOne(comment.id);
+  }
+
+  @override
+  Future<Comment> archive(String id) async {
+    await _client.rpc('soft_delete_task_comment', params: {'p_id': id});
+    return _fetchOne(id);
+  }
+
+  @override
+  Future<Comment> unarchive(String id) async {
+    await _client.rpc('restore_task_comment', params: {'p_id': id});
+    return _fetchOne(id);
+  }
+
+  Future<Comment> _fetchOne(String id) async {
+    final row = await _client
+        .from(_table)
+        .select(_columns)
+        .eq('id', id)
+        .single();
+    return Comment.fromJson(row);
+  }
+}

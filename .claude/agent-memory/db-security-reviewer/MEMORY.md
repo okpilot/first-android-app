@@ -18,10 +18,12 @@
 - Every `SECURITY DEFINER` function sets `search_path = public`.
 - Mutable tables soft-delete (`deleted_at`); read policies filter `deleted_at is null`. Hard
   DELETE only on the annotated `event_attendees` join.
-  - **Documented exception — `event_comments`** (database.md #4, Decision 23): SELECT/UPDATE use
-    `using (true)`, NOT `deleted_at is null`, so archived comments stay readable and
-    archive/unarchive/edit are plain direct UPDATEs (no soft-delete RPC). Still soft-delete only —
-    no DELETE grant/policy, body `check (length(trim(body)) > 0)` blocks blanking. Do NOT flag its
+  - **Documented `using (true)` read exception — THREE tables: `event_comments` (Decision 23),
+    `task_comments` (Decision 33 / Slice 2b), `tasks` (reads only, Decision 27)** (database.md #4):
+    SELECT (and for the comment tables, UPDATE) use `using (true)`, NOT `deleted_at is null`, so
+    archived rows stay readable under a "view archived" toggle. Still soft-delete only — no DELETE
+    grant/policy; comment tables' body `check (length(trim(body)) > 0)` blocks blanking. Writes now
+    route through `create_/update_/soft_delete_/restore_*` RPCs (Decision 26). Do NOT flag their
     `using (true)` as a missing `deleted_at` filter.
 - `FORCE ROW LEVEL SECURITY` is deliberately NOT used (would break the SECURITY-DEFINER soft-delete
   bypass) — do not require it.

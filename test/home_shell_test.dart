@@ -88,6 +88,7 @@ Widget _shell() => MaterialApp(
     eventsRepository: _FakeEventsRepo(),
     eventTypesRepository: _FakeEventTypesRepo(),
     commentsRepository: _FakeCommentsRepo(),
+    taskCommentsRepository: _FakeCommentsRepo(),
     tasksRepository: _FakeTasksRepo(),
   ),
 );

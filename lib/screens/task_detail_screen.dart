@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../data/comments_repository.dart';
 import '../data/tasks_repository.dart';
 import '../models/task.dart';
+import '../widgets/comments_section.dart';
 import '../widgets/meta_line.dart';
 import '../widgets/subtle_button.dart';
 import 'task_form_screen.dart';
@@ -17,10 +19,12 @@ class TaskDetailScreen extends StatefulWidget {
   const TaskDetailScreen({
     super.key,
     required this.repository,
+    required this.commentsRepository,
     required this.task,
   });
 
   final TasksRepository repository;
+  final CommentsRepository commentsRepository;
   final Task task;
 
   @override
@@ -51,6 +55,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         ),
         body: TaskDetailView(
           repository: widget.repository,
+          commentsRepository: widget.commentsRepository,
           task: widget.task,
           onChanged: (t) => setState(() {
             _dirty = true;
@@ -82,11 +87,13 @@ class TaskDetailView extends StatefulWidget {
   const TaskDetailView({
     super.key,
     required this.repository,
+    required this.commentsRepository,
     required this.task,
     this.onChanged,
   });
 
   final TasksRepository repository;
+  final CommentsRepository commentsRepository;
   final Task task;
 
   /// Called with the resulting task after any successful edit / complete / reopen /
@@ -249,6 +256,17 @@ class _TaskDetailViewState extends State<TaskDetailView> {
                           label: 'Archive',
                         ),
                       ],
+              ),
+              // Comments — an archivable log, below the actions. Live/completed tasks get the
+              // composer; an archived task shows it read-only (frozen history). This view remounts
+              // on the isArchived key (the host's ValueKey), so `readOnly` flips cleanly.
+              const SizedBox(height: 28),
+              Divider(height: 1, color: theme.colorScheme.outlineVariant),
+              const SizedBox(height: 20),
+              CommentsSection(
+                repository: widget.commentsRepository,
+                parentId: _task.id,
+                readOnly: _isArchived,
               ),
             ],
           ),

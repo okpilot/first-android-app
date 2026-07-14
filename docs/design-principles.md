@@ -94,6 +94,19 @@ slice**, design responsive + adaptive with real teeth:
   web + Linux** — one design language (Decisions 8 & 13), not GTK/Cupertino per platform. Revisit
   only if/when we add iOS.
 
+## Read-only / archived entities: gate EVERY write affordance
+When a form or section renders read-only (an archived task, a frozen log), gate **all** write
+affordances on the same read-only flag — including **state-dependent** ones that aren't always on
+screen: an open inline editor, a submit-on-enter (`onFieldSubmitted`), a per-row Edit/Save that
+renders only while `_editingId != null`. An affordance whose visibility keys off its *own* local
+state (not the read-only flag) stays live after the entity flips read-only — e.g. a comment editor
+left open when its task is archived keeps a working **Save**, and the DB write *succeeds* because the
+RPC guard checks the still-live comment, not the archived task. Belt-and-braces: (a) render-gate the
+editor `(editing && !readOnly)`, and (b) clear the transient edit-state on the read-only flip
+(`didUpdateWidget`) so it can't reappear on a later restore. Invisible to `flutter analyze` — a
+reachable runtime write path, caught only by review + a regression test. (learner-promoted, count 2:
+archived `TaskFormScreen` title+Save `58b2b5d`; `CommentsSection` inline-edit branch `adab034`.)
+
 ## Not now (YAGNI)
 - A dedicated `/designreview` command — earn it once there are several real screens to review.
 - A full token system / `ThemeExtension` — build it at the theming slice, not before.
