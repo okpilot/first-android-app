@@ -11,7 +11,7 @@ trimmed self-hosted Supabase on homebase. Learning is the point; the CRM is
 disposable. Built emergently — thin slices, one at a time.
 
 ## Current status (2026-07-14)
-- ✅ **Task People — link contacts to tasks (Decision 34) — ✅ SHIPPED, MERGED (PR #41 → squash `9f76f48`) & DEPLOYED to homebase (ledger → 15).** New `task_contacts` join table (mirroring `event_attendees`); updated `create_task(p_title, p_notes, p_contacts)` and `update_task(p_id, p_title, p_is_done, p_notes, p_contacts)` via the drop+recreate pattern (grants re-issued). `Task` model + repo threaded to include `contacts` list (id/name/company). Task form gets a People picker section (the `ContactPickerScreen` generalized from event-only); task detail shows a read-only roster. Hard-DELETE of join rows on update (annotated exception, database.md #4). **`update_task.p_contacts` REQUIRED (no default)** — cloud CR caught the silent-wipe risk; a stale caller now fails loud (PGRST202). Cloud CR on #41: 4 FIX (`3b0468a`) + 1 SKIP (revoke-PUBLIC → #3); full fleet clean; `/crlocal` skipped (fleet-only, user's call). `/updatelinux` done (HEAD `9f76f48`). **Owed:** `/updatephone` (installed S23+ errors on task edits until rebuilt) + optional on-device homebase QA. (Prior notes D31 + task_comments D33 migrations were already on homebase.)
+- ✅ **Task People — link contacts to tasks (Decision 34) — ✅ SHIPPED, MERGED (PR #41 → squash `9f76f48`) & DEPLOYED to homebase (ledger → 15).** New `task_contacts` join table (mirroring `event_attendees`); updated `create_task(p_title, p_notes, p_contacts)` and `update_task(p_id, p_title, p_is_done, p_notes, p_contacts)` via the drop+recreate pattern (grants re-issued). `Task` model + repo threaded to include `contacts` list (id/name/company). Task form gets a People picker section (the `ContactPickerScreen` generalized from event-only); task detail shows a read-only roster. Hard-DELETE of join rows on update (annotated exception, database.md #4). **`update_task.p_contacts` REQUIRED (no default)** — cloud CR caught the silent-wipe risk; a stale caller now fails loud (PGRST202). Cloud CR on #41: 4 FIX (`3b0468a`) + 1 SKIP (revoke-PUBLIC → #3); full fleet clean; `/crlocal` skipped (fleet-only, user's call). `/updatelinux` done (HEAD `9f76f48`); **`/updatephone` done** (S23+ rebuilt vs homebase, HEAD `0d698d0` — task edits work against 5-arg `update_task`). **Owed:** optional on-device homebase QA of People. (Prior notes D31 + task_comments D33 migrations were already on homebase.)
 - ✅ **Task comments — Slice 2b (feature) — ✅ SHIPPED & MERGED (PR #38 → squash `b608afb`).** New `task_comments` table + 4 SECURITY DEFINER RPCs (`create/update/soft_delete/restore_task_comment`, one migration) mirroring `event_comments`; `SupabaseTaskCommentsRepository` (2nd `CommentsRepository`); a separate `taskCommentsRepository` threaded `ContactsApp → HomeShell → TasksListScreen → task detail`. The shared `CommentsSection` hangs **below the actions** on the task detail — composer for live/completed tasks, **read-only** for archived (new `CommentsSection.readOnly` flag, default false → events unaffected). Decision 33. Cloud CR: 1 defer→#34 (desktop New-draft Cancel), 3 skip.
 - ✅ **Task comments — Slice 2a (refactor) — ✅ SHIPPED & MERGED — PR #37 → squash `ec9276a` into `main` (branch `feat/task-comments`; cloud CR triaged 2026-07-14: 1 defer→#38, 3 skip).** Extracted the private `_CommentsSection` widget from event detail into a shared public `CommentsSection` in `lib/widgets/comments_section.dart`, generalized for any parent record (event or task). `comment.dart` field `eventId` → `parentId` (FK-agnostic), `toRpcParams()` removed (RPC param-building moves to repos). `SupabaseCommentsRepository` → `SupabaseEventCommentsRepository` (interface `fetchForEvent` → `fetchFor`); reads alias the FK to `parent_id` so one model + widget serve any `*_comments` table. Behavior-preserving refactor; all async invariants survive verbatim (stale-guard, re-entrancy, `mounted`-after-`await`, `_lastData` fallback). Full post-commit fleet clean (N=2 floor); test-writer added 2 standalone parent-agnostic tests. **Next:** Slice 2b (task_comments table + wire CommentsSection to task detail).
 - ✅ **Task notes — optional freeform field on tasks (Decision 31) — ✅ SHIPPED & MERGED (PR #36 → squash `4d3d6b8`; branch deleted). Owed: homebase deploy + light/dark emulator QA.** Migration adds `notes` column; `create_task(p_title, p_notes)` and `update_task(p_id, p_title, p_is_done, p_notes)` recreated with the new parameter (drop+recreate for signature safety; grants re-issued). Blank/whitespace → NULL server-side. Model/Repo/Form/Detail all threaded. **Deploy note:** `update_task`'s new required `p_notes` means installed clients error until rebuilt — deploy the migration paired with `/updatephone` + `/updatelinux`.
@@ -45,16 +45,18 @@ disposable. Built emergently — thin slices, one at a time.
 `ec9276a`) and Slice 2b (task comments feature, PR #38 → `b608afb`) both ✅ MERGED into `main`.
 
 **Shipped — Task People (Decision 34):** PR #41 → squash `9f76f48`, MERGED & DEPLOYED to homebase
-(ledger 15). Cloud CR triaged (4 FIX `3b0468a`, 1 SKIP→#3); full fleet clean; `/updatelinux` done.
+(ledger 15). Cloud CR triaged (4 FIX `3b0468a`, 1 SKIP→#3); full fleet clean; `/updatelinux` +
+`/updatephone` both done (S23+ rebuilt vs homebase, HEAD `0d698d0` — task edits work again).
 
-**Owed first, before the next feature slice:**
-1. **`/updatephone`** — rebuild the S23+ against homebase. The `update_task` signature changes
-   (`p_notes`, then required `p_contacts`) error the installed app on task edits until rebuilt.
-   Optional: on-device light/dark homebase QA of People + comments + notes together.
-2. **Issue #40** — codify the review-bar change (CR-local `M=1`, `M=2` for SQL; fleet floor 3/4,
-   ceiling 6, adversarial + completeness lenses) into `.claude/commands/crlocal.md` +
-   `.claude/rules/agent-workflow.md`.
-3. **`/replycoderabbit` on #41** — triage recorded on the PR; the reply was not posted (fleet-only
+**Shipped — review-bar rebalance (Decision 35, issue #40):** CR-local rounds M=1 (M=2 for SQL/auth);
+fleet consecutive-clean floor 3/4, ceiling 6, coverage round gains adversarial + completeness lenses.
+Synced across `crlocal.md` / `agent-workflow.md` / `semantic-reviewer.md` / `plan-critic.md` /
+`wrapup.md` + Decision 7 amended in place. This branch (`docs/review-bar-rebalance`).
+
+**Owed / optional, before the next feature slice:**
+1. **On-device homebase QA** (optional) — light/dark pass on the S23+ of People + comments + notes
+   together, now that the phone is rebuilt.
+2. **`/replycoderabbit` on #41** — triage recorded on the PR; the reply was not posted (fleet-only
    push at the user's call). Optional — post it, or leave the dispositions as-is on the merged PR.
 
 **Then, the next feature slice — pick one:**

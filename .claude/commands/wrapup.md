@@ -44,7 +44,7 @@ Two checks, both verifiable against the session transcript (list the evidence �
   doc-updater · test-writer · learner; red-team N/A (no migrations)`. Confirm `implementation-critic`
   ran before each commit and `plan-critic` before each plan approval (plan-critic may skip a
   <10-line single-file change — say so; implementation-critic never skips). Note any critic loop that
-  hit the round **ceiling** (4 for plan/semantic/code; implementation-critic hands to the
+  hit the round **ceiling** (6 for plan/semantic/code; implementation-critic hands to the
   orchestrator at 2) — it must have been **escalated to the user**, not silently resolved.
 - **`learner` proposals dispositioned** — any rule/doc/config change `learner` proposed was applied
   or **explicitly declined** (not "noted"). (`learner` emits proposals, not findings, so §2 doesn't

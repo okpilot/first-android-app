@@ -38,16 +38,18 @@ this project's own conventions (repository pattern, `FutureBuilder`+`_lastData` 
 
 ## Multi-round discipline (applies to `plan-critic`, and post-commit `semantic-reviewer` /
 `code-reviewer`; **`implementation-critic` is exempt**)
-- **Coverage round** = distinct lenses in parallel for breadth. **Stability round** = re-run the
-  same review on the same unchanged artifact to shake out variance. Only stability rounds count
-  toward the clean floor.
-- **Consecutive-clean floor:** N=**2** for a normal multi-file change; N=**3** when the diff hits
+- **Coverage round** = distinct lenses in parallel for breadth — always include an **adversarial
+  lens** (actively try to break the change: the exploit, the race, the edge case) and a
+  **completeness lens** (what's missing: an unhandled path, an untested branch, a doc/citation left
+  stale). **Stability round** = re-run the same review on the same unchanged artifact to shake out
+  variance. Only stability rounds count toward the clean floor.
+- **Consecutive-clean floor:** N=**3** for a normal multi-file change; N=**4** when the diff hits
   the **security path** (`backend/migrations/**/*.sql`, or auth files once they exist).
 - A clean round = zero APPLY-worthy findings (CRITICAL/ISSUE, or a SUGGESTION you choose to apply).
   A stylistic-only round or a validated skip-with-reason does **not** break clean.
 - **Reset on finding, not on skip:** any APPLY finding resets the counter to 0; a validated
   skip-with-reason (false positive / contradicts a codebase pattern) does not.
-- **Ceiling: 4 rounds.** If the floor is unmet at the ceiling, **STOP and escalate to the user**
+- **Ceiling: 6 rounds.** If the floor is unmet at the ceiling, **STOP and escalate to the user**
   with the residual findings — do not resolve unilaterally.
 - **`implementation-critic` exemption:** its artifact mutates on every fix and it never skips, so
   it runs a max **2-round** revision loop, then the orchestrator (me) takes over directly. A
