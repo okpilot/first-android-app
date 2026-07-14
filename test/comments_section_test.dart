@@ -134,14 +134,66 @@ Widget _detail(_FakeCommentsRepo comments) => MaterialApp(
 Comment _live(String id, String body) =>
     Comment(id: id, parentId: 'e1', body: body);
 
+// A tiny host that holds `readOnly` in its OWN State and rebuilds the SAME CommentsSection
+// in place when flipped — no remount, so the section's State survives and `didUpdateWidget`
+// fires. This is the in-place archive flip on the phone path (a task archived while its
+// comment editor is open), which no key-swap remount would reproduce.
+class _ReadOnlyFlipHost extends StatefulWidget {
+  const _ReadOnlyFlipHost({required this.repository, required this.parentId});
+
+  final CommentsRepository repository;
+  final String parentId;
+
+  @override
+  State<_ReadOnlyFlipHost> createState() => _ReadOnlyFlipHostState();
+}
+
+class _ReadOnlyFlipHostState extends State<_ReadOnlyFlipHost> {
+  bool _readOnly = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      theme: AppTheme.light,
+      home: Scaffold(
+        body: Column(
+          children: [
+            ElevatedButton(
+              onPressed: () => setState(() => _readOnly = true),
+              child: const Text('archive-in-place'),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                child: CommentsSection(
+                  repository: widget.repository,
+                  parentId: widget.parentId,
+                  readOnly: _readOnly,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // Mounts the widget on its own — no EventDetailScreen host — with an arbitrary parentId,
 // the way Slice 2b will wire it onto a task. Proves CommentsSection is genuinely
 // parent-agnostic and doesn't depend on any event-specific plumbing.
-Widget _standalone(_FakeCommentsRepo comments, String parentId) => MaterialApp(
+Widget _standalone(
+  _FakeCommentsRepo comments,
+  String parentId, {
+  bool readOnly = false,
+}) => MaterialApp(
   theme: AppTheme.light,
   home: Scaffold(
     body: SingleChildScrollView(
-      child: CommentsSection(repository: comments, parentId: parentId),
+      child: CommentsSection(
+        repository: comments,
+        parentId: parentId,
+        readOnly: readOnly,
+      ),
     ),
   ),
 );
@@ -458,6 +510,107 @@ void main() {
         final saved = await repo.fetchFor('task-42');
         expect(saved, hasLength(1));
         expect(saved.single.parentId, 'task-42');
+      },
+    );
+  });
+
+  // Read-only mode (Slice 2b): an archived task's comment log is frozen history — the bodies
+  // (live and archived) still render and the "Show archived" toggle still works, but every
+  // mutating affordance is gone: no composer, no per-comment Edit / Archive / Unarchive.
+  group('read-only mode', () {
+    _FakeCommentsRepo seeded() => _FakeCommentsRepo([
+      _live('c1', 'Live note stays visible.'),
+      Comment(
+        id: 'c0',
+        parentId: 'e1',
+        body: 'Archived note stays visible.',
+        deletedAt: DateTime(2026, 7, 10),
+      ),
+    ]);
+
+    testWidgets(
+      'read-only hides the composer and the live comment\'s Edit / Archive',
+      (tester) async {
+        await tester.pumpWidget(_standalone(seeded(), 'e1', readOnly: true));
+        await tester.pumpAndSettle();
+
+        // No composer at all.
+        expect(find.byType(TextField), findsNothing);
+        expect(find.widgetWithText(FilledButton, 'Comment'), findsNothing);
+
+        // The live body renders, but its mutating actions are absent.
+        expect(find.text('Live note stays visible.'), findsOneWidget);
+        expect(find.widgetWithText(TextButton, 'Edit'), findsNothing);
+        expect(find.widgetWithText(TextButton, 'Archive'), findsNothing);
+      },
+    );
+
+    testWidgets('read-only reveals archived bodies but drops Unarchive', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_standalone(seeded(), 'e1', readOnly: true));
+      await tester.pumpAndSettle();
+
+      // The archived section toggle still works in read-only mode.
+      await tester.ensureVisible(find.text('Show archived (1)'));
+      await tester.tap(find.text('Show archived (1)'));
+      await tester.pumpAndSettle();
+
+      // Both bodies now on screen, but the frozen log offers no Unarchive.
+      expect(find.text('Live note stays visible.'), findsOneWidget);
+      expect(find.text('Archived note stays visible.'), findsOneWidget);
+      expect(find.widgetWithText(TextButton, 'Unarchive'), findsNothing);
+    });
+
+    testWidgets(
+      'the default (read-write) mode DOES show the composer and per-comment actions',
+      (tester) async {
+        // Contrast: same data, default mode → every affordance the read-only case dropped is back.
+        await tester.pumpWidget(_standalone(seeded(), 'e1'));
+        await tester.pumpAndSettle();
+
+        expect(find.widgetWithText(FilledButton, 'Comment'), findsOneWidget);
+        expect(find.widgetWithText(TextButton, 'Edit'), findsOneWidget);
+        expect(find.widgetWithText(TextButton, 'Archive'), findsOneWidget);
+
+        await tester.ensureVisible(find.text('Show archived (1)'));
+        await tester.tap(find.text('Show archived (1)'));
+        await tester.pumpAndSettle();
+        expect(find.widgetWithText(TextButton, 'Unarchive'), findsOneWidget);
+      },
+    );
+
+    // Regression: the read-only gate must also close an OPEN inline editor when the parent
+    // flips to read-only in place (task archived while editing a comment). Pre-fix, the tile
+    // gated the editor on `_editingId` alone, so a live Save survived on the now-frozen log.
+    testWidgets(
+      'flipping to read-only in place closes an open editor (no live Save on a frozen log)',
+      (tester) async {
+        final repo = _FakeCommentsRepo([_live('c1', 'Draft wording')]);
+        await tester.pumpWidget(
+          _ReadOnlyFlipHost(repository: repo, parentId: 'e1'),
+        );
+        await tester.pumpAndSettle();
+
+        // Open the inline editor on the live comment → an editing TextField + a Save button.
+        await tester.ensureVisible(find.text('Edit'));
+        await tester.tap(find.text('Edit'));
+        await tester.pumpAndSettle();
+        expect(find.widgetWithText(FilledButton, 'Save'), findsOneWidget);
+        expect(
+          find.byType(TextField),
+          findsWidgets,
+        ); // composer + inline editor
+
+        // Archive the task in place → the SAME CommentsSection State rebuilds readOnly: true.
+        await tester.tap(find.text('archive-in-place'));
+        await tester.pumpAndSettle();
+
+        // No live write affordance survives on the frozen log: the editor and Save are gone
+        // (and the composer with them), but the comment body still renders read-only.
+        expect(find.widgetWithText(FilledButton, 'Save'), findsNothing);
+        expect(find.byType(TextField), findsNothing);
+        expect(find.text('Draft wording'), findsOneWidget);
       },
     );
   });

@@ -21,6 +21,9 @@
 - **Widget extraction / refactor for follow-on slices** (e.g. `CommentsSection` extract enabling task comments): update `plan.md` *Current status* + `HANDOVER.md` Status + RESUME to name the refactor slice (e.g. "Slice 2a") as on-branch, note it as behavior-preserving, and point RESUME at the follow-on slice (Slice 2b). **Append a Decision line WHEN the refactor embodies an explicit architectural CHOICE** the user made (e.g. Decision 32: extract ONE shared widget vs. copy it — a precedent with forward consequences); a purely mechanical extraction with no such choice needs no Decision. Both docs together.
 - **Rule-reversal sweep (Decision 26 Slice 3):** in a reversal, **grep the WHOLE of each touched file + every subsection of the decisions ledger** (not just main bullets). Implementation/Why safe/Principle sections can have factual statements contradicted by code. Decision 23's "Implementation" still said "direct-CRUD repository" when code now uses RPCs — caught as DRIFT post-commit, fixed with dated amendment. The in-commit sweep may miss these subsections.
 
+## Recent syncs (commit snapshots; trim after /wrapup curates)
+- **2026-07-14, Slice 2b (643bbeb):** plan.md + decisions.md (Decision 33) + database.md (#4 exception) + backend README + HANDOVER.md (Status + Prior Slice 2a) + README Features (task comments bullet). All surfaces synced post-commit; full fleet clean.
+
 ## Known false-positive traps (do NOT record as DRIFT)
 - Missing `auth.uid()` / owner-scoping in an RPC → **expected pre-auth** (issue #3), not a
   `database.md` #6 contradiction. Flips to a real update only when auth lands.

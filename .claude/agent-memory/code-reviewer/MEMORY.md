@@ -9,6 +9,7 @@
 | Pattern | First Seen | Count | Last Seen | Status (→ rule loc) |
 |---|---|---|---|---|
 | Identical private detail-widget copied across screens (`_MetaLine` "Added X · Updated Y" muted date footer — same class in both detail screens, functionally byte-identical bar a `parts.isEmpty` guard). Unlike `_ErrorState` (per-screen variance = convention), this had zero variance → extractable atom. | 2026-07-14 (tasks view-first) | 2 | 2026-07-14 (acb0043) | PROMOTED → `lib/widgets/meta_line.dart` (`MetaLine`, extracted acb0043; the merged atom keeps task's `parts.isEmpty` guard, strictly safer for contacts whose call site already guarded). RESOLVED. |
+| Near-identical `CommentsRepository` impl duplicated per parent entity (`SupabaseTaskCommentsRepository` is ~70 lines byte-identical to `SupabaseEventCommentsRepository` bar 6 strings: table, FK alias column, `.eq` column, 4 RPC names). Fully parameterizable into one class w/ table+fkColumn+rpcPrefix — BUT the interface docstring deliberately commits to "N parent-specific implementations" as the pattern. Defensible/documented skip at N=2; extraction pays off at N=3. | 2026-07-14 (Slice 2b) | 1 | 2026-07-14 (643bbeb) | WATCHING — reported as SUGGESTION only, not pushed (deliberate documented choice). If a 3rd parent-comments repo lands, count→2, RULE CANDIDATE. |
 
 ## Durable knowledge (this project's conventions to check against)
 - **No hard line caps.** Judge structure by responsibility/nesting, not length. A long

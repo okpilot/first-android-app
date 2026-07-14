@@ -1,11 +1,47 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:first_android_app/data/comments_repository.dart';
 import 'package:first_android_app/data/tasks_repository.dart';
+import 'package:first_android_app/models/comment.dart';
 import 'package:first_android_app/models/task.dart';
 import 'package:first_android_app/screens/task_detail_screen.dart';
 import 'package:first_android_app/screens/task_form_screen.dart';
 import 'package:first_android_app/theme.dart';
+import 'package:first_android_app/widgets/comments_section.dart';
+
+/// In-memory comments repo — seed via the constructor; fetchFor filters by parentId so the
+/// section loads a task's own comments. Add round-trips (newest-first by id) so the composer
+/// path works; edit/archive/unarchive are inert (these tests don't drive them).
+class _FakeCommentsRepo implements CommentsRepository {
+  _FakeCommentsRepo([List<Comment>? seed]) : _items = seed ?? [];
+  final List<Comment> _items;
+  int _seq = 0;
+
+  @override
+  Future<List<Comment>> fetchFor(String parentId) async =>
+      _items.where((c) => c.parentId == parentId).toList()
+        ..sort((a, b) => b.id.compareTo(a.id));
+  @override
+  Future<Comment> add(Comment draft) async {
+    final saved = Comment(
+      id: 'c${_seq++}',
+      parentId: draft.parentId,
+      body: draft.body.trim(),
+    );
+    _items.add(saved);
+    return saved;
+  }
+
+  @override
+  Future<Comment> edit(Comment comment) async => comment;
+  @override
+  Future<Comment> archive(String id) async =>
+      Comment.draft(parentId: '', body: '');
+  @override
+  Future<Comment> unarchive(String id) async =>
+      Comment.draft(parentId: '', body: '');
+}
 
 /// A stateful fake so archive/restore return a genuinely (un)archived Task — the detail
 /// view applies the *returned* task in place, so `archive()` must set `deletedAt` and
@@ -84,9 +120,17 @@ class _ThrowingTasksRepo implements TasksRepository {
   Future<Task> restore(String id) => throw Exception('offline');
 }
 
-Widget _detail(TasksRepository repo, Task task) => MaterialApp(
+Widget _detail(
+  TasksRepository repo,
+  Task task, {
+  CommentsRepository? comments,
+}) => MaterialApp(
   theme: AppTheme.light,
-  home: TaskDetailScreen(repository: repo, task: task),
+  home: TaskDetailScreen(
+    repository: repo,
+    commentsRepository: comments ?? _FakeCommentsRepo(),
+    task: task,
+  ),
 );
 
 void main() {
@@ -388,6 +432,7 @@ void main() {
                     MaterialPageRoute(
                       builder: (_) => TaskDetailScreen(
                         repository: repo,
+                        commentsRepository: _FakeCommentsRepo(),
                         task: const Task(id: 't1', title: 'Call Nadia'),
                       ),
                     ),
@@ -435,6 +480,7 @@ void main() {
                     MaterialPageRoute(
                       builder: (_) => TaskDetailScreen(
                         repository: repo,
+                        commentsRepository: _FakeCommentsRepo(),
                         task: const Task(id: 't1', title: 'Call Nadia'),
                       ),
                     ),
@@ -459,4 +505,88 @@ void main() {
     expect(popped, isTrue);
     expect(popResult, isFalse);
   });
+
+  // ---- the Comments section is wired onto the task detail (Slice 2b): live tasks get the
+  // composer; an archived task's log is read-only (frozen history).
+
+  testWidgets('a live task shows the Comments section with a composer', (
+    tester,
+  ) async {
+    final repo = _StatefulTasksRepo(const [
+      Task(id: 't1', title: 'Call Nadia'),
+    ]);
+    final comments = _FakeCommentsRepo([
+      const Comment(id: 'c1', parentId: 't1', body: 'Left a voicemail.'),
+    ]);
+    await tester.pumpWidget(
+      _detail(
+        repo,
+        const Task(id: 't1', title: 'Call Nadia'),
+        comments: comments,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The section is present, loaded this task's comment, and — being live — offers the composer.
+    expect(find.byType(CommentsSection), findsOneWidget);
+    expect(find.text('Left a voicemail.'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Comment'), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget); // the composer field
+  });
+
+  testWidgets(
+    'a completed (but not archived) task STILL shows the Comments composer',
+    (tester) async {
+      // readOnly keys only off _isArchived, not isDone — a done-but-live task is still
+      // commentable (design intent: live/completed tasks get the composer).
+      final repo = _StatefulTasksRepo(const [
+        Task(id: 't1', title: 'Ship the deck', isDone: true),
+      ]);
+      final comments = _FakeCommentsRepo([
+        const Comment(id: 'c1', parentId: 't1', body: 'Sent for review.'),
+      ]);
+      await tester.pumpWidget(
+        _detail(
+          repo,
+          const Task(id: 't1', title: 'Ship the deck', isDone: true),
+          comments: comments,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Completed, not archived → the log is still writable.
+      expect(
+        find.text('Completed'),
+        findsOneWidget,
+      ); // status pill confirms done
+      expect(find.byType(CommentsSection), findsOneWidget);
+      expect(find.text('Sent for review.'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Comment'), findsOneWidget);
+      expect(find.byType(TextField), findsOneWidget); // the composer field
+    },
+  );
+
+  testWidgets(
+    'an archived task shows the Comments section read-only (no composer)',
+    (tester) async {
+      final archived = Task(
+        id: 't9',
+        title: 'Old checklist',
+        deletedAt: DateTime(2026, 7, 11),
+      );
+      final comments = _FakeCommentsRepo([
+        const Comment(id: 'c1', parentId: 't9', body: 'Closed out last week.'),
+      ]);
+      await tester.pumpWidget(
+        _detail(_StatefulTasksRepo([archived]), archived, comments: comments),
+      );
+      await tester.pumpAndSettle();
+
+      // Section present and the frozen log still renders, but read-only → no composer / Comment button.
+      expect(find.byType(CommentsSection), findsOneWidget);
+      expect(find.text('Closed out last week.'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Comment'), findsNothing);
+      expect(find.byType(TextField), findsNothing);
+    },
+  );
 }

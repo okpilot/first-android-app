@@ -15,15 +15,22 @@ import '../util/format.dart';
 /// Comments are never hard-deleted: "Archive" sets `deleted_at`, and archived comments stay
 /// readable (RLS `select using (true)`) under the "Show archived" toggle. Extracted from the
 /// event detail so events and tasks share one implementation (Decision 2a — shared widget).
+///
+/// [readOnly] renders the log for viewing only — no composer, and no per-comment Edit / Archive /
+/// Unarchive actions. Used for an **archived task** (Slice 2b): its comments are frozen history.
+/// The live/archived list and the "Show archived" toggle still work; only the mutating affordances
+/// are removed. Defaults to false, so the event caller is unaffected.
 class CommentsSection extends StatefulWidget {
   const CommentsSection({
     super.key,
     required this.repository,
     required this.parentId,
+    this.readOnly = false,
   });
 
   final CommentsRepository repository;
   final String parentId;
+  final bool readOnly;
 
   @override
   State<CommentsSection> createState() => _CommentsSectionState();
@@ -54,6 +61,15 @@ class _CommentsSectionState extends State<CommentsSection> {
     _composer.dispose();
     _editController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(CommentsSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // If the parent flips to read-only while a comment editor is open (e.g. the task is archived
+    // in place — an in-place rebuild with no remount on the phone path), close the editor so it
+    // can't reappear on a later restore. A rebuild is already in flight, so no setState here.
+    if (widget.readOnly && !oldWidget.readOnly) _editingId = null;
   }
 
   void _rebuild() => setState(() {});
@@ -155,8 +171,11 @@ class _CommentsSectionState extends State<CommentsSection> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _header(live.length),
-            const SizedBox(height: 12),
-            _composerRow(),
+            // No composer in read-only mode (an archived task's log is frozen history).
+            if (!widget.readOnly) ...[
+              const SizedBox(height: 12),
+              _composerRow(),
+            ],
             const SizedBox(height: 16),
             if (loading)
               const Padding(
@@ -230,7 +249,10 @@ class _CommentsSectionState extends State<CommentsSection> {
         border: Border.all(color: theme.colorScheme.outlineVariant),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: editing ? _editBody(c) : _viewBody(c),
+      // Gate the editor on readOnly too — not just _editingId. Otherwise archiving the task
+      // while a comment editor is open (an in-place readOnly flip with no remount on the phone
+      // path) would leave a live Save on a frozen log.
+      child: (editing && !widget.readOnly) ? _editBody(c) : _viewBody(c),
     );
   }
 
@@ -251,9 +273,12 @@ class _CommentsSectionState extends State<CommentsSection> {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            const Spacer(),
-            _action('Edit', _busy ? null : () => _startEdit(c)),
-            _action('Archive', _busy ? null : () => _archive(c)),
+            // Read-only (archived task): timestamp only, no mutating actions.
+            if (!widget.readOnly) ...[
+              const Spacer(),
+              _action('Edit', _busy ? null : () => _startEdit(c)),
+              _action('Archive', _busy ? null : () => _archive(c)),
+            ],
           ],
         ),
       ],
@@ -362,8 +387,11 @@ class _CommentsSectionState extends State<CommentsSection> {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const Spacer(),
-              _action('Unarchive', _busy ? null : () => _unarchive(c)),
+              // Read-only (archived task): no Unarchive affordance on the frozen log.
+              if (!widget.readOnly) ...[
+                const Spacer(),
+                _action('Unarchive', _busy ? null : () => _unarchive(c)),
+              ],
             ],
           ),
         ],

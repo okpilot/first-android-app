@@ -17,6 +17,7 @@ class ContactsApp extends StatelessWidget {
     required this.eventsRepository,
     required this.eventTypesRepository,
     required this.commentsRepository,
+    required this.taskCommentsRepository,
     required this.tasksRepository,
   });
 
@@ -24,6 +25,8 @@ class ContactsApp extends StatelessWidget {
   final EventsRepository eventsRepository;
   final EventTypesRepository eventTypesRepository;
   final CommentsRepository commentsRepository;
+  // Task comments — a second CommentsRepository alongside the event one (see HomeShell).
+  final CommentsRepository taskCommentsRepository;
   final TasksRepository tasksRepository;
 
   @override
@@ -40,6 +43,7 @@ class ContactsApp extends StatelessWidget {
         eventsRepository: eventsRepository,
         eventTypesRepository: eventTypesRepository,
         commentsRepository: commentsRepository,
+        taskCommentsRepository: taskCommentsRepository,
         tasksRepository: tasksRepository,
       ),
     );

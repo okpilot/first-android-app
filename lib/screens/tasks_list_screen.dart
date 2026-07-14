@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../data/comments_repository.dart';
 import '../data/tasks_repository.dart';
 import '../models/task.dart';
 import '../widgets/empty_state.dart';
@@ -26,9 +27,14 @@ const double kTasksWideBreakpoint = kTaskListPaneWidth + 320;
 /// right (narrow pushes [TaskDetailScreen]). Tapping a row opens the task read-first (Decision 29);
 /// tapping the row's circle still quick-completes it.
 class TasksListScreen extends StatefulWidget {
-  const TasksListScreen({super.key, required this.repository});
+  const TasksListScreen({
+    super.key,
+    required this.repository,
+    required this.commentsRepository,
+  });
 
   final TasksRepository repository;
+  final CommentsRepository commentsRepository;
 
   @override
   State<TasksListScreen> createState() => _TasksListScreenState();
@@ -108,8 +114,11 @@ class _TasksListScreenState extends State<TasksListScreen> {
   Future<void> _openDetail(Task task) async {
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) =>
-            TaskDetailScreen(repository: widget.repository, task: task),
+        builder: (_) => TaskDetailScreen(
+          repository: widget.repository,
+          commentsRepository: widget.commentsRepository,
+          task: task,
+        ),
       ),
     );
     if (changed == true && mounted) unawaited(_load());
@@ -255,6 +264,7 @@ class _TasksListScreenState extends State<TasksListScreen> {
           '${selected.id}:${selected.isArchived}:${selected.isDone}',
         ),
         repository: widget.repository,
+        commentsRepository: widget.commentsRepository,
         task: selected,
         onChanged: (_) => unawaited(_load()),
       );

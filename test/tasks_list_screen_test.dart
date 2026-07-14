@@ -1,12 +1,65 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:first_android_app/data/comments_repository.dart';
 import 'package:first_android_app/data/tasks_repository.dart';
+import 'package:first_android_app/models/comment.dart';
 import 'package:first_android_app/models/task.dart';
 import 'package:first_android_app/screens/task_detail_screen.dart';
 import 'package:first_android_app/screens/task_form_screen.dart';
 import 'package:first_android_app/screens/tasks_list_screen.dart';
 import 'package:first_android_app/theme.dart';
+import 'package:first_android_app/widgets/comments_section.dart';
+
+/// Inert comments repo — the tasks list threads it to the detail, but none of these tests
+/// exercise comments. fetchFor returns nothing; the mutators are never reached.
+class _InertCommentsRepo implements CommentsRepository {
+  @override
+  Future<List<Comment>> fetchFor(String parentId) async => const [];
+  @override
+  Future<Comment> add(Comment draft) async => draft;
+  @override
+  Future<Comment> edit(Comment comment) async => comment;
+  @override
+  Future<Comment> archive(String id) async =>
+      Comment.draft(parentId: '', body: '');
+  @override
+  Future<Comment> unarchive(String id) async =>
+      Comment.draft(parentId: '', body: '');
+}
+
+/// A seedable comments repo — like [_InertCommentsRepo] but its [fetchFor] returns the seeded
+/// comments (filtered by parentId), so a wide-pane test can prove the detail pane's embedded
+/// [CommentsSection] actually loads the selected task's comments.
+class _SeededCommentsRepo implements CommentsRepository {
+  _SeededCommentsRepo([List<Comment>? seed]) : _items = seed ?? [];
+  final List<Comment> _items;
+  int _seq = 0;
+
+  @override
+  Future<List<Comment>> fetchFor(String parentId) async =>
+      _items.where((c) => c.parentId == parentId).toList()
+        ..sort((a, b) => b.id.compareTo(a.id));
+  @override
+  Future<Comment> add(Comment draft) async {
+    final saved = Comment(
+      id: 'c${_seq++}',
+      parentId: draft.parentId,
+      body: draft.body.trim(),
+    );
+    _items.add(saved);
+    return saved;
+  }
+
+  @override
+  Future<Comment> edit(Comment comment) async => comment;
+  @override
+  Future<Comment> archive(String id) async =>
+      Comment.draft(parentId: '', body: '');
+  @override
+  Future<Comment> unarchive(String id) async =>
+      Comment.draft(parentId: '', body: '');
+}
 
 /// A stateful in-memory repo so a complete-toggle actually moves the row between sections.
 class _StatefulTasksRepo implements TasksRepository {
@@ -106,10 +159,14 @@ class _UpdateFailsRepo implements TasksRepository {
   Future<Task> restore(String id) => throw UnimplementedError();
 }
 
-Widget _screen(TasksRepository repo) => MaterialApp(
-  theme: AppTheme.light,
-  home: TasksListScreen(repository: repo),
-);
+Widget _screen(TasksRepository repo, {CommentsRepository? comments}) =>
+    MaterialApp(
+      theme: AppTheme.light,
+      home: TasksListScreen(
+        repository: repo,
+        commentsRepository: comments ?? _InertCommentsRepo(),
+      ),
+    );
 
 /// Pump the screen pinned to a **phone-width** surface. The default test surface is 800px, which
 /// is ≥ [kTasksWideBreakpoint] (640) and would trip the wide desktop layout — so the phone-chrome
@@ -122,10 +179,14 @@ Future<void> _pumpNarrow(WidgetTester tester, TasksRepository repo) async {
 }
 
 /// Pump the screen pinned to a **wide** (desktop) surface → the list-header layout.
-Future<void> _pumpWide(WidgetTester tester, TasksRepository repo) async {
+Future<void> _pumpWide(
+  WidgetTester tester,
+  TasksRepository repo, {
+  CommentsRepository? comments,
+}) async {
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.binding.setSurfaceSize(const Size(1100, 800));
-  await tester.pumpWidget(_screen(repo));
+  await tester.pumpWidget(_screen(repo, comments: comments));
   await tester.pumpAndSettle();
 }
 
@@ -458,6 +519,43 @@ void main() {
         ),
         findsOneWidget,
       );
+    },
+  );
+
+  testWidgets(
+    'wide: the detail pane embeds the Comments section — live gets the composer, archived is read-only',
+    (tester) async {
+      final repo = _StatefulTasksRepo([
+        const Task(id: 't1', title: 'Call Nadia'),
+        Task(
+          id: 't9',
+          title: 'Old checklist',
+          deletedAt: DateTime(2026, 7, 11),
+        ),
+      ]);
+      final comments = _SeededCommentsRepo([
+        const Comment(id: 'c1', parentId: 't1', body: 'Left a voicemail.'),
+        const Comment(id: 'c9', parentId: 't9', body: 'Closed out last week.'),
+      ]);
+      await _pumpWide(tester, repo, comments: comments);
+
+      // The first ACTIVE task is auto-selected → its pane loads its own comment and,
+      // being live, offers the composer.
+      expect(find.byType(TaskDetailView), findsOneWidget);
+      expect(find.byType(CommentsSection), findsOneWidget);
+      expect(find.text('Left a voicemail.'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Comment'), findsOneWidget);
+
+      // Select the archived task (its ValueKey includes isArchived → the pane remounts
+      // read-only): its frozen log still renders, but the composer is gone.
+      await tester.tap(find.text('ARCHIVED'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Old checklist'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CommentsSection), findsOneWidget);
+      expect(find.text('Closed out last week.'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Comment'), findsNothing);
     },
   );
 }

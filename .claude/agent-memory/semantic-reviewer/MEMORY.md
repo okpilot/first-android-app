@@ -11,8 +11,28 @@
   `discarded_futures` lint was enabled (`0e4a7af`), which now mechanizes the catch. Fix = block body
   `setState(() { … })` and `await`/`unawaited` outside. Still worth a semantic flag on any new
   `setState(() => …)` whose callee returns a Future (belt-and-braces with the lint).
-- **Form declares an entity read-only but leaves a write affordance live** (RESOLVED-WATCH, count 1,
-  Tasks `58b2b5d`; fixed & re-verified `258cb6c`). Archived `TaskFormScreen` hid the complete toggle
+- **Form/section declares an entity read-only but leaves a write affordance live** (RULE CANDIDATE,
+  count 2: Tasks `58b2b5d` fixed `258cb6c`; **CommentsSection `643bbeb`**). **learner promoted this
+  at `adab034` → proposed a written convention in `docs/design-principles.md` (gate EVERY write
+  affordance, incl. state-dependent inline editors, on the read-only flag). Once the main session
+  writes it, mark PROMOTED → docs/design-principles.md.** Slice 2b: `readOnly`
+  gates the composer + per-comment Edit/Archive/Unarchive, but NOT the inline-edit branch
+  `editing ? _editBody(c) : _viewBody(c)` (line 243) — `_editBody`'s TextField + live Save
+  (`_saveEdit`→`repository.edit`) render on `_editingId` ALONE. Reachable: open a LIVE task, tap a
+  comment's Edit (sets `_editingId`), then tap the TASK's Archive → in-place `setState(_task=result)`
+  rebuilds CommentsSection with `readOnly=true` but NO remount (no key) ⇒ `_editingId` survives ⇒
+  Save stays live; DB `update_task_comment` guards `deleted_at is null` on the COMMENT (still live),
+  so the write SUCCEEDS on a supposedly-frozen archived-task log. **FIXED & re-verified CLEAN
+  (`adab034`)** with BOTH belt-and-braces layers: (a) `_liveTile` renders
+  `(editing && !widget.readOnly) ? _editBody : _viewBody` so the editor can't render read-only, and
+  (b) `didUpdateWidget` sets `_editingId = null` on the false→true readOnly flip (no setState — a
+  rebuild is already in flight, correct). The two cooperate on the phone in-place path (TaskDetailView
+  persists, CommentsSection keyless ⇒ didUpdateWidget fires): (a) blocks the render, (b) ensures the
+  editor does NOT reappear on a later Restore (readOnly true→false is a no-op for the clear, but
+  `_editingId` was already nulled). Desktop path remounts via the host key so state is fresh anyway.
+  Stale `_editController.text` is harmless — `_startEdit` resets it on the next edit. Leak CLOSED.
+  Same root lesson: gate ALL write affordances — incl. STATE-dependent ones (an open inline editor) —
+  on the read-only flag, not just the always-rendered buttons. Archived `TaskFormScreen` hid the complete toggle
   but kept the title editable + BOTH Save affordances live → Save → `update_task` guarded
   `deleted_at is null` → `no_data_found` → misleading "Couldn't save" (retry always fails). Fix =
   gate ALL write affordances (Save button + input field + `onFieldSubmitted`) on the same read-only
@@ -103,6 +123,15 @@ _Seed watch-items carried from the project's conventions:_
   re-fetch, so '' already normalized to NULL) BEFORE the keyless-for-notes `_load()` rebuild; State
   persists with the fresh value. `_save` = messenger-before-await + `if(!mounted)return` in both
   branches. Reinforce this shape for the next scalar-field-add slice.
+- **Task comments repo/wiring (Slice 2b, 643bbeb)** — `SupabaseTaskCommentsRepository` is a
+  byte-faithful twin of the event repo: `parent_id:task_id` select-only alias + real-column
+  `.eq('task_id')`/`.eq('id')`, `.single()` re-fetch (row always readable under `using(true)`, incl.
+  archived), RPC names+arity all match the binding migration `20260714140000` (`create_task_comment`
+  (p_task_id,p_body) / `update_task_comment`,`soft_delete_task_comment`,`restore_task_comment`(p_id)).
+  Do NOT flag the alias split or the non-atomic RPC-then-`_fetchOne`. Wiring is clean & un-crossed:
+  main→app→HomeShell threads `commentsRepository`(event)→Calendar and `taskCommentsRepository`(task)
+  →TasksList→both TaskDetailScreen (narrow) & TaskDetailView (desktop pane); both typed
+  `CommentsRepository` so the compiler wouldn't catch a swap — values verified correct by hand.
 - **Comments `_CommentsSection` (3a87cc8)** — `identical(future,_future)` stale-guard holds through
   the initState-fetch-vs-user-add race; mutation ops clear controllers/`_editingId` AFTER the await
   so a failed write preserves text + keeps edit mode open; `_run` = capture messenger + `mounted`
