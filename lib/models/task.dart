@@ -54,8 +54,9 @@ class Task {
   /// Params for the `create_task` RPC (Decision 26 — all writes go through RPCs). Matches the
   /// `create_task(p_title, p_notes)` signature: `p_title` is trimmed here (belt-and-suspenders
   /// with the server, which also trims); `p_notes` is sent verbatim (possibly null — the server
-  /// normalizes blank/whitespace to NULL). Mirrors the [Comment.toRpcParams] convention:
-  /// `toRpcParams` matches the `create_*` shape; `is_done` is NOT included because `create_task`
+  /// normalizes blank/whitespace to NULL). Follows the project's RPC-write convention (as [Comment]
+  /// does, though its param map now lives in the repo): `toRpcParams` matches the `create_*` shape
+  /// and `is_done` is NOT included because `create_task`
   /// creates live+not-done. Updates go through `update_task` with an explicit
   /// `{p_id, p_title, p_is_done, p_notes}` built in the repo, never this map.
   Map<String, dynamic> toRpcParams() => {

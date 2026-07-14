@@ -3,15 +3,34 @@
 Read on demand. Durable "how to test THIS screen / what's a non-gap" notes, one section per slice.
 MEMORY.md keeps one-line pointers here.
 
-## `_CommentsSection` (event_detail_screen.dart)
-- Tested through its host `EventDetailScreen` with 3 inert repo fakes + a real `_FakeCommentsRepo`
-  (has a `throwOnFetch` toggle — flip it AFTER the initial pump to drive a failed *refresh*; set it
-  true before pump for a failed *initial load*). No separate `_RefreshFailsRepo`/`_OrderedRepo`.
-- No `_OrderedRepo` out-of-order test: reloads run through `_run`, which sets `_busy=true` and
-  disables every action button while a load is in flight, so two user-triggered reloads can't
-  overlap. The stale-guard catch branch (`identical(future,_future)` + failed-refresh snackbar) IS
-  covered by the `throwOnFetch`-after-pump test; the success-branch out-of-order overwrite is covered
-  on the shared pattern in `event_types_screen_test.dart`. Not a gap — do not flag.
+## `CommentsSection` (public shared widget, `lib/widgets/comments_section.dart`)
+- Extracted from the old private `_CommentsSection` (event_detail_screen) in Slice 2a, commit
+  `2717da9` — now **public + parent-agnostic** (`CommentsSection(repository, parentId)`). Canonical
+  test file `test/comments_section_test.dart` drives it two ways:
+  - (a) **through host `EventDetailScreen`** — 3 inert repo fakes + a real `_FakeCommentsRepo` with a
+    `throwOnFetch` toggle: flip it AFTER the initial pump for a failed *refresh*, set true before pump
+    for a failed *initial load*. No separate `_RefreshFailsRepo`/`_OrderedRepo` needed here.
+  - (b) **standalone** — mounted directly in `MaterialApp > Scaffold > SingleChildScrollView` with an
+    arbitrary task-shaped `parentId` ('task-42'), proving parent-agnosticism ahead of Slice 2b's task
+    reuse. Assert the `parentId` flows through `Comment.draft` into the persisted row via
+    `fetchFor(parentId)`, and that a sibling parent's comment ('e1') does NOT leak in.
+- **Rule:** when a shared widget's whole reason for extraction is cross-parent reuse, add a direct
+  standalone mount with a NON-default parentId — host-only tests can't prove it isn't secretly coupled.
+- **`_busy` re-entrancy mid-write** IS testable despite a synchronously-resolving fake: add an optional
+  `Completer<void>? archiveGate` to `_FakeCommentsRepo` (archive awaits `gate.future` when set) →
+  tap Archive, `pump()` once to flush `setState(_busy=true)`, then assert `onPressed == null` on the
+  composer `FilledButton('Comment')` (seed composer text first so only `_busy` can disable it) AND the
+  tile's `Edit`/`Archive` `TextButton`s; `gate.complete()` + `pumpAndSettle` proves it resolves and
+  re-enables. Covered 2026-07-14.
+- **Inline-edit Cancel** (`_action('Cancel', … _cancelEdit)`, a `TextButton`): tap Edit, `enterText`
+  a change into `TextField.last`, tap Cancel → assert `FilledButton('Save')` gone (view mode restored),
+  the typed text `findsNothing`, the ORIGINAL body `findsOneWidget` (edit discarded, never persisted).
+  Covered 2026-07-14.
+- **Why no `_OrderedRepo` out-of-order test:** reloads run through `_run`, which sets `_busy=true` and
+  disables every action button while a load is in flight, so two user-triggered reloads can't overlap.
+  The stale-guard catch branch (`identical(future, _future)` + failed-refresh snackbar) is covered by
+  the `throwOnFetch`-after-pump test; the success-branch out-of-order overwrite is covered on the
+  shared pattern in `event_types_screen_test.dart`. Not a gap — do not flag it.
 
 ## `tasks_list_screen` stale-guard — RESOLVED (cloud-CR PR #30, 2026-07-12)
 - `TasksListScreen._load` HAS the `identical(future, _future)` guard, matching `event_types_screen`
@@ -36,7 +55,7 @@ MEMORY.md keeps one-line pointers here.
   (`icon==null` → `FilledButton`, else `FilledButton.icon`) are exercised through the detail tests
   (Edit has no icon; Complete/Archive/Restore do). Do not pad a widget test for it.
 
-## Task `notes` (optional freeform scalar, commit 5cfc2b3)
+## Task `notes` (optional freeform scalar, commit `4d3d6b8`)
 - Model/form/detail/list coverage shipped in the commit is thorough. The one real add: a widget test
   that a **Complete toggle keeps notes visible** end-to-end (the shipped "Complete marks it done"
   test used a task WITHOUT notes, so the `_toggleDone → copyWith(isDone:) → update echo → re-seed

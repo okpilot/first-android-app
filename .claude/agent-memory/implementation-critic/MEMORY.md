@@ -97,6 +97,19 @@ _First run pending. Seed watch-items carried from the project's conventions:_
   is masked on an ALREADY-selected row — cosmetic only (re-tapping a selected row is a no-op; unselected rows
   ripple fine); the plan explicitly specced "ColoredBox/Ink". RefreshIndicator over the two-pane `Row` with two
   ListViews is the proven Contacts structure — no assertion.
+- **Pure-refactor / widget-extraction slices** (CommentsSection extraction = Decision 2a): win
+  condition = byte-equivalent BEHAVIOR, not a rewrite. Verify by side-by-side diffing the removed
+  private widget against the new public one: the ONLY deltas should be the rename axis
+  (`eventId`→`parentId`, `fetchForEvent`→`fetchFor`, `Comment.draft(eventId:)`→`(parentId:)`, class
+  made public + `super.key`). Every async invariant must survive verbatim — `_load()` triple
+  `identical(future,_future)` stale-guard, `_run` re-entrancy `_busy` + messenger-captured-before-await
+  + `if(!mounted)return`-after-await, `_lastData` fallback in FutureBuilder. Repo-side, a PostgREST
+  select ALIAS (`parent_id:event_id`, syntax `alias:column`) is select-only: confirm the `.eq()` and
+  `_fetchOne` still use the REAL column (`event_id`/`id`), and that `_fetchOne` shares `_columns` so
+  the aliased row parses. `add` must build its RPC param map INLINE ({p_event_id, p_body}) once
+  `toRpcParams` moves off the model — grep confirms no dangling `toRpcParams`/`fetchForEvent`/old
+  class name in lib+test. A dangling dartdoc `[Comment.toRpcParams]` ref does NOT fail `flutter
+  analyze` (comment_references lint is off by default) — safe to defer, cosmetic only.
 - **Pure-UI / adaptive-layout slices** (desktop sidebar = Decision 28 Slice A): no async → `mounted`/
   `_lastData` traps are N/A; the win condition is theme-token fidelity, not repo/SQL posture. Checklist:
   (1) every colour from `Theme.of(context).colorScheme` (no ad-hoc hex; `Colors.transparent` is fine) and

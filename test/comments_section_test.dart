@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -11,6 +13,7 @@ import 'package:first_android_app/models/event.dart';
 import 'package:first_android_app/models/event_type.dart';
 import 'package:first_android_app/screens/event_detail_screen.dart';
 import 'package:first_android_app/theme.dart';
+import 'package:first_android_app/widgets/comments_section.dart';
 
 // The Comments section is private to event_detail_screen.dart, so it's exercised through
 // its public host, EventDetailScreen. Only the comments repo does anything here; the other
@@ -24,11 +27,14 @@ class _FakeCommentsRepo implements CommentsRepository {
   final List<Comment> _items;
   int _seq = 0;
   bool throwOnFetch = false;
+  // When set, archive() awaits this before mutating — holds a write in flight so a test
+  // can observe the `_busy` re-entrancy guard mid-write. Complete it to let the write finish.
+  Completer<void>? archiveGate;
 
   @override
-  Future<List<Comment>> fetchForEvent(String eventId) async {
+  Future<List<Comment>> fetchFor(String parentId) async {
     if (throwOnFetch) throw Exception('offline');
-    return _items.where((c) => c.eventId == eventId).toList()
+    return _items.where((c) => c.parentId == parentId).toList()
       ..sort((a, b) => b.id.compareTo(a.id)); // newest first
   }
 
@@ -36,7 +42,7 @@ class _FakeCommentsRepo implements CommentsRepository {
   Future<Comment> add(Comment draft) async {
     final saved = Comment(
       id: 'c${_seq++}',
-      eventId: draft.eventId,
+      parentId: draft.parentId,
       body: draft.body.trim(),
     );
     _items.add(saved);
@@ -51,8 +57,10 @@ class _FakeCommentsRepo implements CommentsRepository {
   }
 
   @override
-  Future<Comment> archive(String id) async =>
-      _setDeleted(id, DateTime(2026, 7, 11));
+  Future<Comment> archive(String id) async {
+    if (archiveGate != null) await archiveGate!.future;
+    return _setDeleted(id, DateTime(2026, 7, 11));
+  }
 
   @override
   Future<Comment> unarchive(String id) async => _setDeleted(id, null);
@@ -62,7 +70,7 @@ class _FakeCommentsRepo implements CommentsRepository {
     final c = _items[i];
     final next = Comment(
       id: c.id,
-      eventId: c.eventId,
+      parentId: c.parentId,
       body: c.body,
       createdAt: c.createdAt,
       deletedAt: when,
@@ -124,7 +132,19 @@ Widget _detail(_FakeCommentsRepo comments) => MaterialApp(
 );
 
 Comment _live(String id, String body) =>
-    Comment(id: id, eventId: 'e1', body: body);
+    Comment(id: id, parentId: 'e1', body: body);
+
+// Mounts the widget on its own — no EventDetailScreen host — with an arbitrary parentId,
+// the way Slice 2b will wire it onto a task. Proves CommentsSection is genuinely
+// parent-agnostic and doesn't depend on any event-specific plumbing.
+Widget _standalone(_FakeCommentsRepo comments, String parentId) => MaterialApp(
+  theme: AppTheme.light,
+  home: Scaffold(
+    body: SingleChildScrollView(
+      child: CommentsSection(repository: comments, parentId: parentId),
+    ),
+  ),
+);
 
 void main() {
   testWidgets('empty state when there are no comments', (tester) async {
@@ -142,7 +162,7 @@ void main() {
       _live('c1', 'Sent the agenda round.'),
       Comment(
         id: 'c0',
-        eventId: 'e1',
+        parentId: 'e1',
         body: 'Rescheduled to the afternoon.',
         deletedAt: DateTime(2026, 7, 10),
       ),
@@ -321,5 +341,124 @@ void main() {
     await tester.enterText(find.byType(TextField).last, 'Revised');
     await tester.pump();
     expect(saveButton().onPressed, isNotNull);
+  });
+
+  testWidgets(
+    'actions are disabled while a write is in flight, then re-enable when it resolves',
+    (tester) async {
+      // Gate the archive write so it stays pending — `_busy` is true across the await,
+      // which is exactly the re-entrancy window the doc-comment on `_run` promises.
+      final gate = Completer<void>();
+      final repo = _FakeCommentsRepo([_live('c1', 'Still around.')])
+        ..archiveGate = gate;
+      await tester.pumpWidget(_detail(repo));
+      await tester.pumpAndSettle();
+
+      // Give the composer real text so its Comment button is enabled *before* the write —
+      // that way disabling it mid-flight can only be `_busy`, not the empty-text gate.
+      await tester.enterText(find.byType(TextField).first, 'A pending note');
+      await tester.pump();
+
+      FilledButton commentButton() => tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Comment'),
+      );
+      TextButton editAction() =>
+          tester.widget<TextButton>(find.widgetWithText(TextButton, 'Edit'));
+      TextButton archiveAction() =>
+          tester.widget<TextButton>(find.widgetWithText(TextButton, 'Archive'));
+
+      expect(commentButton().onPressed, isNotNull); // enabled before the write
+
+      // Start the archive; the gated repo call keeps it pending, so `_busy` stays true.
+      await tester.ensureVisible(find.text('Archive'));
+      await tester.tap(find.text('Archive'));
+      await tester
+          .pump(); // flush setState(_busy = true); write still in flight
+
+      // Mid-flight: every action is disabled — the composer's Comment despite its text,
+      // and the tile's Edit / Archive.
+      expect(commentButton().onPressed, isNull);
+      expect(editAction().onPressed, isNull);
+      expect(archiveAction().onPressed, isNull);
+
+      // Let the write complete → reload runs, `_busy` clears.
+      gate.complete();
+      await tester.pumpAndSettle();
+
+      // The archive landed (dropped from live) and the composer is interactive again.
+      expect(find.text('Still around.'), findsNothing);
+      expect(find.text('No comments yet.'), findsOneWidget);
+      expect(commentButton().onPressed, isNotNull);
+    },
+  );
+
+  testWidgets('Cancel discards inline edits and keeps the original body', (
+    tester,
+  ) async {
+    final repo = _FakeCommentsRepo([_live('c1', 'Original body')]);
+    await tester.pumpWidget(_detail(repo));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Edit'));
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+
+    // Type a change into the inline editor but abandon it with Cancel.
+    await tester.enterText(find.byType(TextField).last, 'Discarded change');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await tester.pumpAndSettle();
+
+    // Reverted to view mode: the editor and Save are gone, the original body is intact,
+    // and the typed-but-cancelled text was never persisted.
+    expect(find.widgetWithText(FilledButton, 'Save'), findsNothing);
+    expect(find.text('Discarded change'), findsNothing);
+    expect(find.text('Original body'), findsOneWidget);
+    expect(find.text('Edit'), findsOneWidget); // action row back in view mode
+  });
+
+  // The whole point of the extraction (Slice 2a): the widget is a standalone, public,
+  // parent-agnostic section ready to hang off a task in Slice 2b. These mount it directly
+  // — no EventDetailScreen — with a task-shaped parentId to prove that contract.
+  group('standalone / parent-agnostic', () {
+    testWidgets('mounts on its own and lists only the given parent\'s comments', (
+      tester,
+    ) async {
+      // Two parents in one repo; the widget must show only 'task-42' and never leak 'e1'.
+      final repo = _FakeCommentsRepo([
+        Comment(id: 'c9', parentId: 'task-42', body: 'Task-scoped note.'),
+        _live('c1', 'Event-scoped note.'),
+      ]);
+      await tester.pumpWidget(_standalone(repo, 'task-42'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Comments'), findsOneWidget);
+      expect(find.text('Task-scoped note.'), findsOneWidget);
+      expect(find.text('Event-scoped note.'), findsNothing);
+    });
+
+    testWidgets(
+      'a comment added standalone is created under the given parentId',
+      (tester) async {
+        final repo = _FakeCommentsRepo();
+        await tester.pumpWidget(_standalone(repo, 'task-42'));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.byType(TextField).first,
+          'From the task view',
+        );
+        await tester.pump();
+        await tester.tap(find.widgetWithText(FilledButton, 'Comment'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('From the task view'), findsOneWidget);
+        // The arbitrary parentId flowed through Comment.draft into the persisted row —
+        // it is retrievable under 'task-42', not the event default.
+        final saved = await repo.fetchFor('task-42');
+        expect(saved, hasLength(1));
+        expect(saved.single.parentId, 'task-42');
+      },
+    );
   });
 }

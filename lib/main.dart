@@ -25,7 +25,7 @@ Future<void> main() async {
         repository: SupabaseContactsRepository(client),
         eventsRepository: SupabaseEventsRepository(client),
         eventTypesRepository: SupabaseEventTypesRepository(client),
-        commentsRepository: SupabaseCommentsRepository(client),
+        commentsRepository: SupabaseEventCommentsRepository(client),
         tasksRepository: SupabaseTasksRepository(client),
       ),
     );

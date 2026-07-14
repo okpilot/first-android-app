@@ -54,17 +54,17 @@ class _FakeEventTypesRepo implements EventTypesRepository {
 
 class _FakeCommentsRepo implements CommentsRepository {
   @override
-  Future<List<Comment>> fetchForEvent(String eventId) async => const [];
+  Future<List<Comment>> fetchFor(String parentId) async => const [];
   @override
   Future<Comment> add(Comment draft) async => draft;
   @override
   Future<Comment> edit(Comment comment) async => comment;
   @override
   Future<Comment> archive(String id) async =>
-      Comment.draft(eventId: '', body: '');
+      Comment.draft(parentId: '', body: '');
   @override
   Future<Comment> unarchive(String id) async =>
-      Comment.draft(eventId: '', body: '');
+      Comment.draft(parentId: '', body: '');
 }
 
 class _FakeTasksRepo implements TasksRepository {

@@ -60,7 +60,8 @@ Full detail in [positive-signals](topics/positive-signals.md). One-line index:
   private `StatelessWidget`, repo/time-math out of `build()`, messenger/nav captured before await).
 - **RPC-write repository pattern** — `create`/`update` → `_client.rpc(...)` + `_fetchOne(id)`;
   `toRpcParams()` `p_`-prefixed; per-entity divergences (comments' body-only `edit`, tasks' explicit
-  `update`) are EXPECTED, verify-don't-flag. Task notes slice (5cfc2b3) = clean scalar-field-add.
+  `update`, comment model dropping `toRpcParams` when parent-agnostic — Slice 2a) are EXPECTED,
+  verify-don't-flag. Task notes slice (`4d3d6b8`) = clean scalar-field-add.
 - **`tasks_list_screen.dart`** / **`contacts_list_screen` (Slices B/C)** — list-screen reference:
   `_lastData` stale-guard, `mounted`-after-await, light snapshot `where` partition/search (NOT a
   heavy transform), `EmptyState` + hand-rolled `_ErrorState`, master-detail `ValueKey` remount.
@@ -68,5 +69,7 @@ Full detail in [positive-signals](topics/positive-signals.md). One-line index:
 - **`task_detail_screen.dart` / `ContactDetailView`** — view-first detail reference: thin
   Scaffold host + shared body that NEVER pops, reuses `SubtleButton`/`MetaLine`, `_StatusPill` is
   label-paired (not colour-as-data).
-- **`_CommentsSection` (`event_detail_screen.dart`)** — inline stateful sub-section with its own
-  `_lastData` load + `identical(future,_future)` stale checks; method-extraction in `build()`.
+- **`CommentsSection` (`lib/widgets/comments_section.dart`, Slice 2a `2717da9`)** — reference shared
+  stateful sub-section, extracted verbatim from `event_detail_screen.dart`, now parent-agnostic
+  (`CommentsRepository`+`parentId`); own `_lastData` + `identical(future,_future)` stale-guard;
+  inline empty/error hand-rolled (not `EmptyState`); grep-confirmed zero stale old-name refs.
