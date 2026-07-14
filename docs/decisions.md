@@ -309,6 +309,42 @@ subset — but keep it Flutter-honest (phase-aware, no cargo-culted TS/Next rule
 
 ---
 
+## Decision 31: Task notes — a single optional freeform field (2026-07-14)
+**Context:** The user wanted, on a task, to "add and then see notes" **and** (separately) to add
+**comments** to existing tasks with the same soft-delete archive as `event_comments`. Two different
+shapes were on the table for "notes": one editable field on the task, or a running list of entries.
+**Decided:**
+- **Notes = ONE optional freeform field on the task itself** (a description), NOT a running list —
+  a running list would duplicate the comments log. Set it on the add/edit form, see it read-only on
+  the detail; edit anytime. Distinct from the **task-comments log** (the archivable append log),
+  which is the **next slice** (cloned from `event_comments`).
+- **Sliced notes-first** (small: one scalar column), comments after — never both in one branch.
+- **Prototype-first, both platforms:** an interactive Android + Linux (light+dark) prototype was
+  approved before any Flutter code (`feedback-prototype-first`). Placement chosen: on the detail the
+  Notes block sits **pill → Notes → dates → actions** as a `labelMedium` label over a `bodyLarge`
+  value (mirrors the Contacts detail label/value pattern, no card); shown for **live AND archived**
+  tasks (archived = read-only history); hidden entirely when empty.
+- **Storage/write:** a nullable `tasks.notes text` column; writes stay on the RPC path (Decision 26)
+  — `create_task(p_title, p_notes)` / `update_task(p_id, p_title, p_is_done, p_notes)` recreated via
+  the drop+recreate signature-change pattern (old signatures dropped → no PGRST203 overload; bodies
+  preserved verbatim; grants re-issued). Blank/whitespace notes normalized to **NULL** server-side
+  (`nullif(trim(p_notes), '')`), like `title`'s trim. The model clears via `''` (→ server NULL on
+  the round-trip); `copyWith(notes:)` omitted = keep, so a complete-toggle can't clobber notes.
+**Note — deploy pairs with a client rebuild:** `update_task`'s new required `p_notes` means an
+already-installed old client (a 3-arg `update_task` call) will error until rebuilt via `/updatephone`
++ `/updatelinux` — deliberate (a loud error beats silently wiping notes); no `default null` on
+`update_task.p_notes` on purpose.
+**Test coverage:** notes threaded across `task_test` / `task_form_screen_test` /
+`task_detail_screen_test` / `tasks_list_screen_test` (fromJson read-back, `toRpcParams` shape,
+create/edit/seed, detail render/absent/archived, complete-toggle preserves notes, reconstructing
+fakes thread the field). Suite **138** green, analyze clean. Fleet: plan-critic (REVISE→folded) +
+implementation-critic (APPROVED) + code/semantic/red-team/doc/test all clean.
+
+**Status (2026-07-14):** built on branch `feat/task-notes` (commit `5cfc2b3`); pending the
+`/fullpush` gate → push approval → PR/cloud-CR → merge → homebase deploy → emulator light+dark QA.
+
+---
+
 ## OPEN QUESTIONS
 - [x] Backend hosting: **self-host trimmed on homebase** (vs Supabase cloud). Settled 2026-07-07; revisit only if homebase load becomes a problem.
 - [x] First walking-skeleton slice entity: **`contacts`** (name, dob, email, phone, company, remarks). Settled 2026-07-08 — Slice 1.

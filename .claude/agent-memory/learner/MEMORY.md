@@ -50,18 +50,33 @@ not a re-mention. Read columns by header, not position.
   WATCHING (count 1): stale citations concentrate in **secondary summaries & decision-entry
   subsections**, not the obvious rule line. Do NOT sharpen `CLAUDE.md` on this single sighting —
   if the next reversal leaks the same way, promote the sharpening then.
-- **Emerging meta-cluster: "under-scoped removal/reversal sweep" (do NOT promote yet — mixed
-  mechanisms, only one at count ≥2).** plan-critic now has THREE rhyming rows: (a) rule-reversal →
-  grep docs for stale OLD-rule citations (PROMOTED, count 3, `CLAUDE.md`); (b) remove a model
-  write-method → grep `test/` + check dead private helpers/dartdoc (count 1); (c) remove a
-  widget/affordance → grep the WHOLE test file for its text/type (count 1, `cfbfe7f`). Common shape:
-  when a slice DELETES/REVERSES thing X, the plan's Tests/Docs section enumerates only the obvious
-  sites and misses siblings that reference X. The generalization (grep the whole sibling surface —
-  docs AND tests — for every reference to the removed thing) is tempting but each concrete mechanism
-  is still count 1 except the doc-reversal one. If (b) or (c) recurs → promote by BROADENING the
-  existing `CLAUDE.md` rule-reversal-sync line to cover removals + test surfaces, rather than adding
-  a second overlapping convention. NOT gated by hooks/lint/CodeRabbit (a plan omission + a broken
-  sibling test only surface at `flutter test`, which the fleet runs pre-push).
+- **Emerging meta-cluster: "under-scoped sibling-surface sweep on a model-shape change" (do NOT
+  promote yet — mixed mechanisms, only one at count ≥2).** plan-critic now has FOUR rhyming rows:
+  (a) rule-reversal → grep docs for stale OLD-rule citations (PROMOTED, count 3, `CLAUDE.md`);
+  (b) remove a model write-method → grep `test/` + check dead private helpers/dartdoc (count 1);
+  (c) remove a widget/affordance → grep the WHOLE test file for its text/type (count 1, `f39649f`);
+  (d) **ADD an optional scalar field → reconstructing fakes (`_StatefulTasksRepo.create/archive/
+  restore` rebuild `Task(...)` from scratch) silently DROP the new field, + an exact-map
+  `toRpcParams()` assertion breaks the moment the new `p_*` key is added (count 1, `5cfc2b3`, task
+  notes).** Common shape: when a slice ADDS/REMOVES/REVERSES a model surface X, the plan's Tests/
+  Docs section enumerates only the obvious sites and misses siblings that reference X. The cluster
+  is now broad (4 mechanisms across 3 test-surface commits `d241131`-era/`f39649f`/`5cfc2b3`), but
+  each concrete mechanism except the doc-reversal one is STILL count 1 — the candidate (d) is a
+  first sighting, so NO rule this cycle (per the 2×-distinct-mechanism threshold; all four were
+  also CAUGHT by plan-critic at plan time and folded in — no leak reached main, the gate is
+  working). Sharpened trip-wire: if ANY test-surface mechanism (b/c/d) recurs in a future commit →
+  promote by BROADENING the existing `CLAUDE.md` rule-reversal-sync line from "grep docs on a rule
+  reversal" to "grep the whole sibling surface — docs AND `test/` (reconstructing fakes + exact-map
+  assertions) — whenever a slice changes a model's field/method/affordance set (add OR remove)",
+  rather than adding a second overlapping convention. NOT gated by hooks/lint/CodeRabbit (a plan
+  omission + a broken sibling test only surface at `flutter test`, which the fleet runs pre-push).
+- **A CREATE OR REPLACE that recreates an RPC to add ONE param must re-carry the WHOLE prior body**
+  (SECURITY DEFINER, `SET search_path=public`, `where deleted_at is null` guard, `if not found
+  raise`, `trim(p_title)`) — a terse "also set notes=…" risks silently dropping guards. Surfaced
+  once as a plan-critic ISSUE at task notes (`5cfc2b3`), folded in pre-build. Single sighting → log
+  & watch (plan-critic owns the row). This rhymes with the RPC-write template being a proven shape
+  where per-entity attention belongs on the DELTA — here the delta must not amputate the template.
+  Promote only if a future RPC-param-add recreates a body that drops a prior guard.
 - **The `state-lift-vs-widget.x` trap surfaced (impl-critic count 1, `cfbfe7f`) and was RESOLVED
   in-slice.** A thin host whose dynamic AppBar title claims (in a comment) to track the LIVE entity
   but reads `widget.task` (frozen at push) while the mutation lives in the child body via

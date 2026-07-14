@@ -135,6 +135,35 @@ void main() {
     expect(find.widgetWithText(FilledButton, 'Complete'), findsNothing);
   });
 
+  testWidgets('completing a task keeps its notes visible', (tester) async {
+    // The toggle re-sends the task via copyWith(isDone:) — which preserves notes —
+    // and re-seeds _task from the result. Guard the whole chain end-to-end: a
+    // Complete must not drop the notes block from the re-rendered detail.
+    final repo = _StatefulTasksRepo(const [
+      Task(id: 't1', title: 'Call Nadia', notes: 'Prefers a call after 15:00.'),
+    ]);
+    await tester.pumpWidget(
+      _detail(
+        repo,
+        const Task(
+          id: 't1',
+          title: 'Call Nadia',
+          notes: 'Prefers a call after 15:00.',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Complete'));
+    await tester.pumpAndSettle();
+
+    expect(repo.lastUpdated!.isDone, isTrue);
+    expect(repo.lastUpdated!.notes, 'Prefers a call after 15:00.');
+    // The notes survived the toggle and still render read-only.
+    expect(find.text('Notes'), findsOneWidget);
+    expect(find.text('Prefers a call after 15:00.'), findsOneWidget);
+  });
+
   testWidgets('Reopen re-opens a completed task', (tester) async {
     final repo = _StatefulTasksRepo(const [
       Task(id: 't1', title: 'Done one', isDone: true),

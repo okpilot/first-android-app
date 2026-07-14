@@ -19,8 +19,8 @@ disposable vehicle for learning app development end to end.
 - **Event comments** — attach notes and decisions to an event. Archive old comments to
   keep them but hide them by default; unarchive to show them again.
 - **Tasks** — a lightweight to-do list: add a task, then tap it to see its details (title,
-  status, dates). **Edit** renames the task; **Complete** (or **Reopen**) changes whether it's
-  done, and **Archive** (or **Restore**) tidies away ones you're finished with. Completed and
+  status, optional notes, dates). **Edit** to change it; **Complete** (or **Reopen**) toggles
+  done status, and **Archive** (or **Restore**) tidies away finished tasks. Completed and
   archived tasks tuck into their own sections so your active list stays clean, and nothing is
   ever hard-deleted.
 - **Desktop & wide screens** — on a wide window the app lays itself out for a mouse: a
