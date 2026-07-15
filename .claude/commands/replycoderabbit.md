@@ -1,8 +1,15 @@
 Post the reply to CodeRabbit for the findings **`/coderabbit` already triaged** on the current PR —
-one comment, each finding citing its fix SHA (or skip/defer reason). Run **after** the fixes are
-pushed (via `/fullpush`). This command does **no triage** — it only responds to decisions
-`/coderabbit` recorded. It's the cloud counterpart to `/crlocal`; the cloud bot is the authoritative
-gate (Decision 7), and answering it closes the loop.
+**replying in each finding's own inline thread** (that's where CodeRabbit reads and resolves), each
+citing its fix SHA (or skip/defer reason). Run **after** the fixes are pushed (via `/fullpush`). This
+command does **no triage** — it only responds to decisions `/coderabbit` recorded. It's the cloud
+counterpart to `/crlocal`; the cloud bot is the authoritative gate (Decision 7), and answering it
+closes the loop.
+
+**Inline-first.** CodeRabbit's actionable findings are **inline review comments** (`source:"inline"`
+from `cr-findings.sh`). Reply IN-THREAD on each via `POST /pulls/$PR/comments/<comment_id>/replies`
+so the answer lands under CodeRabbit's comment and the thread resolves — do NOT dump everything in one
+detached PR comment. Only findings with **no inline thread** (`source:"body"` — summary/walkthrough
+items) go in the single fallback `<!-- crreply -->` comment.
 
 ## What to do
 
@@ -48,32 +55,65 @@ gate (Decision 7), and answering it closes the loop.
    If `sha` is empty (subject squashed/reworded, or ambiguous), say so in the reply instead of citing a
    SHA you can't stand behind — don't guess.
 
-4. **Upsert ONE general PR comment** (`<!-- crreply -->`) with a line per finding, each tagged so a
-   re-run is idempotent (add/update only changed lines; don't duplicate):
+4. **Fetch the inline review comments once** (you need CodeRabbit's GitHub comment id to reply in-thread —
+   `cr-findings.sh`'s `id` is a content hash, NOT the GitHub id, so you must map to it here):
+   ```bash
+   gh api "repos/$REPO/pulls/$PR/comments" --paginate --jq '.[]' | jq -s '.' > /tmp/cr-inline.json
+   ```
+
+5. **For each `source:"inline"` finding — reply IN ITS THREAD.** Map the finding to CodeRabbit's
+   **top-level** review comment (`.in_reply_to_id==null`) by `path` + the **end** line of `line_display`
+   (`"29-30"` → `30`; CodeRabbit anchors on the last line), then POST a reply to that comment. Use a
+   standalone `jq` for the mapping — `gh api --jq` takes no `--arg`:
+   ```bash
+   endline=${line_display##*-}
+   cid=$(jq -r --arg P "$path" --arg L "$endline" \
+     '[.[] | select(.user.login=="coderabbitai[bot]" and .in_reply_to_id==null
+        and .path==$P and ((.line // .original_line)|tostring)==$L)][0].id // empty' /tmp/cr-inline.json)
+   ```
+   - `cid` empty (no matching thread — line moved, or it's really a body finding) → fall back to the
+     `<!-- crreply -->` comment in step 6 for that finding; don't skip it silently.
+   - **Idempotency — never double-post.** Before replying, check whether YOU already answered in that
+     thread (a reply of yours carrying the finding's hidden marker):
+     ```bash
+     done=$(jq -r --argjson CID "$cid" --arg ME "$me" --arg ID "$id" \
+       '[.[] | select(.user.login==$ME and .in_reply_to_id==$CID
+          and (.body|contains("<!-- crreply:"+$ID+" -->")))][0].id // empty' /tmp/cr-inline.json)
+     ```
+     `done` non-empty → already answered, leave it (or `PATCH /repos/$REPO/pulls/comments/$done` only if
+     the disposition changed). Else POST the reply — **first line is the hidden marker** so a re-run is idempotent:
+     ```bash
+     printf '<!-- crreply:%s -->\nFixed in `%s`: %s\n' "$id" "$sha" "$sentence" > /tmp/reply.md   # or: Skipped: … / Deferred → #N
+     gh api -X POST "repos/$REPO/pulls/$PR/comments/$cid/replies" -F body=@/tmp/reply.md --jq .html_url
+     ```
+
+6. **Fallback for `source:"body"` findings only** (summary/walkthrough items with no thread to reply on):
+   upsert ONE general `<!-- crreply -->` PR comment, a marker-tagged line per such finding (idempotent —
+   add/update only changed lines). Skip this step entirely if every finding got an inline reply:
    ```text
    <!-- crreply -->
-   ## CodeRabbit findings — dispositions
+   ## CodeRabbit findings — dispositions (no inline thread)
    <!-- crreply:<id> --> **path:line — title** — Fixed in `<sha>`: <one sentence>.
-   <!-- crreply:<id> --> **path:line — title** — Deferred → #<issue>.
-   <!-- crreply:<id> --> **path:line — title** — Skipped: <reason>.
+   <!-- crreply:<id> --> **path:line — title** — Skipped: <reason>. / Deferred → #<issue>.
    ```
    Find an existing `<!-- crreply -->` comment **you authored** and `PATCH` it in place; else create it —
-   using the SAME author-scoped, `^`-anchored lookup as step 1 (never `PATCH` a forged one, and never let
-   a finding that merely *quotes* the marker string match):
+   author-scoped + `^`-anchored (never `PATCH` a forged one; never let a finding that merely *quotes* the marker match):
    ```bash
    existing=$(ME="$me" gh api "repos/$REPO/issues/$PR/comments" --paginate \
      --jq '[.[] | select(.user.login==env.ME and (.body|test("^<!-- crreply -->")))] | sort_by(.created_at) | last | .id // empty')
    ```
-   (These PRs have no inline threads — everything goes in this one comment. If a real inline thread ever
-   exists, reply on it via `/pulls/$PR/comments/<id>/replies` instead.)
 
-5. **Verify it landed:** re-read the `<!-- crreply -->` comment and confirm every `id` from the triage
-   record appears. Any missing → add it before you stop.
+7. **Verify every finding was answered:** re-fetch `/tmp/cr-inline.json` (and the `<!-- crreply -->`
+   comment if step 6 ran) and confirm each triaged `id`'s marker now appears — as an inline reply, or a
+   fallback-comment line. Any missing → post it before you stop.
 
 ## Rules
 - **Never triage here.** No fix/skip/defer decisions — read them from the `<!-- crtriage -->` record.
+- **Inline findings get an in-thread reply**, matched by path + end-line; the detached `<!-- crreply -->`
+  comment is a **fallback for body/summary findings only**, never the default for inline ones.
 - **Never cite a stored SHA** — resolve it live from `git log` at reply time (rebase-safe).
-- **One idempotent `<!-- crreply -->` comment**, keyed per finding by `id`; safe to re-run.
-- **Every triaged finding gets a line** — fixed (with SHA), skipped (with reason), or deferred (with #).
+- **Idempotent per finding by `id`** — each reply (inline or fallback) carries a `<!-- crreply:<id> -->`
+  marker; a re-run edits/skips, never duplicates.
+- **Every triaged finding gets answered** — fixed (with SHA), skipped (with reason), or deferred (with #).
 - **A genuinely new, un-triaged finding → STOP and send the user to `/coderabbit`.** Don't answer what
   wasn't triaged.
