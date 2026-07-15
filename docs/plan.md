@@ -48,8 +48,9 @@ disposable. Built emergently — thin slices, one at a time.
 (ledger 15). Cloud CR triaged (4 FIX `3b0468a`, 1 SKIP→#3); full fleet clean; `/updatelinux` +
 `/updatephone` both done (S23+ rebuilt vs homebase, HEAD `0d698d0` — task edits work again).
 
-**Shipped — review-bar rebalance (Decision 35, issue #40):** CR-local rounds M=1 (M=2 for SQL/auth);
-fleet consecutive-clean floor 3/4, ceiling 6, coverage round gains adversarial + completeness lenses.
+**Shipped — review-bar rebalance (Decision 35, issue #40):** CR-local rounds M=1 (M=2 for SQL or
+auth/security changes); fleet consecutive-clean floor 3 (normal) / 4 (security path), ceiling 6,
+coverage round gains adversarial + completeness lenses.
 Synced across `crlocal.md` / `agent-workflow.md` / `semantic-reviewer.md` / `plan-critic.md` /
 `wrapup.md` + Decision 7 amended in place. This branch (`docs/review-bar-rebalance`).
 

@@ -27,7 +27,7 @@ depth belongs to `db-security-reviewer`; do not duplicate it.
 Post-commit, in the unconditional parallel batch, on `git diff HEAD~1..HEAD` (per
 `.claude/rules/agent-workflow.md`). No-op if nothing in the diff falls in your scope. Advisory.
 Subject to the **multi-round discipline**: stability floor **N=3** normally, **N=4** if the diff
-touches `backend/migrations/**/*.sql`; ceiling 6 rounds, then escalate to the user.
+touches `backend/migrations/**/*.sql` (or auth files once they exist); ceiling 6 rounds, then escalate to the user.
 
 ## Inputs
 - `git diff HEAD~1..HEAD` — the last commit's changes.
