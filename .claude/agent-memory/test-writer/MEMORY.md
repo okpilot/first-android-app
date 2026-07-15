@@ -38,6 +38,18 @@
 - **M3 `InputChip` delete icon is `Icons.clear`** (U+0E168), NOT `Icons.cancel` — to tap a People/
   attendee chip's delete: `find.descendant(of: widgetWithText(InputChip, name), matching:
   byIcon(Icons.clear))`, and `ensureVisible` it first (the People section sits low on the form).
+- **Importance (Decision 38)** literals: `importanceName` → `0`=**None** / `1`=**Low** / `2`=**Medium** /
+  `3`=**High** (out-of-range → None). `importanceMarks`: `''` at ≤0, else `'!'*level` clamped to 3.
+  `importanceColor` returns null for level 0 / out-of-range; light≠dark per level (tuned). Marker
+  glyphs: `'!'` / `'!!'` / `'!!!'`. Form picker segment 0 label is **`None`**; picking a `!`/`!!`/`!!!`
+  seg then save carries the level. `ImportanceMarks` renders `SizedBox.shrink` (no Text) at level 0;
+  `muted:true` (done/archived rows) halves the glyph color alpha (`.a`≈0.5, same r/g/b) — assert via
+  `tester.widget<Text>(...).style!.color!.a` with `closeTo`. **`ImportanceMarks` a11y label**
+  `"Importance <name>"` MERGES with the child glyph's own semantics (Semantics not `excludeSemantics`)
+  → match with `find.bySemanticsLabel(RegExp('Importance High'))`, NOT an exact-string label. Active-
+  task sort by importance is **server-side** (`tasks_repository` PostgREST `.order('importance', desc)`),
+  NOT re-sorted in Dart → out of the interface-fake convention, no unit test (the fake returns the list
+  as-given). Standalone widget test: `test/importance_marks_test.dart`.
 - **Tasks (v0)** literals: list load-error copy **`"Couldn't load tasks"`** + Retry `OutlinedButton`;
   list toggle-failure snackbar **`"Couldn't update — please try again"`**; active-empty-with-history
   inline note **`"All clear — no active tasks."`** (only when `completed`/`archived` non-empty — full

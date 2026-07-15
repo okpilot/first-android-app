@@ -87,6 +87,11 @@ _Seed watch-items carried from the project's conventions:_
     select-only alias is deliberate (real cols on `.eq`), all async invariants preserved.
   - Task `notes` scalar add (Decision 31, `4d3d6b8`) — reusable nullable-scalar-on-RPC-entity shape;
     `copyWith(notes ?? this.notes)`, `''`→NULL clear, keyless-for-notes but no stale display.
+  - Task `importance` 0..3 scalar (Decision 38, `3bf48ea`) — fixed-semantic-scale-on-RPC-entity shape
+    (NOT colour-as-data; Decision 19 N/A). `copyWith(importance ?? this.importance)` preserves the
+    marker across both complete-toggles; `p_importance` REQUIRED-no-default on update (PGRST202 not
+    silent reset); overload drops re-issue the lockdown revoke+grant; `.where`-split preserves the
+    importance-desc sort; `ImportanceMarks` never rides colour-alone (Semantics label). Do NOT re-flag.
   - Task↔contacts "People on a task" (`2b100b7`) — KEY invariant HOLDS: toggles `copyWith(isDone:!)`
     preserve contacts via `contacts ?? this.contacts`; `_columns` embeds on both reads; soft-deleted
     contact drop is CORRECTLY LIMITED to the RLS-hidden case (parity with events). Do NOT flag.

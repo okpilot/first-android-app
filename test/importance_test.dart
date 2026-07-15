@@ -13,9 +13,10 @@ void main() {
       expect(importanceMarks(3), '!!!');
     });
 
-    test('negative and over-range are safe', () {
+    test('out-of-range (both ends) yields no marks', () {
+      // Bounded both ends so it agrees with importanceColor (null) / importanceName ('None').
       expect(importanceMarks(-1), '');
-      expect(importanceMarks(9), '!!!'); // clamped to 3
+      expect(importanceMarks(9), '');
     });
   });
 

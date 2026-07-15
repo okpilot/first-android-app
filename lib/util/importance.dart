@@ -10,8 +10,12 @@ import 'dart:ui' show Brightness;
 /// (event_type_palette) but TUNED per theme for legibility as text: raw amber (`#C6952F`) fails
 /// contrast on the light surface, so light darkens each hue and dark lightens it.
 
-/// The exclamation marks for [level] — `''` for 0, else `level` copies of `!` (max 3).
-String importanceMarks(int level) => level <= 0 ? '' : '!' * level.clamp(0, 3);
+/// The exclamation marks for [level] — `''` outside 1..3, else `level` copies of `!`. Bounding
+/// both ends keeps this in step with [importanceColor] (null) and [importanceName] ('None') so the
+/// three helpers never disagree on an out-of-range value (unreachable today — the DB check + smallint
+/// + `?? 0` parse bound it to 0..3 — but defensive branches that agree can't drift).
+String importanceMarks(int level) =>
+    (level < 1 || level > 3) ? '' : '!' * level;
 
 /// A human name for [level] — for the form picker's "None" option and the marker's a11y label.
 String importanceName(int level) => switch (level) {

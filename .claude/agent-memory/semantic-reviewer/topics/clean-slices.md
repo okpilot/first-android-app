@@ -2,6 +2,26 @@
 
 One-line pointers live in `MEMORY.md` → "Positive signals". Full traces here.
 
+## Task importance 0..3 scalar (Decision 38, `3bf48ea`)
+Reusable **fixed-semantic-scale scalar on an RPC entity** shape (sibling of the notes scalar add,
+Decision 31 `4d3d6b8`, but NOT colour-as-data — a fixed 0..3 mapped to a hue, so Decision 19 does
+NOT apply). All invariants held: `copyWith(importance ?? this.importance)` preserves the marker
+across BOTH complete-toggle paths (list circle `_toggleDone` + detail Complete/Reopen), each of which
+`copyWith(isDone: !…)` WITHOUT importance — same load-bearing mechanism as `contacts`. Arity correct:
+`update_task` map sends exactly its 6 params (`p_importance` REQUIRED no-default — an omitted arg
+fails PGRST202 not a silent reset, the deliberate defensive choice); `create_task` via `toRpcParams`
+sends 4, all defaulted server-side. Drops of the old 3-arg/5-arg overloads kill PGRST203 ambiguity
+AND (correctly) re-issue the PUBLIC revoke + anon/authenticated grant on the NEW signatures (Decision
+36 lockdown invariant honoured). Sort `is_done asc, importance desc, created_at desc, id`: the UI
+`.where`-splits (active/completed/archived) preserve relative order, so importance-desc-within-group
+renders as intended; archived group ordering by is_done-then-importance is a harmless collapsed-section
+transient, NOT a bug. `ImportanceMarks`/`_ImportanceSegment` render nothing at level 0, mute for
+done/archived, carry a `Semantics('Importance <name>')` label so the glyph never rides alone (a11y).
+Picker state (`_importance` seeded in initState, `setState` on tap) is fully synchronous — no
+mounted-after-await gap. LOW SUGGESTION only (unreachable given DB `check (0..3)` + `int?? 0`): the
+three boundary helpers diverge above 3 — `importanceMarks` clamps to `!!!`, `importanceColor`→null,
+`importanceName`→'None'; harmless but inconsistent if ever fed out-of-range.
+
 ## Tasks view-first (Decision 29, `cfbfe7f`)
 The state-lift-vs-`widget.x` trap (impl-critic WATCHING) is RESOLVED: `TaskDetailScreen` host seeds
 `late _task` AND `setState`s it in every `onChanged`, so the dynamic AppBar ('Task'/'Archived task')

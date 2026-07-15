@@ -30,6 +30,15 @@ WHOLE of each touched file + every subsection of each decisions-ledger entry (Co
 / Principle), not just the first citation (a file usually has >1 stale surface) — this recurred
 twice before it was made a rule (learner, count 2; the whole-file/every-subsection refinement, count 2).
 
+**Adding a field to a model isn't done until every hand-fake reflects it.** When a slice adds a
+field to a model (e.g. `Task.notes`, `Task.contacts`, `Task.importance`), thread it through **every**
+hand-fake repo path that RECONSTRUCTS the entity from scratch — `create` / `archive` / `restore`, not
+just the `update`/pass-through path — and update every exact-map `expect(…toRpcParams(), {…})`
+assertion. Grep `test/` for fakes that `Entity(...)` themselves and for `toRpcParams()` maps. The
+field silently vanishing in a reconstructing fake is invisible to `flutter analyze`, the hooks, and
+CodeRabbit (test-fake completeness is opaque to all three) — it only surfaces as a widget-test
+assertion failure, or not at all. Recurred 3× (notes → contacts → importance; learner count 3).
+
 ## Branching & the push gate
 - **Branch per slice** — never build on `main`. `main` stays green.
 - **Before every push, run the `/fullpush` gate** (`.claude/commands/fullpush.md`):

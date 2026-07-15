@@ -324,6 +324,42 @@ curl -s -o /dev/null -w '%{http_code}\n' -X DELETE -H "apikey: $ANON" -H "Author
   "$REST/task_comments?id=eq.$CID"                               # -> 401 (no delete grant)
 ```
 
+## Verify: task importance (Decision 38)
+`create_task` / `update_task` also carry `p_importance smallint` — a fixed 0..3 priority marker.
+These curls prove: importance round-trips, out-of-range is rejected by the `check (importance between
+0 and 3)`, and — the signature-bump lockdown invariant — the recreated RPCs did **not** reopen
+`EXECUTE` to `PUBLIC` (the `has_function_privilege` check must be run as a DB superuser via `psql`,
+not over anon REST — an anon curl can't observe PUBLIC's grant, only its own).
+```bash
+ANON=$(grep SUPABASE_ANON_KEY .env | cut -d= -f2)
+REST=http://localhost:8000/rest/v1
+# create at importance 3, read it back
+IID=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_task" \
+  -d '{"p_title":"Ship the release","p_importance":3}' | tr -d '"')
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/tasks?id=eq.$IID&select=title,importance"              # -> importance 3
+# update lowers it to 1 (must re-send the whole task: title/is_done/notes/contacts/importance)
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/update_task" \
+  -d "{\"p_id\":\"$IID\",\"p_title\":\"Ship the release\",\"p_is_done\":false,\"p_notes\":null,\"p_contacts\":[],\"p_importance\":1}"
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/tasks?id=eq.$IID&select=importance"                    # -> importance 1
+# out-of-range -> 400 check violation (importance_check)
+curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_task" \
+  -d '{"p_title":"bad","p_importance":4}'                        # -> 400
+# omitted p_importance defaults to 0 (none)
+DID=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_task" -d '{"p_title":"No-priority task"}' | tr -d '"')
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/tasks?id=eq.$DID&select=importance"                    # -> importance 0
+# LOCKDOWN INVARIANT (run as superuser, not anon): the recreated RPCs stay revoked from PUBLIC
+docker compose exec -T db psql -U postgres -d postgres -tAc \
+  "select has_function_privilege('public','public.create_task(text,text,uuid[],smallint)','execute'), \
+          has_function_privilege('public','public.update_task(uuid,text,boolean,text,uuid[],smallint)','execute');"  # -> f|f
+```
+
 ## Layout
 ```text
 docker-compose.yml   db + rest + gateway

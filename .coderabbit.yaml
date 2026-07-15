@@ -34,10 +34,13 @@ reviews:
         for archived items — docs/database.md #4); SECURITY DEFINER functions must
         SET search_path = public. As of Decision 36 (2026-07-15) the RPC is now the SOLE write path:
         a new mutable table must grant anon/authenticated SELECT ONLY (no direct INSERT/UPDATE grants and
-        no direct write RLS policies — writes go through the RPCs), and a new SECURITY DEFINER function
-        must REVOKE EXECUTE … FROM PUBLIC before granting to anon/authenticated — flag a new table with
-        direct anon/authenticated INSERT/UPDATE grants or write policies, or a new RPC missing the
-        revoke-from-public, as an issue.
+        no direct write RLS policies — writes go through the RPCs), and a SECURITY DEFINER function
+        (new OR signature-bumped via drop+create) must REVOKE EXECUTE … FROM PUBLIC before granting to
+        anon/authenticated. When a function is dropped and recreated, the new one gets Postgres's default
+        PUBLIC execute (Decision 38), so a post-lockdown signature bump must re-issue BOTH revoke and grant
+        on the new signature in the same migration — flag a new table with direct anon/authenticated
+        INSERT/UPDATE grants or write policies, or a new/recreated RPC missing the revoke-from-public,
+        as an issue.
         There is NO auth (GoTrue) and none is planned — single-user + tailnet-only is the security
         boundary, login is WON'T-DO (Decision 37) — so do NOT flag missing auth.uid() checks or the
         anon-permissive RPC posture; that is intended, not a gap. DO still review unexpected anon
