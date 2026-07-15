@@ -193,6 +193,59 @@ curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   # -> {"code":"P0002", ... "event type <uuid> not found or already deleted"} — the guard rolled back
 ```
 
+## Verify: task category write RPCs (Decision 39, Slice A)
+`create_task_category` / `update_task_category` / `soft_delete_task_category` are the RPC write path
+for task categories — a separate taxonomy from event types, same shape as the event-type RPCs.
+Born on the RPC path (post-Decision-36): the table is **SELECT-only** for clients (no insert/update
+grant or policy), so these curls also prove writes are RPC-only. `update_task_category` refuses a
+soft-deleted / absent row (`no_data_found`), and soft-delete is non-destructive (the row survives
+with `deleted_at` set — provable only as a superuser, since the `using (deleted_at is null)` SELECT
+policy hides it from anon):
+```bash
+ANON=$(grep SUPABASE_ANON_KEY .env | cut -d= -f2)
+REST=http://localhost:8000/rest/v1
+# create: padded name trimmed -> returns the new uuid
+CID=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_task_category" \
+  -d '{"p_name":"  Follow-up  ","p_color":"#4E7BC9"}' | tr -d '"')
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/task_categories?id=eq.$CID&select=name,color"            # -> name "Follow-up", color "#4E7BC9"
+# update: rename + recolor, returns the same id
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/update_task_category" \
+  -d "{\"p_id\":\"$CID\",\"p_name\":\"Waiting-on\",\"p_color\":\"#22A06B\"}"
+# SELECT-only closure: direct write as anon is refused (never granted) — writes are RPC-only
+curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/task_categories" \
+  -d '{"name":"Direct","color":"#4E7BC9"}'                        # -> 401 (no insert grant)
+curl -s -o /dev/null -w '%{http_code}\n' -X PATCH -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/task_categories?id=eq.$CID" \
+  -d '{"name":"Direct"}'                                          # -> 401 (no update grant)
+# blank name -> check violation (task_categories name check)
+curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_task_category" \
+  -d '{"p_name":"   ","p_color":"#4E7BC9"}'                       # -> 400
+# malformed colour -> check violation (color ~ '^#[0-9A-Fa-f]{6}$', fires through the RPC).
+# This is the DB guard behind the model's #RRGGBB parser (its grey fallback is defensive-only).
+curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_task_category" \
+  -d '{"p_name":"Bad","p_color":"blue"}'                          # -> 400
+# soft-delete is NON-DESTRUCTIVE (run the read as superuser: the SELECT policy hides it from anon,
+# so an anon read would prove only invisibility, not survival):
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/soft_delete_task_category" -d "{\"p_id\":\"$CID\"}"
+docker compose exec -T db psql -U postgres -d postgres -tAc \
+  "select id, deleted_at is not null from public.task_categories where id = '$CID';"  # -> row present, deleted_at set (t)
+# update refuses the soft-deleted row -> no_data_found (P0002)
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/update_task_category" \
+  -d "{\"p_id\":\"$CID\",\"p_name\":\"X\",\"p_color\":\"#4E7BC9\"}"
+  # -> {"code":"P0002", ... "task category <uuid> not found or already deleted"} — the guard rolled back
+# no hard-delete grant
+curl -s -o /dev/null -w '%{http_code}\n' -X DELETE -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/task_categories?id=eq.$CID"                              # -> 401 (no delete grant)
+```
+
 ## Verify: task write RPCs (Decision 27)
 `create_task` / `update_task` / `soft_delete_task` / `restore_task` are the RPC write path for
 tasks. Like `event_comments`, `tasks` uses a `using (true)` SELECT policy so archived tasks stay

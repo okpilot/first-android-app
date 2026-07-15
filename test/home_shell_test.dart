@@ -5,12 +5,14 @@ import 'package:first_android_app/data/comments_repository.dart';
 import 'package:first_android_app/data/contacts_repository.dart';
 import 'package:first_android_app/data/event_types_repository.dart';
 import 'package:first_android_app/data/events_repository.dart';
+import 'package:first_android_app/data/task_categories_repository.dart';
 import 'package:first_android_app/data/tasks_repository.dart';
 import 'package:first_android_app/models/comment.dart';
 import 'package:first_android_app/models/contact.dart';
 import 'package:first_android_app/models/event.dart';
 import 'package:first_android_app/models/event_type.dart';
 import 'package:first_android_app/models/task.dart';
+import 'package:first_android_app/models/task_category.dart';
 import 'package:first_android_app/screens/home_shell.dart';
 
 // Fakes copied verbatim from widget_test.dart — the project's hand-written
@@ -48,6 +50,17 @@ class _FakeEventTypesRepo implements EventTypesRepository {
   Future<EventType> create(EventType draft) async => draft;
   @override
   Future<EventType> update(EventType type) async => type;
+  @override
+  Future<void> softDelete(String id) async {}
+}
+
+class _FakeTaskCategoriesRepo implements TaskCategoriesRepository {
+  @override
+  Future<List<TaskCategory>> fetchAll() async => const [];
+  @override
+  Future<TaskCategory> create(TaskCategory draft) async => draft;
+  @override
+  Future<TaskCategory> update(TaskCategory category) async => category;
   @override
   Future<void> softDelete(String id) async {}
 }
@@ -90,6 +103,7 @@ Widget _shell() => MaterialApp(
     commentsRepository: _FakeCommentsRepo(),
     taskCommentsRepository: _FakeCommentsRepo(),
     tasksRepository: _FakeTasksRepo(),
+    taskCategoriesRepository: _FakeTaskCategoriesRepo(),
   ),
 );
 

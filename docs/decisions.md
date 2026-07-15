@@ -464,6 +464,17 @@ notes migration; light/dark emulator + Linux QA of task comments **and** notes i
 
 ---
 
+## Decision 39: Task categories — a separate taxonomy, user-owned colour swatches (Slice A, 2026-07-15)
+**Context:** Users need to categorize their tasks, just as they categorize events with event types. The product choice: tasks get their **own** independent colour list (not shared with event types), so a task category never clutters the event Type picker and vice versa.
+**Decided:**
+- **`task_categories` table** — mirroring `event_types`: `id`, `name` (non-blank check), `color` (6-digit #RRGGBB, DB-authoritative, portable), `created_at/updated_at` (via trigger), `deleted_at` (soft-delete). RLS with `using (deleted_at is null)` for SELECT. **POST-LOCKDOWN: no direct insert/update RLS policies or grants** — writes go exclusively through the 3 SECURITY DEFINER RPCs (Decision 36), cleaner than event_types which shipped direct writes and closed them later. The RPCs: `create_task_category(p_name, p_color)` → `uuid`, `update_task_category(p_id, p_name, p_color)` → `uuid` (with deleted_at guard + `no_data_found` raise), `soft_delete_task_category(p_id)` → `void`. Each gets the Decision 36 lockdown discipline: PUBLIC execute revoked, anon/authenticated granted.
+- **Separate list, same Palette:** Task categories use the **same 8-swatch colour palette** as event types (`lib/util/event_type_palette.dart` — amber/teal/green/orange/red/purple/pink/blue, chosen for contrast on light + dark surfaces, no-type → neutral grey). Slice A **reuses** the existing `TypeSwatch` colour-dot atom because the palette and colour-picker UI are identical; only the parent entity differs.
+- **Slice A (committed) — the entity + Settings manager only.** New `TaskCategory` model (id/name/color); `SupabaseTaskCategoriesRepository` (fetch all, create, update, soft_delete); a new `TaskCategoriesScreen` under Settings (create/rename/recolour/delete inline, palette swatch-grid to choose a colour, reuses the shared palette + `TypeSwatch`). No task references a category yet.
+- **Slice B (next) — the task↔category join:** the product choice is **many-per-task**, so Slice B adds a `task_category_links` join table (mirroring `task_contacts`, many-to-many), threads a `p_categories uuid[]` param onto the task write RPCs (drop+recreate), a `Task.categories` model field, a multi-select chip picker on the task form (mirroring the People picker), and colour labels on task rows + detail (this is where `TypeLabel` gets reused).
+**Principle:** Repeat a proven shape (event types) for a new axis; separate lists keep the taxonomy breathing room. Slice the entity first, then the join — let Slice A ship before reaching for the relational complexity.
+
+---
+
 ## IDEAS / NOTES
 - The `okpilot/selfhost` repo on homebase is where the backend stack (a new `stacks/` dir + a Caddy route) will live, committed like the others.
 - **Styling / theming (for the first styling slice — not yet):** Flutter needs no shadcn-style component library — Material 3 is built in. Default plan: stock Material 3 + `ColorScheme.fromSeed(seedColor: …)` (one seed → full light+dark palette). References to reach for when we theme: **Material Theme Builder** (https://material-foundation.github.io/material-theme-builder/ — visual editor, exports `ThemeData`); **`flex_color_scheme`** pub package (dozens of polished pre-made themes); **`shadcn_ui`** / **`forui`** packages if we ever want the specific flat shadcn aesthetic. Decide emergently when a slice calls for it.

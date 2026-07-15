@@ -50,6 +50,19 @@
   task sort by importance is **server-side** (`tasks_repository` PostgREST `.order('importance', desc)`),
   NOT re-sorted in Dart → out of the interface-fake convention, no unit test (the fake returns the list
   as-given). Standalone widget test: `test/importance_marks_test.dart`.
+- **TaskCategory / TaskCategoriesScreen (Slice A, commit `9377a61`)** — parallel of EventType/
+  EventTypesScreen. Model: `fromJson` valid `#RRGGBB` / invalid-hex fallback **`#888888`** (8-digit
+  ARGB, shorthand, non-string, null, absent key all fall back); `toRpcParams()` = `{p_name (trimmed),
+  p_color}` no id; `copyWith(name, colorHex)`. Screen load-error copy **`"Couldn't load task
+  categories"`** + Retry `OutlinedButton`; refresh banner reused **`"Couldn't refresh — showing saved
+  data"`**; save-failure snackbar **`"Couldn't save — please try again"`**; delete-failure
+  **`"Couldn't delete — please try again"`**. Editor FilledButton label = `Add category` (new) /
+  `Save changes` (edit); AppBar `Save` TextButton. Swatch grid = `_SwatchGrid` reusing
+  `kEventTypePalette`; tap a colour with **`find.bySemanticsLabel('<PaletteName>')`** (Blue/Teal/Green/
+  Amber/Orange/Red/Purple/Pink) — the `Semantics(label: s.name)` wraps the InkWell. `hexFromColor`
+  emits **lowercase** alpha-stripped (Teal `#2fa090`, NOT `#2FA090`) — assert lowercase on recolour.
+  Test file: `test/task_categories_screen_test.dart` (fakes: `_FakeCategoriesRepo`, `_RefreshFailsRepo`,
+  `_OrderedRepo`, added `_FailingCategoriesRepo` + `_CreateFailsRepo`).
 - **Tasks (v0)** literals: list load-error copy **`"Couldn't load tasks"`** + Retry `OutlinedButton`;
   list toggle-failure snackbar **`"Couldn't update — please try again"`**; active-empty-with-history
   inline note **`"All clear — no active tasks."`** (only when `completed`/`archived` non-empty — full

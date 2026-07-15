@@ -24,6 +24,20 @@ project: First Android App (learning CRM)
 10. **Migrations are forward-only**, timestamped `YYYYMMDDHHMMSS_description.sql` (Supabase CLI format). Never edit a pushed migration — add a new one.
 11. **Record the linchpin verification curl(s).** Any RLS / soft-delete-touching slice records the curl(s) that prove its non-destructive-delete behaviour (the row survives with `deleted_at` set / the embed reads back null / the archived row stays selectable) in `backend/README.md`, as part of the slice — so "verified" is durable, not a one-off run.
 
+## task_categories (Decision 39, Slice A)
+A user-owned tag taxonomy for tasks, separate from `event_types`. Table: `id`, `name`
+(`check length(trim(name)) > 0`), `color` (`check color ~ '^#[0-9A-Fa-f]{6}$'`, 6-digit #RRGGBB,
+DB-authoritative), `created_at`/`updated_at` (bumped by the shared `set_updated_at` trigger),
+`deleted_at` (soft-delete). **Created after the Decision 36 lockdown, so RPC-only from day one:**
+RLS `SELECT`-only for `anon, authenticated` `using (deleted_at is null)`, `grant select` only — no
+insert/update policy or grant. The 3 write RPCs — `create_task_category(p_name, p_color)`,
+`update_task_category(p_id, p_name, p_color)` (guards `deleted_at is null`, raises `no_data_found`),
+`soft_delete_task_category(p_id)` — follow the full lockdown discipline: `SECURITY DEFINER`,
+`SET search_path = public`, `revoke execute … from public`, `grant execute … to anon, authenticated`.
+Slice A is the entity + Settings manager only; no task references a category yet (Slice B adds a
+many-per-task `task_category_links` join, mirroring `task_contacts`). Verify curls:
+`backend/README.md` → "Verify: task category write RPCs".
+
 ## Naming
 - RPC functions: `verb_noun` snake_case — `get_*`, `list_*`, `create_*`, `upsert_*`, `soft_delete_*`, `submit_*`. Internal helpers: `_leading_underscore`.
 

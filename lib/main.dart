@@ -7,6 +7,7 @@ import 'data/comments_repository.dart';
 import 'data/contacts_repository.dart';
 import 'data/event_types_repository.dart';
 import 'data/events_repository.dart';
+import 'data/task_categories_repository.dart';
 import 'data/tasks_repository.dart';
 
 Future<void> main() async {
@@ -28,6 +29,7 @@ Future<void> main() async {
         commentsRepository: SupabaseEventCommentsRepository(client),
         taskCommentsRepository: SupabaseTaskCommentsRepository(client),
         tasksRepository: SupabaseTasksRepository(client),
+        taskCategoriesRepository: SupabaseTaskCategoriesRepository(client),
       ),
     );
   } catch (error) {
