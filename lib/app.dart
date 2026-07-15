@@ -4,6 +4,7 @@ import 'data/comments_repository.dart';
 import 'data/contacts_repository.dart';
 import 'data/event_types_repository.dart';
 import 'data/events_repository.dart';
+import 'data/task_categories_repository.dart';
 import 'data/tasks_repository.dart';
 import 'screens/home_shell.dart';
 import 'theme.dart';
@@ -19,6 +20,7 @@ class ContactsApp extends StatelessWidget {
     required this.commentsRepository,
     required this.taskCommentsRepository,
     required this.tasksRepository,
+    required this.taskCategoriesRepository,
   });
 
   final ContactsRepository repository;
@@ -28,6 +30,7 @@ class ContactsApp extends StatelessWidget {
   // Task comments — a second CommentsRepository alongside the event one (see HomeShell).
   final CommentsRepository taskCommentsRepository;
   final TasksRepository tasksRepository;
+  final TaskCategoriesRepository taskCategoriesRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +48,7 @@ class ContactsApp extends StatelessWidget {
         commentsRepository: commentsRepository,
         taskCommentsRepository: taskCommentsRepository,
         tasksRepository: tasksRepository,
+        taskCategoriesRepository: taskCategoriesRepository,
       ),
     );
   }

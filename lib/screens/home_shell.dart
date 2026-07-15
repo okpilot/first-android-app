@@ -4,6 +4,7 @@ import '../data/comments_repository.dart';
 import '../data/contacts_repository.dart';
 import '../data/event_types_repository.dart';
 import '../data/events_repository.dart';
+import '../data/task_categories_repository.dart';
 import '../data/tasks_repository.dart';
 import 'calendar_screen.dart';
 import 'contacts_list_screen.dart';
@@ -31,6 +32,7 @@ class HomeShell extends StatefulWidget {
     required this.commentsRepository,
     required this.taskCommentsRepository,
     required this.tasksRepository,
+    required this.taskCategoriesRepository,
   });
 
   final ContactsRepository repository;
@@ -41,6 +43,7 @@ class HomeShell extends StatefulWidget {
   // above (both implement CommentsRepository; each targets its own *_comments table).
   final CommentsRepository taskCommentsRepository;
   final TasksRepository tasksRepository;
+  final TaskCategoriesRepository taskCategoriesRepository;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -91,7 +94,10 @@ class _HomeShellState extends State<HomeShell> {
           commentsRepository: widget.taskCommentsRepository,
           contactsRepository: widget.repository,
         ),
-        SettingsScreen(eventTypesRepository: widget.eventTypesRepository),
+        SettingsScreen(
+          eventTypesRepository: widget.eventTypesRepository,
+          taskCategoriesRepository: widget.taskCategoriesRepository,
+        ),
       ],
     );
 
