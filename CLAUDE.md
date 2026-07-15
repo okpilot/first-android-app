@@ -25,8 +25,10 @@ Skips are allowed but **must be stated, never silent**.
 **A rule reversal isn't done until its contradictions are gone.** When a slice rewrites or reverses
 a convention mid-migration (e.g. Decision 26's "all writes via RPC"), grep every sibling repo
 doc-comment, migration header, and doc that still cites the OLD rule (`per docs/database.md`,
-`like contacts`, `single-table … goes direct`) and fix them in the **same** slice — this recurred
-twice before it was made a rule (learner, count 2).
+`like contacts`, `single-table … goes direct`) and fix them in the **same** slice — and grep the
+WHOLE of each touched file + every subsection of each decisions-ledger entry (Context / Implementation
+/ Principle), not just the first citation (a file usually has >1 stale surface) — this recurred
+twice before it was made a rule (learner, count 2; the whole-file/every-subsection refinement, count 2).
 
 ## Branching & the push gate
 - **Branch per slice** — never build on `main`. `main` stays green.

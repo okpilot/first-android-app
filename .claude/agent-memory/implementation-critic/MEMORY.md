@@ -26,6 +26,15 @@ _First run pending. Seed watch-items carried from the project's conventions:_
   editing a status/shipped line, grep the SAME file's "Owed"/"Next"/"backlog"/"TODO" lists for the
   same task keyword — a file has >1 surface (this is the project's rule-reversal-sync discipline
   applied to plan.md, not just repos/migrations).
+- **Verify-curl param names drift from the RPC signature (WATCHING, count 1 — Decision 36 pre-auth
+  lockdown, 2026-07-15):** a NEW `backend/README.md` verify-curl block transcribed `create_contact`'s
+  JSON body with non-existent params `p_birthday`/`p_notes` while the real signature is
+  `p_dob`/`p_remarks` (a correct twin curl sat right below it). PostgREST matches RPC args by NAME →
+  the "returns a uuid" curl would actually PGRST202. RULE-IN-MINIATURE: whenever a doc/README adds a
+  `POST /rpc/<fn>` example, grep the fn's `create_*/update_*` migration for the exact `p_*` param
+  names and match them 1:1 — the app's Dart `toRpcParams()` is NOT the source of truth for a
+  hand-written curl (Dart may use different field names). ISSUE severity: a copy-paste-fails verify
+  snippet contradicts its own success comment.
 - **State-lift-vs-`widget.x` trap (WATCHING, count 1 — Decision 29 view-first Tasks):** a thin
   Scaffold host whose AppBar title/state claims (in a comment) to track the LIVE entity but reads
   `widget.task`/`widget.contact` (frozen at push) while the mutation lives in the child body via

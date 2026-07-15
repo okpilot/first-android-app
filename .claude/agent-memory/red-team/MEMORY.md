@@ -9,8 +9,13 @@
   (`Vector | Surface | Covered by | Status`). Read it first, update it after every review.
 
 ## Durable knowledge (stable facts for this project)
-- **Pre-auth phase (issue #3).** `anon` full CRUD, RPC EXECUTE to `PUBLIC`, and no owner-scoping are
-  EXPECTED → INFO, not attacks. Owner-scoping / cross-user rows flip to CRITICAL/ISSUE once auth lands.
+- **Pre-auth phase (issue #3), post-lockdown (Decision 36, `20260715120000`).** CLOSED: direct anon
+  writes (RPC is sole write path on all 5 mutable tables) and RPC EXECUTE-to-PUBLIC (revoked on all
+  21). A NEW table re-opening a direct anon write path, or a NEW RPC re-granting PUBLIC execute, is
+  now a REAL finding. STILL INFO/expected: anon/authenticated READ any live row; no owner-scoping.
+  **No auth is planned — single-user + tailnet-only, login is WON'T-DO (Decision 37)** — so
+  owner-scoping / cross-user rows are `N/A (no auth, D37)`, not "pending"; they flip to CRITICAL/ISSUE
+  only IF that decision is ever revisited (shared / publicly exposed / multi-tenant).
 - **No E2E/Playwright suite.** "Covered" = a by-hand curl, a widget test in `test/`, or an
   integration test exists — not a spec. Recommend those; never map to specs.
 - **Highest-value vector reachable today:** soft-delete must be non-destructive (soft-deleted
@@ -28,5 +33,7 @@
 ## Known false-positive traps
 - **drop-then-recreate RPC is correct**, not a data-loss vector — this project changes RPC signatures
   via `drop function if exists …; create or replace …`. Read the latest definition before flagging.
-- **`revoke execute … from public` gap** is `db-security-reviewer`'s ISSUE at the gate — INFO/#3 here,
-  do not re-raise it as an attack.
+- **The pre-lockdown `revoke execute … from public` gap** (every RPC before Decision 36) was
+  `db-security-reviewer`'s tracked ISSUE — it is now SWEPT/CLOSED (`20260715120000`), so don't re-raise
+  the *historical* gap. **But a NEW RPC that re-grants PUBLIC execute post-D36 IS a real finding** —
+  the "don't re-raise" suppression applies only to the already-closed pre-lockdown gap.

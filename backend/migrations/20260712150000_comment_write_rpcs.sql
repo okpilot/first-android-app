@@ -15,6 +15,8 @@
 -- The direct insert/update GRANTs and the event_comments_insert/event_comments_update RLS
 -- policies are intentionally LEFT IN PLACE: closing the direct write path (revoke + drop
 -- policies) is auth hardening, tracked under issue #3 — same posture as contacts / event_types.
+-- SUPERSEDED 2026-07-15 by 20260715120000_preauth_lockdown.sql (Decision 36): that direct write
+-- path is now CLOSED and PUBLIC execute revoked on these RPCs. (Executable SQL here unchanged.)
 --
 -- (No auth.uid() ownership checks yet — GoTrue is deferred. Add them with the auth slice, #3.)
 

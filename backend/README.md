@@ -2,7 +2,8 @@
 
 The Supabase-shaped data layer for the app, run **locally** for development:
 **Postgres + PostgREST + a Caddy gateway** (giving the `/rest/v1` path so
-`supabase_flutter` works unmodified). GoTrue (auth) is deferred to the first auth slice.
+`supabase_flutter` works unmodified). There is **no GoTrue / no login** — single-user + tailnet-only
+is the security boundary (Decision 37); the API is anon-permissive over the tailnet.
 This mirrors what will run on `homebase` in `okpilot/selfhost` behind the existing Caddy.
 
 See `docs/decisions.md` (Decisions 5 & 10) and `docs/database.md` for the rules.
@@ -31,12 +32,65 @@ curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   "http://localhost:8000/rest/v1/contacts?select=name&order=name"
 ```
 
+## Verify: pre-auth lockdown (Decision 36 — issue #3 auth-independent subset)
+`20260715120000_preauth_lockdown.sql` closed the direct anon write path (RPC is the sole write
+path), revoked `EXECUTE … from public` on every SECURITY DEFINER RPC, and added the parent-task
+guard to the 4 `task_comment` RPCs. These curls prove the boundary: a **direct** anon write is now
+rejected with **401/403 (permission denied)** — pre-lockdown anon held the write grant — while the
+**RPC** write still works; and every comment op on an **archived** task is refused:
+```bash
+ANON=$(grep SUPABASE_ANON_KEY .env | cut -d= -f2)
+REST=http://localhost:8000/rest/v1
+# direct anon write is now CLOSED on ALL 5 still-open mutable tables -> 401/403 (permission denied;
+# the grant is gone, so PostgREST rejects at the permission layer before any body validation):
+for t in contacts event_types event_comments tasks task_comments; do
+  curl -s -o /dev/null -w "direct insert $t: %{http_code}\n" \
+    -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+    -H "Content-Type: application/json" "$REST/$t" -d '{}'
+done
+# the RPC write path still works -> returns a uuid
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_contact" \
+  -d '{"p_name":"Ada","p_dob":null,"p_email":null,"p_phone":null,"p_company":null,"p_remarks":null}'
+# reads still work directly -> 200
+curl -s -o /dev/null -w 'select contacts: %{http_code}\n' -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/contacts?select=id&limit=1"
+# archived-task guard: make a task + a LIVE comment on it, archive the task, then confirm ALL FOUR
+# task_comment RPCs refuse it -> no_data_found:
+TID=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_task" \
+  -d '{"p_title":"frozen","p_notes":null,"p_contacts":[]}' | tr -d '"')
+CID=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_task_comment" \
+  -d "{\"p_task_id\":\"$TID\",\"p_body\":\"live\"}" | tr -d '"')
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/soft_delete_task" -d "{\"p_id\":\"$TID\"}" >/dev/null
+# 1) create on the archived task, 2) update / 3) soft_delete / 4) restore its comment -> all no_data_found
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" -H "Content-Type: application/json" \
+  "$REST/rpc/create_task_comment" -d "{\"p_task_id\":\"$TID\",\"p_body\":\"sneaky\"}"
+for rpc in update_task_comment soft_delete_task_comment restore_task_comment; do
+  body=$([ "$rpc" = update_task_comment ] && echo "{\"p_id\":\"$CID\",\"p_body\":\"x\"}" || echo "{\"p_id\":\"$CID\"}")
+  curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+    -H "Content-Type: application/json" "$REST/rpc/$rpc" -d "$body"   # -> {"code":"no_data_found",...}
+done
+```
+An anon curl can't prove PUBLIC lost EXECUTE (anon calls via its own explicit grant), so confirm the
+revoke with a privileged psql check (as `postgres`, on homebase inside the db container) — this lists
+**any** SECURITY DEFINER RPC that still leaks PUBLIC execute; expect **zero rows** across all 21:
+```bash
+psql -c "select p.proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+         where n.nspname='public' and p.prosecdef
+           and exists (select 1 from unnest(p.proacl) a where (a::text) like '=%');"
+```
+
 ## Verify: event comment write RPCs (Decision 26, Slice 3)
-As of Slice 3, comment writes route through `create_comment` / `update_comment` /
-`soft_delete_comment` / `restore_comment` RPCs (for uniformity — this table's `using (true)`
-SELECT means a direct write would also work; there's no 42501 to dodge). These curls prove the
-RPC write path AND that archiving stays **non-destructive** with no hard-delete surface — the
-archived row remains selectable (the "show archived" feature) because SELECT is `using (true)`:
+Comment writes route through the `create_comment` / `update_comment` / `soft_delete_comment` /
+`restore_comment` RPCs, which are now the **sole** write path — the direct anon/authenticated write
+grants + policies were removed by the Decision 36 lockdown (`20260715120000`). (The table's
+`using (true)` SELECT is a **read/archive** property — it keeps archived rows selectable for the
+"show archived" feature — not a way to write directly.) These curls prove the RPC write path AND
+that archiving stays **non-destructive** with no hard-delete surface — the archived row remains
+selectable because SELECT is `using (true)`:
 ```bash
 ANON=$(grep SUPABASE_ANON_KEY .env | cut -d= -f2)
 REST=http://localhost:8000/rest/v1

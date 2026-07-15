@@ -70,6 +70,15 @@ _Seed watch-items carried from the project's conventions:_
   [topics/write-rpc-ports.md](topics/write-rpc-ports.md). Reusable 4-check port shape; `.single()`
   and the non-atomic RPC-then-`_fetchOne` re-fetch are correct by design — do NOT flag as races.
 - **CLEAN slice traces** (full detail → [topics/clean-slices.md](topics/clean-slices.md)):
+  - Pre-auth DB lockdown (Decision 36, `d549d45`) — behavior-preserving. `create or replace` (no drop)
+    PRESERVES the function ACL, so the PUBLIC-execute revoke in part 2 survives the part-3 body
+    replace regardless of order — NOT an ordering hazard. All 21 revoke signatures verified against
+    each function's LATEST (post-drop-chain) definition; drop chains are contiguous so no stale
+    overload retains PUBLIC execute. A wrong revoke signature would ERROR (abort migration), not
+    silently no-op. Client writes RPC-only + reads direct (`.from(_table).select` untouched), so
+    closing the direct write path breaks nothing. task_comment guard uses a correct correlated
+    `exists(... tasks t where t.id = task_comments.task_id ...)` — `if not found` cannot fire on a
+    live-task flow (UI blocks writes on archived tasks anyway). Do NOT re-flag.
   - Tasks view-first (Decision 29, `cfbfe7f`) — state-lift trap RESOLVED; `id:isArchived:isDone`
     key + host `setState(_task)` keep the AppBar/pane consistent; create transient is by-design.
   - Tasks in-pane create wide-only (Decision 29 amend, `acb0043`) — `_creatingNew`+`ValueKey('new')`;
