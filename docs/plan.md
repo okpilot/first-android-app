@@ -52,7 +52,7 @@ disposable. Built emergently — thin slices, one at a time.
 auth/security changes); fleet consecutive-clean floor 3 (normal) / 4 (security path), ceiling 6,
 coverage round gains adversarial + completeness lenses.
 Synced across `crlocal.md` / `agent-workflow.md` / `semantic-reviewer.md` / `plan-critic.md` /
-`wrapup.md` + Decision 7 amended in place. This branch (`docs/review-bar-rebalance`).
+`wrapup.md` + Decision 7 amended in place. **MERGED (PR #42 → squash `075a6c3`; issue #40 closed; branch deleted).**
 
 **Owed / optional, before the next feature slice:**
 1. **On-device homebase QA** (optional) — light/dark pass on the S23+ of People + comments + notes
