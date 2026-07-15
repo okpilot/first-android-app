@@ -40,10 +40,12 @@ is refused:
 ```bash
 ANON=$(grep SUPABASE_ANON_KEY .env | cut -d= -f2)
 REST=http://localhost:8000/rest/v1
-# direct anon write is now CLOSED on every mutable table -> 401/403 (was 201). e.g. contacts:
-curl -s -o /dev/null -w 'direct insert contacts: %{http_code}\n' \
-  -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
-  -H "Content-Type: application/json" "$REST/contacts" -d '{"name":"hack"}'
+# direct anon write is now CLOSED on ALL 5 still-open mutable tables -> 401/403 (was 201):
+for t in contacts event_types event_comments tasks task_comments; do
+  curl -s -o /dev/null -w "direct insert $t: %{http_code}\n" \
+    -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+    -H "Content-Type: application/json" "$REST/$t" -d '{}'
+done
 # the RPC write path still works -> returns a uuid
 curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/rpc/create_contact" \
@@ -60,6 +62,11 @@ curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
 curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/rpc/create_task_comment" \
   -d "{\"p_task_id\":\"$TID\",\"p_body\":\"sneaky\"}"   # -> {"code":"no_data_found",...}
+```
+An anon curl can't prove PUBLIC lost EXECUTE (anon calls via its own explicit grant), so confirm the
+revoke with a privileged psql check (as `postgres`, on homebase inside the db container) — expect `f`:
+```bash
+psql -c "select has_function_privilege('public','public.create_task(text,text,uuid[])','execute');"
 ```
 
 ## Verify: event comment write RPCs (Decision 26, Slice 3)

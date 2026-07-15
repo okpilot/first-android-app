@@ -9,8 +9,11 @@
   (`Vector | Surface | Covered by | Status`). Read it first, update it after every review.
 
 ## Durable knowledge (stable facts for this project)
-- **Pre-auth phase (issue #3).** `anon` full CRUD, RPC EXECUTE to `PUBLIC`, and no owner-scoping are
-  EXPECTED → INFO, not attacks. Owner-scoping / cross-user rows flip to CRITICAL/ISSUE once auth lands.
+- **Pre-auth phase (issue #3), post-lockdown (Decision 36, `20260715120000`).** CLOSED: direct anon
+  writes (RPC is sole write path on all 5 mutable tables) and RPC EXECUTE-to-PUBLIC (revoked on all
+  21). A NEW table re-opening a direct anon write path, or a NEW RPC re-granting PUBLIC execute, is
+  now a REAL finding. STILL INFO/expected: anon READS any live row; no owner-scoping (no users yet).
+  Owner-scoping / cross-user rows flip to CRITICAL/ISSUE once auth (GoTrue) lands.
 - **No E2E/Playwright suite.** "Covered" = a by-hand curl, a widget test in `test/`, or an
   integration test exists — not a spec. Recommend those; never map to specs.
 - **Highest-value vector reachable today:** soft-delete must be non-destructive (soft-deleted
