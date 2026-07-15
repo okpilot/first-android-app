@@ -90,5 +90,6 @@ Watch-items carried from project conventions:
   the no-auth decision is ever revisited (sharing / public exposure / multi-tenant).
 - `drop function if exists …; create or replace …` to change an RPC signature is **correct** (avoids
   PGRST203), not a breaking change.
-- The `.coderabbit.yaml` SQL `path_instructions` demanding SECURITY DEFINER "check auth.uid()" is
-  itself phase-unaware — if reviewers trip on it 2×, propose **softening** it, not enforcing it.
+- ~~The `.coderabbit.yaml` SQL `path_instructions` demanding SECURITY DEFINER "check auth.uid()"~~ —
+  RESOLVED: as of Decision 37 the yaml explicitly says "do NOT flag missing auth.uid()" (no auth is
+  planned), so there is no phase-unaware demand left to soften.
