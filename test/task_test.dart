@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:first_android_app/models/contact.dart';
 import 'package:first_android_app/models/task.dart';
+import 'package:first_android_app/models/task_category.dart';
 
 void main() {
   group('Task.fromJson', () {
@@ -131,6 +132,55 @@ void main() {
       expect(t.contacts, isEmpty);
     });
 
+    test('parses the task_category_links embed into categories', () {
+      final t = Task.fromJson({
+        'id': 't1',
+        'title': 'x',
+        'task_category_links': [
+          {
+            'category_id': 'k1',
+            'task_categories': {'id': 'k1', 'name': 'Work', 'color': '#4E7BC9'},
+          },
+          {
+            'category_id': 'k2',
+            'task_categories': {'id': 'k2', 'name': 'Home', 'color': 'bad'},
+          },
+        ],
+      });
+      expect(t.categories.map((c) => c.id), ['k1', 'k2']);
+      expect(t.categories.first.name, 'Work');
+      expect(t.categories.first.colorHex, '#4E7BC9');
+      // A malformed colour falls back to neutral grey (never throws).
+      expect(t.categories.last.colorHex, '#888888');
+    });
+
+    test(
+      'skips a link row whose category is null (soft-deleted, RLS-hidden)',
+      () {
+        final t = Task.fromJson({
+          'id': 't8',
+          'title': 'x',
+          'task_category_links': [
+            {'category_id': 'k1', 'task_categories': null},
+            {
+              'category_id': 'k2',
+              'task_categories': {
+                'id': 'k2',
+                'name': 'Home',
+                'color': '#22A06B',
+              },
+            },
+          ],
+        });
+        expect(t.categories.map((c) => c.id), ['k2']);
+      },
+    );
+
+    test('absent task_category_links → empty categories (no crash)', () {
+      final t = Task.fromJson({'id': 't9', 'title': 'x'});
+      expect(t.categories, isEmpty);
+    });
+
     test('reads importance back', () {
       final t = Task.fromJson({'id': 't10', 'title': 'x', 'importance': 3});
       expect(t.importance, 3);
@@ -145,13 +195,15 @@ void main() {
   group('Task.toRpcParams', () {
     test('maps to trimmed p_title + p_notes + p_contacts (the create shape)', () {
       final p = Task.draft(title: '  Prep the demo  ').toRpcParams();
-      // p_notes + p_contacts are always present (create_task(p_title, p_notes, p_contacts)); a
-      // draft without notes sends null (server → NULL); with no People, an empty id list.
+      // p_notes/p_contacts/p_importance/p_categories are always present
+      // (create_task(p_title, p_notes, p_contacts, p_importance, p_categories)); a draft without
+      // notes sends null (server → NULL); with no People/categories, empty id lists.
       expect(p, {
         'p_title': 'Prep the demo',
         'p_notes': null,
         'p_contacts': [],
         'p_importance': 0, // draft default → none
+        'p_categories': [],
       });
       // is_done is written by update_task, never create_task — must not leak in.
       expect(p.containsKey('p_is_done'), isFalse);
@@ -179,6 +231,17 @@ void main() {
         ],
       ).toRpcParams();
       expect(p['p_contacts'], ['c1', 'c2']);
+    });
+
+    test('p_categories is the linked-category id list', () {
+      final p = Task.draft(
+        title: 'x',
+        categories: const [
+          TaskCategory(id: 'k1', name: 'Work', colorHex: '#4E7BC9'),
+          TaskCategory(id: 'k2', name: 'Home', colorHex: '#22A06B'),
+        ],
+      ).toRpcParams();
+      expect(p['p_categories'], ['k1', 'k2']);
     });
   });
 
@@ -249,6 +312,36 @@ void main() {
         expect(t.copyWith(isDone: true).contacts.map((c) => c.id), ['c1']);
       },
     );
+
+    test(
+      'toggling isDone alone preserves the categories (the toggle-safety invariant)',
+      () {
+        const t = Task(
+          id: 't1',
+          title: 'x',
+          categories: [
+            TaskCategory(id: 'k1', name: 'Work', colorHex: '#4E7BC9'),
+          ],
+        );
+        // A null categories arg means "keep" — this is what stops a list/detail complete-toggle
+        // from wiping the links when update() re-sends the whole p_categories set.
+        expect(t.copyWith(isDone: true).categories.map((c) => c.id), ['k1']);
+      },
+    );
+
+    test('replaces categories when given', () {
+      const t = Task(
+        id: 't1',
+        title: 'x',
+        categories: [TaskCategory(id: 'k1', name: 'Work', colorHex: '#4E7BC9')],
+      );
+      final edited = t.copyWith(
+        categories: const [
+          TaskCategory(id: 'k2', name: 'Home', colorHex: '#22A06B'),
+        ],
+      );
+      expect(edited.categories.map((c) => c.id), ['k2']);
+    });
 
     test('replaces People when given', () {
       const t = Task(

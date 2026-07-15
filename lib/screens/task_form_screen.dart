@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../data/contacts_repository.dart';
+import '../data/task_categories_repository.dart';
 import '../data/tasks_repository.dart';
 import '../models/contact.dart';
 import '../models/task.dart';
+import '../models/task_category.dart';
 import '../util/importance.dart';
 import '../widgets/initials_avatar.dart';
+import 'category_picker_screen.dart';
 import 'contact_picker_screen.dart';
+import 'event_types_screen.dart' show TypeSwatch;
 
 /// Add (when [existing] is null) or edit a task — the title-only form. A thin `Scaffold`
 /// wrapper around [TaskEditView]: it pops the saved [Task] on success (or nothing on
@@ -20,11 +24,13 @@ class TaskFormScreen extends StatelessWidget {
     super.key,
     required this.repository,
     required this.contactsRepository,
+    required this.taskCategoriesRepository,
     this.existing,
   });
 
   final TasksRepository repository;
   final ContactsRepository contactsRepository;
+  final TaskCategoriesRepository taskCategoriesRepository;
   final Task? existing;
 
   @override
@@ -34,6 +40,7 @@ class TaskFormScreen extends StatelessWidget {
       body: TaskEditView(
         repository: repository,
         contactsRepository: contactsRepository,
+        taskCategoriesRepository: taskCategoriesRepository,
         existing: existing,
         onChanged: (saved) => Navigator.of(context).pop(saved),
       ),
@@ -53,12 +60,14 @@ class TaskEditView extends StatefulWidget {
     super.key,
     required this.repository,
     required this.contactsRepository,
+    required this.taskCategoriesRepository,
     this.existing,
     this.onChanged,
   });
 
   final TasksRepository repository;
   final ContactsRepository contactsRepository;
+  final TaskCategoriesRepository taskCategoriesRepository;
   final Task? existing;
 
   /// Called with the resulting task after a successful create / rename.
@@ -76,6 +85,8 @@ class _TaskEditViewState extends State<TaskEditView> {
   late List<Contact> _contacts;
   // Priority 0..3 — seeded from the existing task, set via the segmented picker.
   late int _importance;
+  // The linked categories — seeded from the existing task, edited via the picker.
+  late List<TaskCategory> _categories;
   bool _saving = false;
 
   bool get _isEditing => widget.existing != null;
@@ -87,6 +98,7 @@ class _TaskEditViewState extends State<TaskEditView> {
     _notes = TextEditingController(text: widget.existing?.notes ?? '');
     _contacts = widget.existing?.contacts ?? const [];
     _importance = widget.existing?.importance ?? 0;
+    _categories = widget.existing?.categories ?? const [];
   }
 
   /// Open the shared contact picker to edit the linked People. Guard the setState with `mounted`
@@ -106,6 +118,24 @@ class _TaskEditViewState extends State<TaskEditView> {
 
   void _removeContact(Contact c) => setState(
     () => _contacts = [..._contacts]..removeWhere((x) => x.id == c.id),
+  );
+
+  /// Open the category picker to edit the linked categories. Same `mounted`-guard + cancel-keeps
+  /// semantics as [_openPeople].
+  Future<void> _openCategories() async {
+    final result = await Navigator.of(context).push<List<TaskCategory>>(
+      MaterialPageRoute(
+        builder: (_) => CategoryPickerScreen(
+          repository: widget.taskCategoriesRepository,
+          initialSelected: _categories,
+        ),
+      ),
+    );
+    if (result != null && mounted) setState(() => _categories = result);
+  }
+
+  void _removeCategory(TaskCategory c) => setState(
+    () => _categories = [..._categories]..removeWhere((x) => x.id == c.id),
   );
 
   @override
@@ -131,6 +161,7 @@ class _TaskEditViewState extends State<TaskEditView> {
                 notes: _notes.text,
                 contacts: _contacts,
                 importance: _importance,
+                categories: _categories,
               ),
             )
           : await widget.repository.create(
@@ -139,6 +170,7 @@ class _TaskEditViewState extends State<TaskEditView> {
                 notes: _notes.text,
                 contacts: _contacts,
                 importance: _importance,
+                categories: _categories,
               ),
             );
       if (!mounted) return;
@@ -209,6 +241,13 @@ class _TaskEditViewState extends State<TaskEditView> {
                   contacts: _contacts,
                   onAdd: _openPeople,
                   onRemove: _removeContact,
+                ),
+                const SizedBox(height: 28),
+                // Categories — user-owned colour tags (Decision 40). Chips + picker, mirroring People.
+                _CategoriesSection(
+                  categories: _categories,
+                  onAdd: _openCategories,
+                  onRemove: _removeCategory,
                 ),
                 const SizedBox(height: 28),
                 FilledButton(
@@ -370,6 +409,52 @@ class _PeopleSection extends StatelessWidget {
           onPressed: onAdd,
           icon: const Icon(Icons.person_add_alt_outlined),
           label: const Text('Add people'),
+        ),
+      ],
+    );
+  }
+}
+
+/// The Categories block on the task form: a label, the linked categories as removable colour chips,
+/// and an "Add categories" button that opens the shared picker. Mirrors [_PeopleSection]; the chip
+/// avatar is the category's [TypeSwatch] instead of an initials avatar.
+class _CategoriesSection extends StatelessWidget {
+  const _CategoriesSection({
+    required this.categories,
+    required this.onAdd,
+    required this.onRemove,
+  });
+
+  final List<TaskCategory> categories;
+  final VoidCallback onAdd;
+  final ValueChanged<TaskCategory> onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('CATEGORIES', style: theme.textTheme.labelMedium),
+        const SizedBox(height: 10),
+        if (categories.isNotEmpty)
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final c in categories)
+                InputChip(
+                  avatar: TypeSwatch(hex: c.colorHex),
+                  label: Text(c.name),
+                  onDeleted: () => onRemove(c),
+                ),
+            ],
+          ),
+        if (categories.isNotEmpty) const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: onAdd,
+          icon: const Icon(Icons.label_outline),
+          label: const Text('Add categories'),
         ),
       ],
     );

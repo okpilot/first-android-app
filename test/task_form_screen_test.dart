@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:first_android_app/data/contacts_repository.dart';
+import 'package:first_android_app/data/task_categories_repository.dart';
 import 'package:first_android_app/data/tasks_repository.dart';
 import 'package:first_android_app/models/contact.dart';
 import 'package:first_android_app/models/task.dart';
+import 'package:first_android_app/models/task_category.dart';
 import 'package:first_android_app/screens/task_form_screen.dart';
 import 'package:first_android_app/theme.dart';
 
@@ -64,23 +66,51 @@ class _FakeContactsRepo implements ContactsRepository {
   Future<void> softDelete(String id) async {}
 }
 
+/// A minimal fake categories repo for the category picker. Returns a fixed list; writes unused.
+class _FakeTaskCategoriesRepo implements TaskCategoriesRepository {
+  _FakeTaskCategoriesRepo([this._all = const []]);
+  final List<TaskCategory> _all;
+
+  @override
+  Future<List<TaskCategory>> fetchAll() async => _all;
+  @override
+  Future<TaskCategory> create(TaskCategory draft) async => draft;
+  @override
+  Future<TaskCategory> update(TaskCategory category) async => category;
+  @override
+  Future<void> softDelete(String id) async {}
+}
+
 Widget _form(
   TasksRepository repo, {
   Task? existing,
   ContactsRepository? contactsRepo,
+  TaskCategoriesRepository? categoriesRepo,
 }) => MaterialApp(
   theme: AppTheme.light,
   home: TaskFormScreen(
     repository: repo,
     contactsRepository: contactsRepo ?? _FakeContactsRepo(),
+    taskCategoriesRepository: categoriesRepo ?? _FakeTaskCategoriesRepo(),
     existing: existing,
   ),
 );
 
+/// Pin a TALL surface before pumping. The form grew a Categories section (Decision 40) and no
+/// longer fits the default 800×600 test viewport, so bottom submit buttons fell off-screen and
+/// couldn't be hit-tested. A taller surface keeps every field + button reachable (mirrors how the
+/// list tests pin surface sizes via `tester.binding.setSurfaceSize`).
+Future<void> _pump(WidgetTester tester, Widget app) async {
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+  await tester.binding.setSurfaceSize(const Size(800, 1400));
+  await tester.pumpWidget(app);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('title is required', (tester) async {
     final repo = _RecordingTasksRepo();
-    await tester.pumpWidget(_form(repo));
+    await _pump(tester, _form(repo));
     await tester.pumpAndSettle();
 
     await tester.tap(find.widgetWithText(FilledButton, 'Add task'));
@@ -94,7 +124,7 @@ void main() {
     tester,
   ) async {
     final repo = _RecordingTasksRepo();
-    await tester.pumpWidget(_form(repo));
+    await _pump(tester, _form(repo));
     await tester.pumpAndSettle();
 
     // The Title field is the first TextFormField; Notes is the second.
@@ -111,7 +141,7 @@ void main() {
 
   testWidgets('adding a task with notes passes them to create', (tester) async {
     final repo = _RecordingTasksRepo();
-    await tester.pumpWidget(_form(repo));
+    await _pump(tester, _form(repo));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextFormField).first, 'Call Nadia');
@@ -129,7 +159,8 @@ void main() {
     tester,
   ) async {
     final repo = _RecordingTasksRepo();
-    await tester.pumpWidget(
+    await _pump(
+      tester,
       _form(
         repo,
         existing: const Task(id: 't1', title: 'Call Nadia', notes: 'old note'),
@@ -152,7 +183,7 @@ void main() {
     tester,
   ) async {
     final repo = _RecordingTasksRepo();
-    await tester.pumpWidget(_form(repo));
+    await _pump(tester, _form(repo));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextFormField).first, 'Ship it');
@@ -169,7 +200,8 @@ void main() {
     'editing seeds the current importance (untouched save keeps it)',
     (tester) async {
       final repo = _RecordingTasksRepo();
-      await tester.pumpWidget(
+      await _pump(
+        tester,
         _form(
           repo,
           existing: const Task(id: 't1', title: 'Call Nadia', importance: 2),
@@ -186,7 +218,8 @@ void main() {
 
   testWidgets('lowering the importance on an edit round-trips', (tester) async {
     final repo = _RecordingTasksRepo();
-    await tester.pumpWidget(
+    await _pump(
+      tester,
       _form(
         repo,
         existing: const Task(id: 't1', title: 'Call Nadia', importance: 2),
@@ -206,14 +239,15 @@ void main() {
   ) async {
     // Both New and Edit — the form never offers completion or archive (those are the
     // detail view's buttons now).
-    await tester.pumpWidget(_form(_RecordingTasksRepo()));
+    await _pump(tester, _form(_RecordingTasksRepo()));
     await tester.pumpAndSettle();
     expect(find.text('Mark complete'), findsNothing);
     expect(find.byType(Switch), findsNothing);
     expect(find.text('Archive'), findsNothing);
     expect(find.text('Restore'), findsNothing);
 
-    await tester.pumpWidget(
+    await _pump(
+      tester,
       _form(
         _RecordingTasksRepo(),
         existing: const Task(id: 't1', title: 'x'),
@@ -230,7 +264,8 @@ void main() {
     tester,
   ) async {
     final repo = _RecordingTasksRepo();
-    await tester.pumpWidget(
+    await _pump(
+      tester,
       _form(
         repo,
         // A DONE task: a title-only edit must NOT clobber isDone back to false.
@@ -255,7 +290,8 @@ void main() {
     tester,
   ) async {
     final repo = _RecordingTasksRepo();
-    await tester.pumpWidget(
+    await _pump(
+      tester,
       _form(
         repo,
         existing: const Task(
@@ -282,7 +318,8 @@ void main() {
     tester,
   ) async {
     final repo = _RecordingTasksRepo();
-    await tester.pumpWidget(
+    await _pump(
+      tester,
       _form(
         repo,
         existing: const Task(
@@ -324,7 +361,8 @@ void main() {
     tester,
   ) async {
     final repo = _RecordingTasksRepo();
-    await tester.pumpWidget(
+    await _pump(
+      tester,
       _form(
         repo,
         contactsRepo: _FakeContactsRepo(const [
@@ -353,10 +391,76 @@ void main() {
     expect(repo.lastCreated!.contacts.map((c) => c.id), ['c1']);
   });
 
+  testWidgets('editing seeds existing categories as chips and saves them', (
+    tester,
+  ) async {
+    final repo = _RecordingTasksRepo();
+    await _pump(
+      tester,
+      _form(
+        repo,
+        existing: const Task(
+          id: 't1',
+          title: 'Prep the pitch',
+          categories: [
+            TaskCategory(id: 'k1', name: 'Work', colorHex: '#4E7BC9'),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The Categories section shows the seeded category as a chip.
+    expect(find.text('CATEGORIES'), findsOneWidget);
+    expect(find.widgetWithText(InputChip, 'Work'), findsOneWidget);
+
+    // A title-only edit preserves the categories through copyWith(categories:).
+    await tester.enterText(find.byType(TextFormField).first, 'Prep the deck');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save changes'));
+    await tester.pumpAndSettle();
+    expect(repo.lastUpdated!.categories.map((c) => c.id), ['k1']);
+  });
+
+  testWidgets('adding categories via the picker round-trips into create', (
+    tester,
+  ) async {
+    final repo = _RecordingTasksRepo();
+    await _pump(
+      tester,
+      _form(
+        repo,
+        categoriesRepo: _FakeTaskCategoriesRepo(const [
+          TaskCategory(id: 'k1', name: 'Work', colorHex: '#4E7BC9'),
+          TaskCategory(id: 'k2', name: 'Home', colorHex: '#22A06B'),
+        ]),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).first, 'Prep');
+    final addBtn = find.widgetWithText(OutlinedButton, 'Add categories');
+    await tester.ensureVisible(addBtn);
+    await tester.pumpAndSettle();
+    await tester.tap(addBtn);
+    await tester.pumpAndSettle();
+
+    // In the picker, tick 'Work' and confirm.
+    await tester.tap(find.widgetWithText(CheckboxListTile, 'Work'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Done'));
+    await tester.pumpAndSettle();
+
+    // Back on the form, the picked category is a chip; saving carries it into create.
+    expect(find.widgetWithText(InputChip, 'Work'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Add task'));
+    await tester.pumpAndSettle();
+    expect(repo.lastCreated!.categories.map((c) => c.id), ['k1']);
+  });
+
   testWidgets('a failed save surfaces a snackbar and stays on the form', (
     tester,
   ) async {
-    await tester.pumpWidget(_form(_ThrowingTasksRepo()));
+    await _pump(tester, _form(_ThrowingTasksRepo()));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextFormField).first, 'Prep demo');
@@ -377,13 +481,15 @@ void main() {
     (tester) async {
       final repo = _RecordingTasksRepo();
       final saved = <Task>[];
-      await tester.pumpWidget(
+      await _pump(
+        tester,
         MaterialApp(
           theme: AppTheme.light,
           home: Scaffold(
             body: TaskEditView(
               repository: repo,
               contactsRepository: _FakeContactsRepo(),
+              taskCategoriesRepository: _FakeTaskCategoriesRepo(),
               existing: const Task(id: 't1', title: 'Call Nadia'),
               onChanged: saved.add,
             ),

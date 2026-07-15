@@ -3,10 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:first_android_app/data/comments_repository.dart';
 import 'package:first_android_app/data/contacts_repository.dart';
+import 'package:first_android_app/data/task_categories_repository.dart';
 import 'package:first_android_app/data/tasks_repository.dart';
 import 'package:first_android_app/models/comment.dart';
 import 'package:first_android_app/models/contact.dart';
 import 'package:first_android_app/models/task.dart';
+import 'package:first_android_app/models/task_category.dart';
 import 'package:first_android_app/screens/task_detail_screen.dart';
 import 'package:first_android_app/screens/task_form_screen.dart';
 import 'package:first_android_app/screens/tasks_list_screen.dart';
@@ -81,6 +83,7 @@ class _StatefulTasksRepo implements TasksRepository {
       notes: draft.notes,
       contacts: draft.contacts,
       importance: draft.importance,
+      categories: draft.categories,
     );
     _tasks.add(t);
     return t;
@@ -98,7 +101,7 @@ class _StatefulTasksRepo implements TasksRepository {
   Future<Task> archive(String id) async {
     final i = _tasks.indexWhere((t) => t.id == id);
     final t = _tasks[i];
-    // Only deleted_at changes server-side — notes/People/title/is_done/importance survive.
+    // Only deleted_at changes server-side — notes/People/title/is_done/importance/categories survive.
     _tasks[i] = Task(
       id: t.id,
       title: t.title,
@@ -106,6 +109,7 @@ class _StatefulTasksRepo implements TasksRepository {
       notes: t.notes,
       contacts: t.contacts,
       importance: t.importance,
+      categories: t.categories,
       deletedAt: DateTime(2026, 7, 12),
     );
     return _tasks[i];
@@ -122,6 +126,7 @@ class _StatefulTasksRepo implements TasksRepository {
       notes: t.notes,
       contacts: t.contacts,
       importance: t.importance,
+      categories: t.categories,
     );
     return _tasks[i];
   }
@@ -181,6 +186,19 @@ class _FakeContactsRepo implements ContactsRepository {
   Future<void> softDelete(String id) async {}
 }
 
+/// Minimal fake categories repo — threaded to the form/detail for the category picker, which
+/// these tests don't drive (categories are seeded on the Task directly).
+class _FakeTaskCategoriesRepo implements TaskCategoriesRepository {
+  @override
+  Future<List<TaskCategory>> fetchAll() async => const [];
+  @override
+  Future<TaskCategory> create(TaskCategory draft) async => draft;
+  @override
+  Future<TaskCategory> update(TaskCategory category) async => category;
+  @override
+  Future<void> softDelete(String id) async {}
+}
+
 Widget _screen(
   TasksRepository repo, {
   CommentsRepository? comments,
@@ -191,6 +209,7 @@ Widget _screen(
     repository: repo,
     commentsRepository: comments ?? _InertCommentsRepo(),
     contactsRepository: contacts ?? _FakeContactsRepo(),
+    taskCategoriesRepository: _FakeTaskCategoriesRepo(),
   ),
 );
 
@@ -623,5 +642,26 @@ void main() {
     ); // only the two marked rows
     expect(find.text('!!!'), findsOneWidget);
     expect(find.text('!'), findsOneWidget);
+  });
+
+  testWidgets('a task row shows its category tags as named chips', (
+    tester,
+  ) async {
+    final repo = _StatefulTasksRepo([
+      const Task(
+        id: 't1',
+        title: 'Prep the pitch',
+        categories: [
+          TaskCategory(id: 'k1', name: 'Work', colorHex: '#4E7BC9'),
+          TaskCategory(id: 'k2', name: 'Urgent', colorHex: '#C0473A'),
+        ],
+      ),
+      const Task(id: 't2', title: 'No tags here'), // no categories → no chips
+    ]);
+    await _pumpNarrow(tester, repo);
+
+    // Both category names render (colour never rides alone — Decision 19).
+    expect(find.text('Work'), findsOneWidget);
+    expect(find.text('Urgent'), findsOneWidget);
   });
 }

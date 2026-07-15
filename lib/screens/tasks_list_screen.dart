@@ -4,10 +4,13 @@ import 'package:flutter/material.dart';
 
 import '../data/comments_repository.dart';
 import '../data/contacts_repository.dart';
+import '../data/task_categories_repository.dart';
 import '../data/tasks_repository.dart';
 import '../models/task.dart';
+import '../models/task_category.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/importance_marks.dart';
+import '../widgets/type_label.dart';
 import 'task_detail_screen.dart';
 import 'task_form_screen.dart';
 
@@ -34,11 +37,13 @@ class TasksListScreen extends StatefulWidget {
     required this.repository,
     required this.commentsRepository,
     required this.contactsRepository,
+    required this.taskCategoriesRepository,
   });
 
   final TasksRepository repository;
   final CommentsRepository commentsRepository;
   final ContactsRepository contactsRepository;
+  final TaskCategoriesRepository taskCategoriesRepository;
 
   @override
   State<TasksListScreen> createState() => _TasksListScreenState();
@@ -91,6 +96,7 @@ class _TasksListScreenState extends State<TasksListScreen> {
         builder: (_) => TaskFormScreen(
           repository: widget.repository,
           contactsRepository: widget.contactsRepository,
+          taskCategoriesRepository: widget.taskCategoriesRepository,
         ),
       ),
     );
@@ -125,6 +131,7 @@ class _TasksListScreenState extends State<TasksListScreen> {
           repository: widget.repository,
           commentsRepository: widget.commentsRepository,
           contactsRepository: widget.contactsRepository,
+          taskCategoriesRepository: widget.taskCategoriesRepository,
           task: task,
         ),
       ),
@@ -262,6 +269,7 @@ class _TasksListScreenState extends State<TasksListScreen> {
         key: const ValueKey('new'),
         repository: widget.repository,
         contactsRepository: widget.contactsRepository,
+        taskCategoriesRepository: widget.taskCategoriesRepository,
         onChanged: _onCreated,
       );
     } else if (selected != null) {
@@ -275,6 +283,7 @@ class _TasksListScreenState extends State<TasksListScreen> {
         repository: widget.repository,
         commentsRepository: widget.commentsRepository,
         contactsRepository: widget.contactsRepository,
+        taskCategoriesRepository: widget.taskCategoriesRepository,
         task: selected,
         onChanged: (_) => unawaited(_load()),
       );
@@ -571,13 +580,36 @@ class _TaskTile extends StatelessWidget {
               leading,
               const SizedBox(width: 14),
               Expanded(
-                child: Text(
-                  task.title,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: titleColor,
-                    decoration: task.isDone ? TextDecoration.lineThrough : null,
-                    decorationColor: theme.colorScheme.onSurfaceVariant,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      task.title,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: titleColor,
+                        decoration: task.isDone
+                            ? TextDecoration.lineThrough
+                            : null,
+                        decorationColor: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    // Category tags — dot+name chips under the title (Decision 40). The visible
+                    // name satisfies Decision 19 (colour never rides alone). Muted for done/archived.
+                    if (task.categories.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          for (final c in task.categories)
+                            _CategoryChip(
+                              category: c,
+                              muted: task.isDone || task.isArchived,
+                            ),
+                        ],
+                      ),
+                    ],
+                  ],
                 ),
               ),
               // Importance marker (nothing at level 0). Muted for done/archived so active
@@ -592,6 +624,44 @@ class _TaskTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// A small read-only category tag on a task row: a colour [TypeDot] + the category name, in the
+/// mono theme's tonal container. Colour never rides alone — the name is always shown (Decision 19).
+/// [muted] fades it for done/archived rows so active tasks stay louder.
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({required this.category, this.muted = false});
+
+  final TaskCategory category;
+  final bool muted;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final fg = muted ? scheme.onSurfaceVariant : scheme.onSurface;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: scheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Opacity(
+            opacity: muted ? 0.5 : 1,
+            child: TypeDot(hex: category.colorHex, size: 8),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            category.name,
+            style: theme.textTheme.labelSmall?.copyWith(color: fg),
+          ),
+        ],
       ),
     );
   }

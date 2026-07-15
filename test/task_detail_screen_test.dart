@@ -3,10 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:first_android_app/data/comments_repository.dart';
 import 'package:first_android_app/data/contacts_repository.dart';
+import 'package:first_android_app/data/task_categories_repository.dart';
 import 'package:first_android_app/data/tasks_repository.dart';
 import 'package:first_android_app/models/comment.dart';
 import 'package:first_android_app/models/contact.dart';
 import 'package:first_android_app/models/task.dart';
+import 'package:first_android_app/models/task_category.dart';
 import 'package:first_android_app/screens/task_detail_screen.dart';
 import 'package:first_android_app/screens/task_form_screen.dart';
 import 'package:first_android_app/theme.dart';
@@ -67,6 +69,7 @@ class _StatefulTasksRepo implements TasksRepository {
       notes: draft.notes,
       contacts: draft.contacts,
       importance: draft.importance,
+      categories: draft.categories,
     );
     _tasks.add(t);
     return t;
@@ -85,8 +88,8 @@ class _StatefulTasksRepo implements TasksRepository {
     archivedId = id;
     final i = _tasks.indexWhere((t) => t.id == id);
     final t = _tasks[i];
-    // Archive changes only deleted_at server-side — notes, People, importance (and title/is_done)
-    // survive.
+    // Archive changes only deleted_at server-side — notes, People, importance, categories (and
+    // title/is_done) survive.
     _tasks[i] = Task(
       id: t.id,
       title: t.title,
@@ -94,6 +97,7 @@ class _StatefulTasksRepo implements TasksRepository {
       notes: t.notes,
       contacts: t.contacts,
       importance: t.importance,
+      categories: t.categories,
       deletedAt: DateTime(2026, 7, 12),
     );
     return _tasks[i];
@@ -111,6 +115,7 @@ class _StatefulTasksRepo implements TasksRepository {
       notes: t.notes,
       contacts: t.contacts,
       importance: t.importance,
+      categories: t.categories,
     );
     return _tasks[i];
   }
@@ -143,6 +148,19 @@ class _FakeContactsRepo implements ContactsRepository {
   Future<void> softDelete(String id) async {}
 }
 
+/// A minimal fake categories repo for the Edit → form → category picker path. Required by the
+/// detail's constructor; these tests seed categories on the Task directly rather than driving it.
+class _FakeTaskCategoriesRepo implements TaskCategoriesRepository {
+  @override
+  Future<List<TaskCategory>> fetchAll() async => const [];
+  @override
+  Future<TaskCategory> create(TaskCategory draft) async => draft;
+  @override
+  Future<TaskCategory> update(TaskCategory category) async => category;
+  @override
+  Future<void> softDelete(String id) async {}
+}
+
 Widget _detail(
   TasksRepository repo,
   Task task, {
@@ -154,6 +172,7 @@ Widget _detail(
     repository: repo,
     commentsRepository: comments ?? _FakeCommentsRepo(),
     contactsRepository: contacts ?? _FakeContactsRepo(),
+    taskCategoriesRepository: _FakeTaskCategoriesRepo(),
     task: task,
   ),
 );
@@ -505,6 +524,7 @@ void main() {
                         repository: repo,
                         commentsRepository: _FakeCommentsRepo(),
                         contactsRepository: _FakeContactsRepo(),
+                        taskCategoriesRepository: _FakeTaskCategoriesRepo(),
                         task: const Task(id: 't1', title: 'Call Nadia'),
                       ),
                     ),
@@ -554,6 +574,7 @@ void main() {
                         repository: repo,
                         commentsRepository: _FakeCommentsRepo(),
                         contactsRepository: _FakeContactsRepo(),
+                        taskCategoriesRepository: _FakeTaskCategoriesRepo(),
                         task: const Task(id: 't1', title: 'Call Nadia'),
                       ),
                     ),
@@ -577,6 +598,33 @@ void main() {
 
     expect(popped, isTrue);
     expect(popResult, isFalse);
+  });
+
+  testWidgets('the detail shows linked categories under a CATEGORIES header', (
+    tester,
+  ) async {
+    final repo = _StatefulTasksRepo(const [
+      Task(id: 't1', title: 'Prep the pitch'),
+    ]);
+    await tester.pumpWidget(
+      _detail(
+        repo,
+        const Task(
+          id: 't1',
+          title: 'Prep the pitch',
+          categories: [
+            TaskCategory(id: 'k1', name: 'Work', colorHex: '#4E7BC9'),
+            TaskCategory(id: 'k2', name: 'Urgent', colorHex: '#C0473A'),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Labelled section + each category name (colour never rides alone — Decision 19).
+    expect(find.text('CATEGORIES · 2'), findsOneWidget);
+    expect(find.text('Work'), findsOneWidget);
+    expect(find.text('Urgent'), findsOneWidget);
   });
 
   // ---- the Comments section is wired onto the task detail (Slice 2b): live tasks get the

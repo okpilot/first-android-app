@@ -94,6 +94,23 @@ See [positive-signals](topics/positive-signals.md) for the per-slice-type win co
   rename Attendee→ContactPicker w/ `title` noun (event strings byte-identical); load-bearing toggle
   invariant verified on all 3 update paths via `copyWith` default + embed on both reads; title-vs-
   widget.x trap handled (host seeds+setState `_task`).
+- **Join-table 2nd occurrence — m2m link + copy-not-generalize picker** (task↔task_categories,
+  Slice B / Decision 40, Jul 15; clean 0 blocking): near-verbatim mirror of task_contacts. Migration:
+  join table composite-PK (no id/timestamps/deleted_at), both FKs `on delete cascade`, reverse index,
+  RLS `using(true)` SELECT + `grant select` only (NO write policy/grant — RPC-only). Both task-write
+  RPCs drop+CR on arity change; drop targets matched the CURRENT signatures via the migration chain
+  (`create_task(text,text,uuid[],smallint)` / `update_task(uuid,text,boolean,text,uuid[],smallint)`
+  from add_importance); `p_categories` DEFAULTED on create / REQUIRED (no default) on update =
+  fail-loud on stale caller; security definer + set search_path=public verbatim; Decision-36 lockdown
+  re-issued (`revoke … from public` + `grant … to anon,authenticated`) on the NEW 5-/7-arg sigs.
+  Model: `copyWith` categories default `this.categories` (toggle-preservation), fromJson null-embed
+  skip (soft-deleted category → null → skip), toRpcParams `p_categories` id-list, doc-comment swept.
+  Screen: NEW picker CLONED not generalized (consistent w/ Slice A copy-not-refactor), mounted-guard
+  after await, colour never rides alone (row chip + detail row + picker tile + InputChip all carry
+  Text(name)). Threaded through all 4 tasks_list sites + detail (screen+view+forward-to-form) +
+  home_shell. Tests: exact toRpcParams map got `p_categories:[]`; reconstructing fakes threaded
+  categories through create/archive/restore in BOTH stateful-fake files (4th field recurrence,
+  notes→contacts→importance→categories); new picker test covers load/search/select/return/empty/error.
 
 ## Durable, verified facts (load-bearing)
 - **`CREATE EVENT TRIGGER` does NOT fire `ddl_command_end`** (proven locally on postgres:15/16:
