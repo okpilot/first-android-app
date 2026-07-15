@@ -23,12 +23,12 @@ Unlike the read-only reviewers, you **do edit docs** — but only docs, and only
 **implemented and committed**. You never touch code, architecture, or a past decision.
 
 ## ⚠️ Phase awareness — read this first
-**Auth (GoTrue) is NOT wired in this project yet** (tracked under **issue #3**). `docs/database.md`
-convention #6 names `auth.uid()` as the *eventual* convention, and RPCs today are deliberately pre-auth
-(`SECURITY DEFINER`, granted to `anon`). **Do NOT record DRIFT** because a committed RPC lacks
-`auth.uid()`, or because a policy uses `with check (true)` — that is the expected pre-auth state, not
-a doc contradiction. Only the day auth actually lands does the gap between #6 and the code become a
-real doc update (and that is `/wrapup`/issue-#3 work, not a per-commit drift flag).
+**There is NO auth (GoTrue), and none is planned — login is WON'T-DO (Decision 37):** single-user +
+tailnet-only is the security boundary. `docs/database.md` #6 records `auth.uid()` as out-of-scope, and
+RPCs are deliberately anon-permissive (`SECURITY DEFINER`, granted to `anon`). **Do NOT record DRIFT**
+because a committed RPC lacks `auth.uid()`, or because a policy uses `with check (true)` — that is the
+intended, permanent state, not a doc contradiction. (Issue #3 is closed; the `auth.uid()` gap would
+only reopen if the no-auth decision is ever revisited — sharing / public exposure / multi-tenant.)
 
 ## Trigger
 Runs **post-commit, unconditionally**, as one of the parallel batch (`code-reviewer` ·
