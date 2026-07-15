@@ -8,10 +8,16 @@
   blocker. `with check (true)` is intentional pre-auth. When #3 lands, flip the `auth.uid()` rule
   from INFO → ISSUE and update this line.
 
-## Known project-wide gaps (tracked under #3 — DEFER acceptable until #3 lands)
-- **`revoke execute … from public` is missing on every RPC.** Postgres grants EXECUTE to PUBLIC
-  by default and no migration revokes it. Flag on each NEW RPC (ISSUE, ref #3); DEFER to the #3
-  sweep is fine while #3 is open.
+## Known project-wide gaps (tracked under #3)
+- **`revoke execute … from public` — SWEPT & RESOLVED (Decision 36, `20260715120000_preauth_lockdown`).**
+  All 21 client-facing SECURITY DEFINER RPCs now revoke PUBLIC execute; the direct anon write path on
+  the 5 mutable tables (contacts, event_types, event_comments, tasks, task_comments) is CLOSED (writes
+  are RPC-only). No longer deferrable — a NEW RPC missing the revoke, or a NEW mutable table opening a
+  direct anon write path, is now a **regression → ISSUE (FIX)**.
+- **Post-lockdown add-when-recreating-via-`create or replace`:** replacing a function with
+  `create or replace` (no drop) PRESERVES the ACL, so a revoke done in an earlier statement/migration
+  survives — do NOT flag a recreated RPC as "lost its revoke". (Verified: lockdown part 3 recreates the
+  4 task_comment RPCs after part 2's revoke; revoke survives.)
 
 ## Confirmed-good baseline patterns (regression guards — flag if a NEW migration breaks them)
 - Every table enables RLS in the same migration as `create table`.

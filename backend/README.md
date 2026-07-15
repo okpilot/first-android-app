@@ -70,11 +70,13 @@ psql -c "select has_function_privilege('public','public.create_task(text,text,uu
 ```
 
 ## Verify: event comment write RPCs (Decision 26, Slice 3)
-As of Slice 3, comment writes route through `create_comment` / `update_comment` /
-`soft_delete_comment` / `restore_comment` RPCs (for uniformity — this table's `using (true)`
-SELECT means a direct write would also work; there's no 42501 to dodge). These curls prove the
-RPC write path AND that archiving stays **non-destructive** with no hard-delete surface — the
-archived row remains selectable (the "show archived" feature) because SELECT is `using (true)`:
+Comment writes route through the `create_comment` / `update_comment` / `soft_delete_comment` /
+`restore_comment` RPCs, which are now the **sole** write path — the direct anon/authenticated write
+grants + policies were removed by the Decision 36 lockdown (`20260715120000`). (The table's
+`using (true)` SELECT is a **read/archive** property — it keeps archived rows selectable for the
+"show archived" feature — not a way to write directly.) These curls prove the RPC write path AND
+that archiving stays **non-destructive** with no hard-delete surface — the archived row remains
+selectable because SELECT is `using (true)`:
 ```bash
 ANON=$(grep SUPABASE_ANON_KEY .env | cut -d= -f2)
 REST=http://localhost:8000/rest/v1

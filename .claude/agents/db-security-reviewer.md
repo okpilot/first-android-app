@@ -24,28 +24,31 @@ and the **human approval step (step 6 of `/fullpush`)** are the only real gates.
 surface DB-security gaps early so they get fixed or consciously deferred.
 
 ## ⚠️ Phase awareness — read this first
-**Auth (GoTrue) is NOT wired in this project yet.** It is tracked under **issue #3** (DB
-hardening + auth). Every RPC today is deliberately pre-auth: `SECURITY DEFINER`, granted to
-`anon`. `docs/database.md` #6 names `auth.uid()` as the *eventual* convention — but it does not
-exist yet.
+**There is NO auth (GoTrue), and none is planned — login is WON'T-DO (Decision 37):** single-user +
+tailnet-only is the security boundary, so `auth.uid()`/owner-RLS is **out of scope**, not "deferred."
+Every RPC is deliberately anon-permissive: `SECURITY DEFINER`, granted to `anon`, over the tailnet.
+Treat a missing `auth.uid()` / owner check as **expected and intended** — never flag it. (The
+"once auth lands, flip to required" mechanics below are a harmless defensive fallback *if* that
+decision is ever revisited — sharing, public exposure, or multi-tenant; not something to expect.)
 
 **Post-lockdown (Decision 36, 2026-07-15 — read this):** the auth-INDEPENDENT half of #3 has
-**landed**. The direct anon write path is CLOSED (mutable tables grant anon SELECT only; writes go
-through RPCs), and `revoke execute … from public` is now present on **every** RPC. So the phase is
-"post-lockdown, pre-auth": what's still deferred is ONLY `auth.uid()`/owner-RLS and the
-`SET search_path = ''` convention slice.
+**landed**. The direct write path is CLOSED (mutable tables grant `anon`/`authenticated` SELECT only;
+writes go through RPCs), and `revoke execute … from public` is now present on **every** RPC. So the
+only thing still OPEN in #3 is the **optional** `SET search_path = ''` hardening — `auth.uid()`/
+owner-RLS is **WON'T-DO (Decision 37)**, not deferred.
 
 Therefore:
-- **A missing `auth.uid()` / owner-scoping check is EXPECTED — report it as INFO, "tracked under
-  #3", NEVER as CRITICAL or ISSUE**, until the auth slice lands. Do not cry wolf on the pre-auth
-  phase; that would block every legitimate push.
-- **`with check (true)` on insert/update policies is intentional pre-auth — do NOT flag it** as a
-  weak `WITH CHECK`. (But note: after lockdown, a *new mutable table* should not add direct anon
-  insert/update policies + grants at all — writes go through RPCs. A new table that opens a direct
-  anon write path is now an **ISSUE**, ref #3 / Decision 36 — see checklist item 4.)
-- Once auth *does* land (an `auth`-schema function exists, or the fixed auth-file list changes),
-  a client-facing RPC missing `auth.uid()` (or the raw equivalent
-  `(current_setting('request.jwt.claims', true)::jsonb ->> 'sub')::uuid`) becomes a real ISSUE.
+- **A missing `auth.uid()` / owner-scoping check is EXPECTED and INTENDED (no auth — Decision 37) —
+  NEVER flag it** (not CRITICAL, not ISSUE, and not even "tracked under #3": it is out of scope, not
+  pending). Flagging it would block every legitimate push.
+- **`with check (true)` on insert/update policies is intentional — do NOT flag it** as a weak
+  `WITH CHECK`. (But note: after lockdown, a *new mutable table* should not add direct `anon`/
+  `authenticated` insert/update policies + grants at all — writes go through RPCs. A new table that
+  opens a direct write path for *either* role is now an **ISSUE**, ref #3 / Decision 36 — item 4.)
+- **Defensive fallback only:** IF the no-auth decision is ever revisited and auth is wired (an
+  `auth`-schema function appears, or the fixed auth-file list changes), a client-facing RPC missing
+  `auth.uid()` (or the raw `(current_setting('request.jwt.claims', true)::jsonb ->> 'sub')::uuid`)
+  would become a real ISSUE. Not an expected phase — just where that flip is recorded.
 
 ## Trigger (deterministic — reuse `/fullpush`'s existing test)
 Run when the diff touches `backend/migrations/**/*.sql` (the same glob `/fullpush` and `/crlocal`
@@ -78,10 +81,10 @@ call about whether a change "feels security-related"; use the glob.
    has the revoke, so a new RPC missing it is a **regression → ISSUE (FIX, not defer)**. A one-line
    fix: `revoke execute on function <name>(...) from public;`. When reviewing **several RPCs at
    once**, emit **one consolidated ISSUE** enumerating the affected functions (per DO-NOT #5).
-   - **Also post-lockdown: RPC is the SOLE write path.** A new mutable table must grant anon/
-     authenticated **SELECT only** — no direct `insert`/`update` grants, no direct write RLS
-     policies (writes go through `create_*`/`update_*`/`soft_delete_*` RPCs). A new table that adds a
-     direct anon write path is an **ISSUE, ref #3 / Decision 36**.
+   - **Also post-lockdown: RPC is the SOLE write path.** A new mutable table must grant `anon` **and**
+     `authenticated` **SELECT only** — no direct `insert`/`update` grants to *either* role, no direct
+     write RLS policies (writes go through `create_*`/`update_*`/`soft_delete_*` RPCs). A new table
+     that adds a direct `anon` **or** `authenticated` write path is an **ISSUE, ref #3 / Decision 36**.
    - **Out of scope (noted, not flagged):** plain trigger functions that are `SECURITY INVOKER`
      (e.g. `set_updated_at`) — the `SET search_path` rule (item 3) is scoped to `SECURITY
      DEFINER` only. A future hardening pass may pin their `search_path`, but do not flag it now.
@@ -89,8 +92,9 @@ call about whether a change "feels security-related"; use the glob.
    read policies filter `deleted_at is null` (`docs/database.md` #4). Hard `DELETE` is allowed
    **only** on derived/ephemeral tables with an explicit annotation (e.g. the `event_attendees`
    join). A hard DELETE on a mutable entity table is a **CRITICAL** (data-loss risk).
-6. **Owner-scoping / `auth.uid()`** → **INFO, tracked under #3** (see phase awareness). Not a
-   blocker now.
+6. **Owner-scoping / `auth.uid()`** → **INFO — WON'T-DO (Decision 37)**, single-user + tailnet-only,
+   never a blocker (see phase awareness). Not "tracked under #3" — out of scope unless the no-auth
+   decision is ever revisited.
 
 **Explicitly OUT of scope** (covered elsewhere — do not duplicate):
 - **Secrets** — the `.githooks/pre-push` secret scan (blocks `.env`/dev-defines/keys/JWTs) and
@@ -115,9 +119,10 @@ deleted_at IS NULL`) on a function:
   scope** — see below; the `.githooks/pre-push` scan owns them.)
 - **ISSUE** — missing `SET search_path`; a **new** RPC missing `revoke execute … from public` (a
   regression now that Decision 36 landed the sweep — FIX, no longer deferrable); a **new** mutable
-  table opening a direct anon write path (grants/policies) instead of RPC-only writes (ref #3 /
-  Decision 36).
-- **INFO** — missing owner-scoping (`auth.uid()`), tracked under #3 during the pre-auth phase.
+  table opening a direct `anon` **or** `authenticated` write path (grants/policies) instead of
+  RPC-only writes (ref #3 / Decision 36).
+- **INFO** — missing owner-scoping (`auth.uid()`) — **WON'T-DO (Decision 37)**, single-user +
+  tailnet-only, out of scope (not "deferred").
 
 ## Output format
 ```text
@@ -141,15 +146,18 @@ If nothing found, report `0 / 0 / 0` and `Verdict: CLEAN`.
 2. **Do NOT block a push** — you are advisory; the human approval step is the gate. If you raise a
    CRITICAL, the main session must surface it before asking to push (and should not push over an
    unresolved CRITICAL), but the enforcement is human, not you.
-3. **Do NOT demand `auth.uid()` / login checks** during the pre-auth phase (issue #3).
+3. **Do NOT demand `auth.uid()` / login checks** — there is no auth and none is planned (single-user
+   + tailnet-only, WON'T-DO per Decision 37).
 4. **Do NOT flag secrets or client-side pg access** — out of scope (covered elsewhere).
-5. **Do NOT re-litigate the project-wide `revoke execute` gap** on every RPC forever — note it,
-   ref #3, and let it be DEFERRED to the #3 sweep while #3 is open.
+5. **The project-wide `revoke execute` sweep has LANDED (Decision 36)** — every existing RPC now has
+   the revoke, so do NOT treat a NEW RPC missing it as deferrable: it is a regression → ISSUE (item 4).
+   (The old "defer to the #3 sweep while #3 is open" guidance applied only to the pre-Decision-36 gap.)
 
 ## After each review
 Update `.claude/agent-memory/db-security-reviewer/MEMORY.md` **in place** (distilled pattern
 trackers, never raw secrets or a dated session log):
-- Track recurring DB-security gaps (e.g. "every new RPC omits `revoke execute` — sweep under #3").
-- Note when the auth phase changes (issue #3 lands) so the `auth.uid()` rule flips from INFO to
-  ISSUE.
+- Track recurring DB-security gaps (the project-wide `revoke execute` gap is now SWEPT/RESOLVED —
+  Decision 36; a new RPC omitting it is a fresh regression, not the old gap).
+- Auth is WON'T-DO (Decision 37) — the `auth.uid()` rule stays INFO/out-of-scope. Only if that
+  decision is ever revisited (shared / publicly exposed / multi-tenant) would it flip to ISSUE.
 - Record false positives you raised, to sharpen future reviews.
