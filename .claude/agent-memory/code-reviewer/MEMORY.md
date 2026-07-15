@@ -53,6 +53,11 @@
   icon + `Row` + "Not added" fallback + onSurfaceVariant colour, spacing 20/2). Notes has no icon,
   no Row, no fallback (hides when empty), different spacing. Do NOT flag it as duplicating `_Field`
   or as an extractable shared atom — it is a simpler one-off, unlike the byte-identical `MetaLine`.
+- **`lib/util/` import order `package:flutter/painting.dart` then `dart:ui show Brightness` is the
+  project convention, NOT out-of-order.** Both `event_type_palette.dart` and `importance.dart`
+  (Decision 38) lead with the flutter import then `dart:ui show Brightness`. `directives_ordering`
+  is NOT enabled in `analysis_options.yaml`, and importance.dart is explicitly modeled on
+  event_type_palette. Do NOT flag it as a dart-before-package idiom miss — it mirrors the sibling.
 - **Out of scope** — DB/RLS/SQL/secrets (`db-security-reviewer`), deep logic correctness
   (`semantic-reviewer`), lints `flutter analyze` already reports.
 
@@ -68,6 +73,13 @@ Full detail in [positive-signals](topics/positive-signals.md). One-line index:
   `_lastData` stale-guard, `mounted`-after-await, light snapshot `where` partition/search (NOT a
   heavy transform), `EmptyState` + hand-rolled `_ErrorState`, master-detail `ValueKey` remount.
 - **`_Sidebar`/`_SidebarItem` (`home_shell.dart`)** — clean UI-chrome `StatelessWidget` extraction.
+- **Task importance slice (`3bf48ea`, Decision 38)** — reference scalar-field-add + fixed-scale
+  colour: `int importance` threaded through `Task` (draft/fromJson/toRpcParams/copyWith, defaults
+  0, `copyWith` preserves it so complete-toggle can't reset), repo `p_importance` + `.order` sort
+  (compute in the query, NOT build()), new pure-Dart `lib/util/importance.dart` (with test) +
+  `ImportanceMarks` widget + `_ImportanceSection`/`_ImportanceSegment` well-extracted
+  StatelessWidgets. Colour paired with `!` glyph + `Semantics` label = a FIXED semantic scale, not
+  Decision-19 user colour-as-data (correctly documented). CLEAN 0/0/0.
 - **`task_detail_screen.dart` / `ContactDetailView`** — view-first detail reference: thin
   Scaffold host + shared body that NEVER pops, reuses `SubtleButton`/`MetaLine`, `_StatusPill` is
   label-paired (not colour-as-data).

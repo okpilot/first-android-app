@@ -28,6 +28,9 @@ disposable vehicle for learning app development end to end.
 - **Task comments** — attach notes to a task, just like on events. Archive old comments to
   keep them but hide them by default; unarchive to show them again. On archived tasks, the log
   is read-only (frozen history).
+- **Task importance** — mark each task with a priority level: none, ! (important), !! (very important),
+  or !!! (urgent). Active tasks sort highest-importance first so you see the most pressing work at
+  the top of your list.
 - **Desktop & wide screens** — on a wide window the app lays itself out for a mouse: a
   labelled sidebar instead of the phone's bottom bar, and a two-pane master-detail for
   Contacts and Tasks (the list on the left, the detail or editor on the right) instead of

@@ -11,6 +11,7 @@ import 'package:first_android_app/screens/task_detail_screen.dart';
 import 'package:first_android_app/screens/task_form_screen.dart';
 import 'package:first_android_app/theme.dart';
 import 'package:first_android_app/widgets/comments_section.dart';
+import 'package:first_android_app/widgets/importance_marks.dart';
 
 /// In-memory comments repo — seed via the constructor; fetchFor filters by parentId so the
 /// section loads a task's own comments. Add round-trips (newest-first by id) so the composer
@@ -65,6 +66,7 @@ class _StatefulTasksRepo implements TasksRepository {
       title: draft.title.trim(),
       notes: draft.notes,
       contacts: draft.contacts,
+      importance: draft.importance,
     );
     _tasks.add(t);
     return t;
@@ -83,13 +85,15 @@ class _StatefulTasksRepo implements TasksRepository {
     archivedId = id;
     final i = _tasks.indexWhere((t) => t.id == id);
     final t = _tasks[i];
-    // Archive changes only deleted_at server-side — notes, People (and title/is_done) survive.
+    // Archive changes only deleted_at server-side — notes, People, importance (and title/is_done)
+    // survive.
     _tasks[i] = Task(
       id: t.id,
       title: t.title,
       isDone: t.isDone,
       notes: t.notes,
       contacts: t.contacts,
+      importance: t.importance,
       deletedAt: DateTime(2026, 7, 12),
     );
     return _tasks[i];
@@ -106,6 +110,7 @@ class _StatefulTasksRepo implements TasksRepository {
       isDone: t.isDone,
       notes: t.notes,
       contacts: t.contacts,
+      importance: t.importance,
     );
     return _tasks[i];
   }
@@ -657,4 +662,24 @@ void main() {
       expect(find.byType(TextField), findsNothing);
     },
   );
+
+  testWidgets('the detail shows the importance marker beside the status pill', (
+    tester,
+  ) async {
+    const task = Task(id: 't1', title: 'Ship it', importance: 3);
+    await tester.pumpWidget(_detail(_StatefulTasksRepo(const [task]), task));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ImportanceMarks), findsOneWidget);
+    expect(find.text('!!!'), findsOneWidget);
+    expect(find.text('Active'), findsOneWidget);
+  });
+
+  testWidgets('a level-0 task shows no importance marker', (tester) async {
+    const task = Task(id: 't1', title: 'Water plants');
+    await tester.pumpWidget(_detail(_StatefulTasksRepo(const [task]), task));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ImportanceMarks), findsNothing);
+  });
 }

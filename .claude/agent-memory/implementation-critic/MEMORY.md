@@ -12,11 +12,14 @@ _First run pending. Seed watch-items carried from the project's conventions:_
 - Repository/model signature change → is the hand-written `_FakeXRepo` in `test/` updated too?
 - Fallbacks match sibling code (`EventType` bad-hex → `#888888`; `toWrite()` empty → null)?
 - `FutureBuilder` screens keep the `_lastData` stale-guard (failed refresh keeps stale data)?
-- **`toRpcParams` shape-change → stale sibling comment (WATCHING, count 1 — Task notes slice):** when
-  a scalar field is added to `toRpcParams()`, the repo's `create()` doc-comment that quotes the OLD
-  literal (`draft.toRpcParams() is exactly {p_title}`) goes stale in the SAME file as the change.
-  Minor (SUGGESTION), but it's the doc-comment-sweep discipline in miniature — grep the entity's repo
-  for a comment quoting the pre-change param literal whenever the create shape grows.
+- **`toRpcParams` shape-change → stale sibling comment (RESOLVED-WATCH, count 1 — Task notes slice;
+  held clean at Decision 38 importance, 2026-07-15):** when a scalar field is added to `toRpcParams()`,
+  the model's dartdoc that quotes the OLD param literal (`create_task(p_title, p_notes, p_contacts)`,
+  the `{p_id, p_title, p_is_done, p_notes, p_contacts}` update shape) goes stale in the SAME file.
+  At Decision 38 the sweep was done proactively (plan-critic folded it in): both the `create_task(…
+  p_importance)` signature quote and the update-shape quote in task.dart were updated in the same diff,
+  AND the repo's update() comment. Minor (SUGGESTION) when missed — grep the model+repo for a comment
+  quoting the pre-change param literal whenever the create/update shape grows.
 - **Docs-sync "same file, >1 stale surface" — the backlog/owed-list twin (WATCHING, count 1 — issue
   #40 review-bar rebalance, 2026-07-14):** a rules/docs slice that updates a status line (plan.md
   current-status: "`/updatephone` done"; Decision 35 codifying #40) but leaves the SAME file's
@@ -46,8 +49,15 @@ _First run pending. Seed watch-items carried from the project's conventions:_
 
 ## Positive signals (all clean pre-commit, 0 blocking) — one line each; full lessons in topic file
 See [positive-signals](topics/positive-signals.md) for the per-slice-type win conditions. Index:
-- **Scalar-field-add** (Task notes, Dec 27): drop+CR both RPCs on arity change; `nullif(trim,'')`
-  clear-path; `copyWith(notes:'')` overrides via non-null empty string; test fakes thread the field.
+- **Scalar-field-add** (Task notes, Dec 27; **Task importance Decision 38, Jul 15**): drop+CR both
+  RPCs on arity change + re-issue the Decision-36 `revoke … from public` + `grant … to anon,
+  authenticated` on the NEW signatures (a recreate hands back default PUBLIC execute — the lockdown
+  invariant); `nullif(trim,'')` clear-path; `copyWith` preserves via `?? this.` (both toggle paths
+  omit the arg); toRpcParams carries the new `p_*` (4-arg create), repo update() sends it explicitly
+  (6-arg update, REQUIRED no-default = fail-loud on stale caller); `.order('importance', desc)` sits
+  BETWEEN is_done and created_at; new fixed-scale colour = chrome NOT Decision 19 (framed correctly);
+  ImportanceMarks a11y = Semantics label so colour/'!' never rides alone; test fakes thread the field
+  through create + archive + restore, not just update. Full dartdoc sweep held clean.
 - **Template-port** (contacts/event_types/event-comments write-RPCs, Dec 26 S1–2): diff vs green
   template; security posture must be byte-for-byte; new fn = no CR-chain.
 - **Shared-widget second-consumer** (task_comments, Dec 33 / Slice 2b): faithful twin of

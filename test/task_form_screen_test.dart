@@ -148,6 +148,59 @@ void main() {
     expect(repo.lastUpdated!.title, 'Call Nadia'); // untouched title preserved
   });
 
+  testWidgets('importance defaults to None and a picked level reaches create', (
+    tester,
+  ) async {
+    final repo = _RecordingTasksRepo();
+    await tester.pumpWidget(_form(repo));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).first, 'Ship it');
+    // Untouched → level 0. Pick !!! then add.
+    await tester.tap(find.text('!!!'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Add task'));
+    await tester.pumpAndSettle();
+
+    expect(repo.lastCreated!.importance, 3);
+  });
+
+  testWidgets(
+    'editing seeds the current importance (untouched save keeps it)',
+    (tester) async {
+      final repo = _RecordingTasksRepo();
+      await tester.pumpWidget(
+        _form(
+          repo,
+          existing: const Task(id: 't1', title: 'Call Nadia', importance: 2),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Save untouched — the picker seeded to 2, so update carries it through.
+      await tester.tap(find.widgetWithText(FilledButton, 'Save changes'));
+      await tester.pumpAndSettle();
+      expect(repo.lastUpdated!.importance, 2);
+    },
+  );
+
+  testWidgets('lowering the importance on an edit round-trips', (tester) async {
+    final repo = _RecordingTasksRepo();
+    await tester.pumpWidget(
+      _form(
+        repo,
+        existing: const Task(id: 't1', title: 'Call Nadia', importance: 2),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('!')); // drop 2 → 1
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Save changes'));
+    await tester.pumpAndSettle();
+    expect(repo.lastUpdated!.importance, 1);
+  });
+
   testWidgets('the form offers no complete toggle or archive action', (
     tester,
   ) async {

@@ -12,6 +12,7 @@ import 'package:first_android_app/screens/task_form_screen.dart';
 import 'package:first_android_app/screens/tasks_list_screen.dart';
 import 'package:first_android_app/theme.dart';
 import 'package:first_android_app/widgets/comments_section.dart';
+import 'package:first_android_app/widgets/importance_marks.dart';
 
 /// Inert comments repo — the tasks list threads it to the detail, but none of these tests
 /// exercise comments. fetchFor returns nothing; the mutators are never reached.
@@ -79,6 +80,7 @@ class _StatefulTasksRepo implements TasksRepository {
       title: draft.title.trim(),
       notes: draft.notes,
       contacts: draft.contacts,
+      importance: draft.importance,
     );
     _tasks.add(t);
     return t;
@@ -96,13 +98,14 @@ class _StatefulTasksRepo implements TasksRepository {
   Future<Task> archive(String id) async {
     final i = _tasks.indexWhere((t) => t.id == id);
     final t = _tasks[i];
-    // Only deleted_at changes server-side — notes/People/title/is_done survive the archive.
+    // Only deleted_at changes server-side — notes/People/title/is_done/importance survive.
     _tasks[i] = Task(
       id: t.id,
       title: t.title,
       isDone: t.isDone,
       notes: t.notes,
       contacts: t.contacts,
+      importance: t.importance,
       deletedAt: DateTime(2026, 7, 12),
     );
     return _tasks[i];
@@ -118,6 +121,7 @@ class _StatefulTasksRepo implements TasksRepository {
       isDone: t.isDone,
       notes: t.notes,
       contacts: t.contacts,
+      importance: t.importance,
     );
     return _tasks[i];
   }
@@ -602,4 +606,22 @@ void main() {
       expect(find.widgetWithText(FilledButton, 'Comment'), findsNothing);
     },
   );
+
+  testWidgets('a task row shows its importance marks (none for level 0)', (
+    tester,
+  ) async {
+    final repo = _StatefulTasksRepo([
+      const Task(id: 't1', title: 'Ship it', importance: 3),
+      const Task(id: 't2', title: 'Reply to Dana', importance: 1),
+      const Task(id: 't3', title: 'Water plants'), // level 0 → no marks
+    ]);
+    await _pumpNarrow(tester, repo);
+
+    expect(
+      find.byType(ImportanceMarks),
+      findsNWidgets(2),
+    ); // only the two marked rows
+    expect(find.text('!!!'), findsOneWidget);
+    expect(find.text('!'), findsOneWidget);
+  });
 }

@@ -324,6 +324,42 @@ curl -s -o /dev/null -w '%{http_code}\n' -X DELETE -H "apikey: $ANON" -H "Author
   "$REST/task_comments?id=eq.$CID"                               # -> 401 (no delete grant)
 ```
 
+## Verify: task importance (Decision 38)
+`create_task` / `update_task` also carry `p_importance smallint` — a fixed 0..3 priority marker.
+These curls prove: importance round-trips, out-of-range is rejected by the `check (importance between
+0 and 3)`, and — the signature-bump lockdown invariant — the recreated RPCs did **not** reopen
+`EXECUTE` to `PUBLIC` (the `has_function_privilege` check must be run as a DB superuser via `psql`,
+not over anon REST — an anon curl can't observe PUBLIC's grant, only its own).
+```bash
+ANON=$(grep SUPABASE_ANON_KEY .env | cut -d= -f2)
+REST=http://localhost:8000/rest/v1
+# create at importance 3, read it back
+IID=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_task" \
+  -d '{"p_title":"Ship the release","p_importance":3}' | tr -d '"')
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/tasks?id=eq.$IID&select=title,importance"              # -> importance 3
+# update lowers it to 1 (must re-send the whole task: title/is_done/notes/contacts/importance)
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/update_task" \
+  -d "{\"p_id\":\"$IID\",\"p_title\":\"Ship the release\",\"p_is_done\":false,\"p_notes\":null,\"p_contacts\":[],\"p_importance\":1}"
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/tasks?id=eq.$IID&select=importance"                    # -> importance 1
+# out-of-range -> 400 check violation (importance_check)
+curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_task" \
+  -d '{"p_title":"bad","p_importance":4}'                        # -> 400
+# omitted p_importance defaults to 0 (none)
+DID=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_task" -d '{"p_title":"No-priority task"}' | tr -d '"')
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/tasks?id=eq.$DID&select=importance"                    # -> importance 0
+# LOCKDOWN INVARIANT (run as superuser, not anon): the recreated RPCs stay revoked from PUBLIC
+docker compose exec -T db psql -U postgres -d postgres -tAc \
+  "select has_function_privilege('public','public.create_task(text,text,uuid[],smallint)','execute'), \
+          has_function_privilege('public','public.update_task(uuid,text,boolean,text,uuid[],smallint)','execute');"  # -> f|f
+```
+
 ## Layout
 ```text
 docker-compose.yml   db + rest + gateway
@@ -336,7 +372,8 @@ caddy/Caddyfile      /rest/v1 -> PostgREST, + permissive CORS for the Flutter we
 ```
 
 ## Conventions in play (docs/database.md)
-- RLS on `contacts`; anon may read/insert/update **non-deleted** rows (no auth yet).
+- RLS on every table; anon may **read** non-deleted rows directly, but **all writes go through the
+  RPCs** — the direct anon/authenticated INSERT/UPDATE grants were revoked by Decision 36 (see below).
 - **Soft-delete only** — no hard `DELETE` grant. Deletes go through the
   `soft_delete_contact(uuid)` `SECURITY DEFINER` RPC (a direct UPDATE of `deleted_at`
   fails the SELECT policy via PostgREST's RETURNING — that's why the RPC exists).
@@ -348,10 +385,12 @@ caddy/Caddyfile      /rest/v1 -> PostgREST, + permissive CORS for the Flutter we
   `task_comments` is born on the RPC path via `create_task_comment` / `update_task_comment` /
   `soft_delete_task_comment` / `restore_task_comment` — for uniformity; the `using (true)` policy
   means there was never a 42501 forcing a direct write. Still no hard-`DELETE` grant.
-  **RPCs are the *intended* application write path, not yet an *enforced* security boundary:**
-  the direct `anon`/`authenticated` INSERT/UPDATE grants + permissive policies remain open, so a
-  PostgREST client can still bypass these RPCs until the auth-hardening slice (issue #3) revokes the
-  direct grants (and adds `auth.uid()` owner checks). Same pre-auth posture as `contacts` / `event_types`.
+  **RPCs are the *enforced* sole write path (Decision 36):** the direct `anon`/`authenticated`
+  INSERT/UPDATE grants and the direct-write RLS policies were revoked/dropped, and `EXECUTE` was
+  revoked from `PUBLIC` on every SECURITY DEFINER RPC — so a PostgREST client can no longer bypass
+  the RPCs. `auth.uid()` owner checks are **WON'T-DO (Decision 37)** — single-user + tailnet-only is
+  the security boundary, no login is planned; issue #3 is closed (only the optional `search_path=''`
+  hardening remains).
 
 ## To homebase (later)
 Move this stack into `okpilot/selfhost/stacks/`, drop the local Caddy gateway (the

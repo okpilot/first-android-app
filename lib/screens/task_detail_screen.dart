@@ -8,6 +8,7 @@ import '../data/tasks_repository.dart';
 import '../models/contact.dart';
 import '../models/task.dart';
 import '../widgets/comments_section.dart';
+import '../widgets/importance_marks.dart';
 import '../widgets/initials_avatar.dart';
 import '../widgets/meta_line.dart';
 import '../widgets/subtle_button.dart';
@@ -222,7 +223,16 @@ class _TaskDetailViewState extends State<TaskDetailView> {
                 ],
               ),
               const SizedBox(height: 16),
-              _StatusPill(task: _task),
+              // Status + importance marker on one line (marks render nothing at level 0).
+              Row(
+                children: [
+                  _StatusPill(task: _task),
+                  if (_task.importance > 0) ...[
+                    const SizedBox(width: 12),
+                    ImportanceMarks(level: _task.importance),
+                  ],
+                ],
+              ),
               if (_isArchived) ...[
                 const SizedBox(height: 12),
                 Text(

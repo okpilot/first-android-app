@@ -20,6 +20,11 @@ import 'contact.dart';
 /// an event's attendees. Only id/name/company are populated from the embed. Written atomically by
 /// the task-write RPCs (`p_contacts`); a soft-deleted (RLS-hidden) contact comes back as a null
 /// `contacts` on the join row and is skipped here (parity with [Event.attendees]).
+///
+/// [importance] is a fixed 0..3 priority marker (0 = none, 1/2/3 = !/!!/!!!) — the `importance`
+/// scalar column (Decision 38). A fixed semantic scale the UI maps to a hue, NOT user-owned
+/// colour-as-data. Written by the task-write RPCs (`p_importance`) and used to sort active tasks
+/// (highest first). The DB `check (importance between 0 and 3)` bounds it.
 class Task {
   final String id;
   final String title;
@@ -28,6 +33,9 @@ class Task {
 
   /// The linked People. Only id/name/company are populated from the embed.
   final List<Contact> contacts;
+
+  /// Priority marker, 0..3 (0 = none, 1/2/3 = !/!!/!!!). See [importanceMarks].
+  final int importance;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DateTime? deletedAt;
@@ -38,20 +46,25 @@ class Task {
     this.isDone = false,
     this.notes,
     this.contacts = const [],
+    this.importance = 0,
     this.createdAt,
     this.updatedAt,
     this.deletedAt,
   });
 
   /// A not-yet-persisted task. Uses an empty id — the DB assigns the real one. Always live and
-  /// not-done: new tasks are created active. [notes] and [contacts] are optional (a new task may
-  /// carry both).
-  const Task.draft({required this.title, this.notes, this.contacts = const []})
-    : id = '',
-      isDone = false,
-      createdAt = null,
-      updatedAt = null,
-      deletedAt = null;
+  /// not-done: new tasks are created active. [notes], [contacts] and [importance] are optional (a
+  /// new task may carry all three).
+  const Task.draft({
+    required this.title,
+    this.notes,
+    this.contacts = const [],
+    this.importance = 0,
+  }) : id = '',
+       isDone = false,
+       createdAt = null,
+       updatedAt = null,
+       deletedAt = null;
 
   factory Task.fromJson(Map<String, dynamic> json) {
     // task_contacts is a to-many array; each row's `contacts` is a to-ONE object (or null when
@@ -67,6 +80,7 @@ class Task {
       isDone: json['is_done'] as bool? ?? false,
       notes: json['notes'] as String?,
       contacts: contacts,
+      importance: json['importance'] as int? ?? 0,
       createdAt: _parseDate(json['created_at']),
       updatedAt: _parseDate(json['updated_at']),
       deletedAt: _parseDate(json['deleted_at']),
@@ -74,40 +88,44 @@ class Task {
   }
 
   /// Params for the `create_task` RPC (Decision 26 — all writes go through RPCs). Matches the
-  /// `create_task(p_title, p_notes, p_contacts)` signature: `p_title` is trimmed here
+  /// `create_task(p_title, p_notes, p_contacts, p_importance)` signature: `p_title` is trimmed here
   /// (belt-and-suspenders with the server, which also trims); `p_notes` is sent verbatim (possibly
   /// null — the server normalizes blank/whitespace to NULL); `p_contacts` is the linked-People id
-  /// list (empty when none). Follows the project's RPC-write convention (as [Comment] does, though
-  /// its param map now lives in the repo): `toRpcParams` matches the `create_*` shape and `is_done`
-  /// is NOT included because `create_task` creates live+not-done. Updates go through `update_task`
-  /// with an explicit `{p_id, p_title, p_is_done, p_notes, p_contacts}` built in the repo, never
-  /// this map.
+  /// list (empty when none); `p_importance` is the 0..3 priority. Follows the project's RPC-write
+  /// convention (as [Comment] does, though its param map now lives in the repo): `toRpcParams`
+  /// matches the `create_*` shape and `is_done` is NOT included because `create_task` creates
+  /// live+not-done. Updates go through `update_task` with an explicit
+  /// `{p_id, p_title, p_is_done, p_notes, p_contacts, p_importance}` built in the repo, never this map.
   Map<String, dynamic> toRpcParams() => {
     'p_title': title.trim(),
     'p_notes': notes,
     'p_contacts': [for (final c in contacts) c.id],
+    'p_importance': importance,
   };
 
   /// Archived == soft-deleted. NULL `deleted_at` means a live task.
   bool get isArchived => deletedAt != null;
 
-  /// Rename / edit notes / edit People / toggle done. A null [notes] argument means "keep the
-  /// current notes" (matching [title]); the form clears notes by passing `''`, which the server
-  /// normalizes to NULL on the round-trip — so this can't represent an explicit clear, and doesn't
-  /// need to. [contacts] defaults to `this.contacts` — LOAD-BEARING: both complete-toggle paths
-  /// call `copyWith(isDone: …)` WITHOUT contacts, and `update` re-sends the whole `p_contacts` set
-  /// (delete-then-reinsert), so preserving them here is what stops a toggle from wiping the links.
+  /// Rename / edit notes / edit People / edit importance / toggle done. A null [notes] argument
+  /// means "keep the current notes" (matching [title]); the form clears notes by passing `''`, which
+  /// the server normalizes to NULL on the round-trip — so this can't represent an explicit clear, and
+  /// doesn't need to. [contacts] and [importance] default to `this.` — LOAD-BEARING: both
+  /// complete-toggle paths call `copyWith(isDone: …)` WITHOUT them, and `update` re-sends the whole
+  /// `p_contacts` set + `p_importance` (delete-then-reinsert / overwrite), so preserving them here is
+  /// what stops a toggle from wiping the links or resetting the marker.
   Task copyWith({
     String? title,
     bool? isDone,
     String? notes,
     List<Contact>? contacts,
+    int? importance,
   }) => Task(
     id: id,
     title: title ?? this.title,
     isDone: isDone ?? this.isDone,
     notes: notes ?? this.notes,
     contacts: contacts ?? this.contacts,
+    importance: importance ?? this.importance,
     createdAt: createdAt,
     updatedAt: updatedAt,
     deletedAt: deletedAt,

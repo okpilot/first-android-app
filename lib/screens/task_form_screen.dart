@@ -4,6 +4,7 @@ import '../data/contacts_repository.dart';
 import '../data/tasks_repository.dart';
 import '../models/contact.dart';
 import '../models/task.dart';
+import '../util/importance.dart';
 import '../widgets/initials_avatar.dart';
 import 'contact_picker_screen.dart';
 
@@ -73,6 +74,8 @@ class _TaskEditViewState extends State<TaskEditView> {
   late final TextEditingController _notes;
   // The linked People — seeded from the existing task, edited via the picker.
   late List<Contact> _contacts;
+  // Priority 0..3 — seeded from the existing task, set via the segmented picker.
+  late int _importance;
   bool _saving = false;
 
   bool get _isEditing => widget.existing != null;
@@ -83,6 +86,7 @@ class _TaskEditViewState extends State<TaskEditView> {
     _title = TextEditingController(text: widget.existing?.title ?? '');
     _notes = TextEditingController(text: widget.existing?.notes ?? '');
     _contacts = widget.existing?.contacts ?? const [];
+    _importance = widget.existing?.importance ?? 0;
   }
 
   /// Open the shared contact picker to edit the linked People. Guard the setState with `mounted`
@@ -126,6 +130,7 @@ class _TaskEditViewState extends State<TaskEditView> {
                 title: _title.text,
                 notes: _notes.text,
                 contacts: _contacts,
+                importance: _importance,
               ),
             )
           : await widget.repository.create(
@@ -133,6 +138,7 @@ class _TaskEditViewState extends State<TaskEditView> {
                 title: _title.text,
                 notes: _notes.text,
                 contacts: _contacts,
+                importance: _importance,
               ),
             );
       if (!mounted) return;
@@ -192,6 +198,12 @@ class _TaskEditViewState extends State<TaskEditView> {
                   ),
                 ),
                 const SizedBox(height: 28),
+                // Importance — a fixed 0..3 priority. Segmented None / ! / !! / !!! picker.
+                _ImportanceSection(
+                  value: _importance,
+                  onChanged: (v) => setState(() => _importance = v),
+                ),
+                const SizedBox(height: 28),
                 // People — linked contacts, like an event's attendees. Chips + picker.
                 _PeopleSection(
                   contacts: _contacts,
@@ -210,6 +222,107 @@ class _TaskEditViewState extends State<TaskEditView> {
                       : Text(_isEditing ? 'Save changes' : 'Add task'),
                 ),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The Importance block on the task form: a label + a segmented None / `!` / `!!` / `!!!` picker
+/// (Decision 38). A custom control (not M3 `SegmentedButton`, whose tonal fill fights the mono
+/// theme) — one selected segment fills with the neutral chip; a marked level colours its glyphs.
+class _ImportanceSection extends StatelessWidget {
+  const _ImportanceSection({required this.value, required this.onChanged});
+
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('IMPORTANCE', style: theme.textTheme.labelMedium),
+        const SizedBox(height: 10),
+        // Clip so a selected end segment's fill follows the rounded corners.
+        Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            border: Border.all(color: theme.colorScheme.outline),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: IntrinsicHeight(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var level = 0; level <= 3; level++)
+                  _ImportanceSegment(
+                    level: level,
+                    selected: level == value,
+                    first: level == 0,
+                    onTap: () => onChanged(level),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// One segment of the importance picker. Level 0 shows "None"; 1–3 show the coloured marks. The
+/// selected segment fills with the neutral chip and its label takes the level colour (ink for None).
+class _ImportanceSegment extends StatelessWidget {
+  const _ImportanceSegment({
+    required this.level,
+    required this.selected,
+    required this.first,
+    required this.onTap,
+  });
+
+  final int level;
+  final bool selected;
+  final bool first; // no left divider on the first segment
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isNone = level == 0;
+    final label = isNone ? 'None' : importanceMarks(level);
+
+    // Selected: level colour for a marked level, ink for None. Unselected: muted.
+    final Color fg = !selected
+        ? scheme.onSurfaceVariant
+        : (importanceColor(level, theme.brightness) ?? scheme.onSurface);
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: isNone ? 'None' : 'Importance ${importanceName(level)}',
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(minWidth: 54),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+          decoration: BoxDecoration(
+            color: selected ? scheme.primaryContainer : Colors.transparent,
+            border: first
+                ? null
+                : Border(left: BorderSide(color: scheme.outlineVariant)),
+          ),
+          child: Text(
+            label,
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: fg,
+              fontWeight: FontWeight.w700,
+              letterSpacing: isNone ? 0 : 1,
             ),
           ),
         ),

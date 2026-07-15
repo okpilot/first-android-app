@@ -7,6 +7,7 @@ import '../data/contacts_repository.dart';
 import '../data/tasks_repository.dart';
 import '../models/task.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/importance_marks.dart';
 import 'task_detail_screen.dart';
 import 'task_form_screen.dart';
 
@@ -579,6 +580,15 @@ class _TaskTile extends StatelessWidget {
                   ),
                 ),
               ),
+              // Importance marker (nothing at level 0). Muted for done/archived so active
+              // urgent tasks stay the loudest thing on the list.
+              if (task.importance > 0) ...[
+                const SizedBox(width: 12),
+                ImportanceMarks(
+                  level: task.importance,
+                  muted: task.isDone || task.isArchived,
+                ),
+              ],
             ],
           ),
         ),
