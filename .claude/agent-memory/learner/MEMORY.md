@@ -84,9 +84,10 @@ Watch-items carried from project conventions:
 - Don't propose anything already gated by `.githooks/` or an existing `.coderabbit.yaml` instruction.
 
 ## Known false-positive traps (don't promote these into rules)
-- Missing `auth.uid()` / owner-scoping is **expected pre-auth** (issue #3). red-team's phase-flip
-  watch (owner checks move INSIDE RPCs when #3 lands, since SECURITY DEFINER bypasses RLS) is a
-  forward-watch, NOT a present defect.
+- Missing `auth.uid()` / owner-scoping is **WON'T-DO (Decision 37)** — single-user + tailnet-only, so
+  there is no auth and none is planned; it is out of scope, not a present defect (and not "deferred
+  to #3"). The "owner checks move INSIDE RPCs when auth lands" note is a conditional fallback only IF
+  the no-auth decision is ever revisited (sharing / public exposure / multi-tenant).
 - `drop function if exists …; create or replace …` to change an RPC signature is **correct** (avoids
   PGRST203), not a breaking change.
 - The `.coderabbit.yaml` SQL `path_instructions` demanding SECURITY DEFINER "check auth.uid()" is

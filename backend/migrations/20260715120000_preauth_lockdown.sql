@@ -98,18 +98,22 @@ as $$
 declare
   v_id uuid;
 begin
-  if not exists (
+  -- Fold the parent-task-live check INTO the insert (one statement) so it can't race with a
+  -- concurrent soft_delete_task(p_task_id) — matching the UPDATE-based sibling RPCs, which AND the
+  -- same exists() into their WHERE. The FK (on delete restrict) still catches an unknown id; the
+  -- exists() adds the archived-but-present case. trim(p_body) drives the table's
+  -- check (length(trim(body)) > 0): a blank body on a LIVE task still raises a check violation.
+  insert into public.task_comments (task_id, body)
+  select p_task_id, trim(p_body)
+  where exists (
     select 1 from public.tasks where id = p_task_id and deleted_at is null
-  ) then
+  )
+  returning id into v_id;
+
+  if not found then
     raise exception 'task % not found or archived', p_task_id
       using errcode = 'no_data_found';
   end if;
-
-  -- trim(p_body) drives the table's check (length(trim(body)) > 0): a blank body raises a
-  -- check violation.
-  insert into public.task_comments (task_id, body)
-  values (p_task_id, trim(p_body))
-  returning id into v_id;
 
   return v_id;
 end;

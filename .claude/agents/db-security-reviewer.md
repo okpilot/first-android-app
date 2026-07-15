@@ -121,8 +121,8 @@ deleted_at IS NULL`) on a function:
   regression now that Decision 36 landed the sweep — FIX, no longer deferrable); a **new** mutable
   table opening a direct `anon` **or** `authenticated` write path (grants/policies) instead of
   RPC-only writes (ref #3 / Decision 36).
-- **INFO** — missing owner-scoping (`auth.uid()`) — **WON'T-DO (Decision 37)**, single-user +
-  tailnet-only, out of scope (not "deferred").
+- **Not flagged at all** — missing owner-scoping (`auth.uid()`) is **WON'T-DO (Decision 37)**,
+  single-user + tailnet-only: out of scope, not a severity to report (not even INFO), never a blocker.
 
 ## Output format
 ```text
