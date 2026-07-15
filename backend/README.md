@@ -372,7 +372,8 @@ caddy/Caddyfile      /rest/v1 -> PostgREST, + permissive CORS for the Flutter we
 ```
 
 ## Conventions in play (docs/database.md)
-- RLS on `contacts`; anon may read/insert/update **non-deleted** rows (no auth yet).
+- RLS on every table; anon may **read** non-deleted rows directly, but **all writes go through the
+  RPCs** — the direct anon/authenticated INSERT/UPDATE grants were revoked by Decision 36 (see below).
 - **Soft-delete only** — no hard `DELETE` grant. Deletes go through the
   `soft_delete_contact(uuid)` `SECURITY DEFINER` RPC (a direct UPDATE of `deleted_at`
   fails the SELECT policy via PostgREST's RETURNING — that's why the RPC exists).
@@ -384,10 +385,12 @@ caddy/Caddyfile      /rest/v1 -> PostgREST, + permissive CORS for the Flutter we
   `task_comments` is born on the RPC path via `create_task_comment` / `update_task_comment` /
   `soft_delete_task_comment` / `restore_task_comment` — for uniformity; the `using (true)` policy
   means there was never a 42501 forcing a direct write. Still no hard-`DELETE` grant.
-  **RPCs are the *intended* application write path, not yet an *enforced* security boundary:**
-  the direct `anon`/`authenticated` INSERT/UPDATE grants + permissive policies remain open, so a
-  PostgREST client can still bypass these RPCs until the auth-hardening slice (issue #3) revokes the
-  direct grants (and adds `auth.uid()` owner checks). Same pre-auth posture as `contacts` / `event_types`.
+  **RPCs are the *enforced* sole write path (Decision 36):** the direct `anon`/`authenticated`
+  INSERT/UPDATE grants and the direct-write RLS policies were revoked/dropped, and `EXECUTE` was
+  revoked from `PUBLIC` on every SECURITY DEFINER RPC — so a PostgREST client can no longer bypass
+  the RPCs. `auth.uid()` owner checks are **WON'T-DO (Decision 37)** — single-user + tailnet-only is
+  the security boundary, no login is planned; issue #3 is closed (only the optional `search_path=''`
+  hardening remains).
 
 ## To homebase (later)
 Move this stack into `okpilot/selfhost/stacks/`, drop the local Caddy gateway (the

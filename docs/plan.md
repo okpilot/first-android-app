@@ -40,7 +40,7 @@ disposable. Built emergently — thin slices, one at a time.
 1. ~~Walking skeleton~~ ✅ → superseded by the real Contacts slice.
 2. ✅ **Contacts, for real** — CRUD UI + trimmed backend, themed, on Android; deployed to homebase.
 3. **Calendar** — ~~shell (four views)~~ 🔨 in progress → then **events** (schedule/CRUD).
-4. **Next candidates:** DB security hardening (issue #3 — the auth-independent subset shipped in **Decision 36**: revoke PUBLIC execute + close the direct write path + task_comments archived-guard; **remaining #3 = `auth.uid()` owner-RLS (needs GoTrue) + the `search_path=''` convention slice**) · **auth (GoTrue)** logins + owner-based RLS · search/filter on the list · run on the physical S23+ · full 7-column week (wide-screen adaptive).
+4. **Next candidates:** DB security hardening (issue #3 — the auth-independent subset shipped in **Decision 36**: revoke PUBLIC execute + close the direct write path + task_comments archived-guard; **issue #3 CLOSED — the only remaining item is the optional `search_path=''` convention slice; `auth.uid()` owner-RLS is WON'T-DO per Decision 37**) · **auth (GoTrue)** is **WON'T-DO** (single-user + tailnet-only; revisit only if ever shared/exposed/multi-tenant) · search/filter on the list · run on the physical S23+ · full 7-column week (wide-screen adaptive).
 
 ## Next slice
 **Pick one** (the DB-lockdown slice is fully shipped + deployed — nothing owed):
@@ -72,9 +72,10 @@ Synced across `crlocal.md` / `agent-workflow.md` / `semantic-reviewer.md` / `pla
 **Then, the next feature slice — pick one:**
 - **Contact activity view** (fills the master-detail right-pane whitespace with a contact's related
   events, tasks, notes — the agreed Decision 28 follow-on; data links already exist), OR
-- **in-app empty-state hints — issue #21 (Decision 21)**, OR the meatier **auth (GoTrue) + DB
-  hardening — issue #3** (now trimmed to `auth.uid()` owner-RLS + the `search_path=''` slice — the
-  revoke-PUBLIC / direct-write-path / task_comments archived-guard items **shipped in Decision 36**).
+- **in-app empty-state hints — issue #21 (Decision 21)**, OR the optional **`search_path=''`
+  DB-hardening slice** (issue #3's last open item — `auth.uid()` owner-RLS / GoTrue login is
+  **WON'T-DO** per Decision 37; the revoke-PUBLIC / direct-write-path / task_comments archived-guard
+  items **shipped in Decision 36**).
 
 **Phone QA backlog (optional emulator QA owed for):**
 Tasks v0 (Decision 27) + the RPC write paths (Decision 26) — merged & deployed, never QA'd on-device. (The S23+ is back on tailnet as of this session.)
@@ -82,15 +83,15 @@ Tasks v0 (Decision 27) + the RPC write paths (Decision 26) — merged & deployed
 **Prior: RPC-for-all-writes — Decision 26 — ✅ COMPLETE (all 4 slices merged & deployed).** Every write goes through a SECURITY DEFINER RPC; reads
 stay direct. Plan (done): `~/.local/share/claude-config/claude/plans/stuck-lazy-sutton.md`.
 Phone QA of the RPC write paths remains **optional backlog** (see above); the next feature slice is
-**in-app empty-state hints — issue #21 (Decision 21)**, or the meatier **auth (GoTrue) + DB hardening — issue #3**.
+**in-app empty-state hints — issue #21 (Decision 21)**, or the optional **`search_path=''` hardening** (issue #3's last item; auth is WON'T-DO — Decision 37).
 - ✅ **Slice 0 — DDL-watch auto-reload triggers DEPLOYED, VERIFIED & MERGED** (`670787c`, PR #25 + follow-up PR #26 → `2e366d7`): deployed to homebase, verified live (create+drop test objects callable via `/rpc/` with no manual NOTIFY), deploy script keeps a single unconditional `notify pgrst` as fresh-DB cold-start net (Decision 25 amended 2026-07-12).
 - ✅ **Slice 1 — contacts writes → RPC (MERGED PR #27 → `2370fcf`, DEPLOYED)** (`feat/contacts-write-rpcs`): `create_contact` / `update_contact` RPCs (security definer, server-side trim/nullif normalization, update guards deleted_at + raises no_data_found); `Contact.toRpcParams()` replaces `toWrite()`; `contacts_repository` calls RPCs + `_fetchOne` refetch; rewrites `database.md` rule #2 (the audited-rule re-reversal); `.coderabbit.yaml` + a new CLAUDE.md rule-reversal-sync line; `backend/README.md` verify curls; event_types_repository doc-comment patched. 71 tests green, fleet clean (db-security PASS), CI build pass; cloud CR answered (1 DEFER → #3). **Deployed to homebase** (ledger 12; RPC live via DDL-watch auto-reload). **Resume: phone QA (add/edit contact).**
 - ✅ **Slice 2 — event_types writes → RPC (MERGED PR #28 → `a17ea81`, DEPLOYED)** (`feat/event-types-write-rpcs` deleted): `create_event_type` / `update_event_type` RPCs (security definer, server-side trim, update guards deleted_at + raises no_data_found); `EventType.toRpcParams()` replaces `toWrite()`; `event_types_repository` → RPCs + `_fetchOne`; `database.md` rule #2 marks event_types converted; two stale event_types migration headers corrected in-slice; `backend/README.md` verify curls; `.coderabbit.yaml` names the event_comments exception. 73 tests, fleet clean (db-security DEFERRABLE, 1 INFO #3), fresh-DB migrations pass; `/crlocal` 3 rounds; cloud CR 1 FIX (`7b38ea8`). Deployed to homebase (ledger 13). DEFER → #9 (two-phase write retry, now project-wide across all `create_*`).
 - ✅ **Slice 3 — event_comments writes → RPC (MERGED PR #29 → `1e7574d`, DEPLOYED)** (`feat/comment-write-rpcs` deleted): `create_comment`/`update_comment` body-only/`soft_delete_comment`/`restore_comment` RPCs (SECURITY DEFINER for uniformity — no-42501 rationale in-header since SELECT is `using(true)`); `Comment.toRpcParams()` replaces `toWrite()`; `comments_repository` → `.rpc()` + `_fetchOne`. **The reversal:** `database.md` rule #4 event_comments exception rewritten (now reads-only) + rule #2 (migration complete) + Decision 23 amended in-place + `.coderabbit.yaml`/README/migration-header synced — the promoted rule-reversal-sync rule held (zero stale citations reached main). 73 tests, fleet clean (db-security CLEAN, 1 INFO #3), fresh-DB migrations + 4-RPC round-trip + updated_at trigger verified; `/crlocal` 3 rounds; cloud CR 1 FIX (`976107e`) + 1 SKIP. Deployed to homebase (ledger 14); all 4 RPCs verified live via DDL-watch auto-reload.
 Queued after phone QA: **in-app empty-state hints — issue #21 (Decision 21)** (contextual hints on empty
-Contacts / Calendar / comments states); then **auth (GoTrue)** + owner-based RLS (#3).
+Contacts / Calendar / comments states); then the optional **`search_path=''` hardening** (#3's last item; auth/owner-RLS is WON'T-DO — Decision 37).
 
-Later candidates: DB hardening + auth (GoTrue) — **issue #3**, now also covers
-`event_types` write-hardening + the `soft_delete_event_type` `auth.uid()` check · Tailscale
+Later candidates: the optional `search_path=''` hardening (#3's last open item; auth/owner-RLS —
+incl. the `soft_delete_event_type` `auth.uid()` check — is **WON'T-DO** per Decision 37) · Tailscale
 db-deploy action (#7) · #9/#10 cleanups · overnight/`timestamptz` events · full 7-column week ·
 search/filter.
