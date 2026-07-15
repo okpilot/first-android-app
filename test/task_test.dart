@@ -130,6 +130,16 @@ void main() {
       final t = Task.fromJson({'id': 't9', 'title': 'x'});
       expect(t.contacts, isEmpty);
     });
+
+    test('reads importance back', () {
+      final t = Task.fromJson({'id': 't10', 'title': 'x', 'importance': 3});
+      expect(t.importance, 3);
+    });
+
+    test('absent importance defaults to 0 (none)', () {
+      final t = Task.fromJson({'id': 't11', 'title': 'x'});
+      expect(t.importance, 0);
+    });
   });
 
   group('Task.toRpcParams', () {
@@ -141,12 +151,18 @@ void main() {
         'p_title': 'Prep the demo',
         'p_notes': null,
         'p_contacts': [],
+        'p_importance': 0, // draft default → none
       });
       // is_done is written by update_task, never create_task — must not leak in.
       expect(p.containsKey('p_is_done'), isFalse);
       expect(p.containsKey('p_id'), isFalse);
       expect(p.containsKey('created_at'), isFalse);
       expect(p.containsKey('deleted_at'), isFalse);
+    });
+
+    test('carries importance (the create shape)', () {
+      final p = Task.draft(title: 'x', importance: 2).toRpcParams();
+      expect(p['p_importance'], 2);
     });
 
     test('carries notes verbatim (the server does the trim/nullif)', () {
@@ -180,6 +196,11 @@ void main() {
 
     test('carries optional notes', () {
       expect(Task.draft(title: 'x', notes: 'hi').notes, 'hi');
+    });
+
+    test('defaults importance to 0 and carries it when given', () {
+      expect(Task.draft(title: 'x').importance, 0);
+      expect(Task.draft(title: 'x', importance: 3).importance, 3);
     });
   });
 
@@ -239,6 +260,18 @@ void main() {
         contacts: const [Contact(id: 'c2', name: 'Bo')],
       );
       expect(edited.contacts.map((c) => c.id), ['c2']);
+    });
+
+    test('replaces importance when given', () {
+      const t = Task(id: 't1', title: 'x', importance: 1);
+      expect(t.copyWith(importance: 3).importance, 3);
+    });
+
+    test('toggling isDone alone preserves importance (toggle-safety)', () {
+      const t = Task(id: 't1', title: 'x', importance: 2);
+      // A null importance arg means "keep" — this is what stops a list/detail complete-toggle
+      // from resetting the marker when update() re-sends the whole task.
+      expect(t.copyWith(isDone: true).importance, 2);
     });
   });
 }

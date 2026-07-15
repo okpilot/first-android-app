@@ -31,7 +31,7 @@ class SupabaseTasksRepository implements TasksRepository {
   // the save/complete-toggle would wipe the links. task_contacts is to-many; each row's `contacts`
   // is to-one (null for a soft-deleted, RLS-hidden contact — Task.fromJson skips those).
   static const _columns =
-      'id, title, is_done, notes, created_at, updated_at, deleted_at, '
+      'id, title, is_done, notes, importance, created_at, updated_at, deleted_at, '
       'task_contacts(contact_id, contacts(id, name, company))';
 
   @override
@@ -40,7 +40,11 @@ class SupabaseTasksRepository implements TasksRepository {
         .from(_table)
         .select(_columns)
         .order('is_done', ascending: true) // active (false) before done (true)
-        .order('created_at', ascending: false) // newest first within each group
+        .order(
+          'importance',
+          ascending: false,
+        ) // highest importance first within each group
+        .order('created_at', ascending: false) // then newest
         .order('id'); // stable tiebreaker for same-instant rows
     return rows.map(Task.fromJson).toList();
   }
@@ -56,10 +60,10 @@ class SupabaseTasksRepository implements TasksRepository {
   @override
   Future<Task> update(Task task) async {
     // Explicit params (NOT toRpcParams, which is the create shape): update_task carries the
-    // title, is_done, notes AND the People set, so one write path serves the form save AND the
-    // list/detail complete-toggle (which re-sends the unchanged title + notes + contacts with a
-    // flipped is_done). The server normalizes blank/whitespace notes to NULL and replaces the
-    // whole task_contacts set from p_contacts.
+    // title, is_done, notes, the People set AND importance, so one write path serves the form save
+    // AND the list/detail complete-toggle (which re-sends the unchanged title + notes + contacts +
+    // importance with a flipped is_done). The server normalizes blank/whitespace notes to NULL and
+    // replaces the whole task_contacts set from p_contacts.
     await _client.rpc(
       'update_task',
       params: {
@@ -68,6 +72,7 @@ class SupabaseTasksRepository implements TasksRepository {
         'p_is_done': task.isDone,
         'p_notes': task.notes,
         'p_contacts': [for (final c in task.contacts) c.id],
+        'p_importance': task.importance,
       },
     );
     return _fetchOne(task.id);
