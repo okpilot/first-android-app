@@ -28,8 +28,8 @@ reviews:
         (INSERT / UPDATE / soft-delete) go through SECURITY DEFINER RPCs, reads go
         direct-under-RLS (rule #2, Decision 26 — flag a new table whose writes bypass an
         RPC); enable RLS in the SAME migration as CREATE TABLE; soft-delete via deleted_at (no hard DELETE
-        except explicitly-annotated exceptions — e.g. join tables task_contacts and event_attendees
-        hard-delete membership on the atomic update-and-replace RPC, docs/database.md #4); SELECT policies on mutable tables
+        except explicitly-annotated exceptions — e.g. join tables task_contacts, event_attendees, and
+        task_category_links hard-delete membership on the atomic update-and-replace RPC, docs/database.md #4); SELECT policies on mutable tables
         filter deleted_at IS NULL, except event_comments, task_comments and tasks (which use SELECT USING (true)
         for archived items — docs/database.md #4); SECURITY DEFINER functions must
         SET search_path = public. As of Decision 36 (2026-07-15) the RPC is now the SOLE write path:
