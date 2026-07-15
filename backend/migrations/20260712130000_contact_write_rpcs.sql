@@ -13,6 +13,9 @@
 -- The direct insert/update GRANTs and the contacts_insert/contacts_update RLS policies are
 -- intentionally LEFT IN PLACE: closing the direct write path (revoke + drop policies) is auth
 -- hardening, tracked under issue #3 — same posture as soft_delete_contact, which didn't revoke.
+-- SUPERSEDED 2026-07-15 by 20260715120000_preauth_lockdown.sql (Decision 36): that direct write
+-- path is now CLOSED and PUBLIC execute revoked on these RPCs. (Historical note — this migration's
+-- executable SQL is unchanged, per forward-only.)
 --
 -- (No auth.uid() ownership checks yet — GoTrue is deferred. Add them with the auth slice, #3.)
 

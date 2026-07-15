@@ -31,6 +31,37 @@ curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   "http://localhost:8000/rest/v1/contacts?select=name&order=name"
 ```
 
+## Verify: pre-auth lockdown (Decision 36 — issue #3 auth-independent subset)
+`20260715120000_preauth_lockdown.sql` closed the direct anon write path (RPC is the sole write
+path), revoked `EXECUTE … from public` on every SECURITY DEFINER RPC, and added the parent-task
+guard to the 4 `task_comment` RPCs. These curls prove the boundary: a **direct** anon write is now
+rejected (was 200), while the **RPC** write still works; and a comment op on an **archived** task
+is refused:
+```bash
+ANON=$(grep SUPABASE_ANON_KEY .env | cut -d= -f2)
+REST=http://localhost:8000/rest/v1
+# direct anon write is now CLOSED on every mutable table -> 401/403 (was 201). e.g. contacts:
+curl -s -o /dev/null -w 'direct insert contacts: %{http_code}\n' \
+  -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/contacts" -d '{"name":"hack"}'
+# the RPC write path still works -> returns a uuid
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_contact" \
+  -d '{"p_name":"Ada","p_dob":null,"p_email":null,"p_phone":null,"p_company":null,"p_remarks":null}'
+# reads still work directly -> 200
+curl -s -o /dev/null -w 'select contacts: %{http_code}\n' -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/contacts?select=id&limit=1"
+# archived-task guard: make a task, archive it, then create_task_comment on it -> no_data_found
+TID=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_task" \
+  -d '{"p_title":"frozen","p_notes":null,"p_contacts":[]}' | tr -d '"')
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/soft_delete_task" -d "{\"p_id\":\"$TID\"}" >/dev/null
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_task_comment" \
+  -d "{\"p_task_id\":\"$TID\",\"p_body\":\"sneaky\"}"   # -> {"code":"no_data_found",...}
+```
+
 ## Verify: event comment write RPCs (Decision 26, Slice 3)
 As of Slice 3, comment writes route through `create_comment` / `update_comment` /
 `soft_delete_comment` / `restore_comment` RPCs (for uniformity — this table's `using (true)`

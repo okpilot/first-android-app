@@ -26,15 +26,23 @@ surface DB-security gaps early so they get fixed or consciously deferred.
 ## ⚠️ Phase awareness — read this first
 **Auth (GoTrue) is NOT wired in this project yet.** It is tracked under **issue #3** (DB
 hardening + auth). Every RPC today is deliberately pre-auth: `SECURITY DEFINER`, granted to
-`anon`, with a header comment saying auth is deferred. `docs/database.md` #6 names `auth.uid()`
-as the *eventual* convention — but it does not exist yet.
+`anon`. `docs/database.md` #6 names `auth.uid()` as the *eventual* convention — but it does not
+exist yet.
+
+**Post-lockdown (Decision 36, 2026-07-15 — read this):** the auth-INDEPENDENT half of #3 has
+**landed**. The direct anon write path is CLOSED (mutable tables grant anon SELECT only; writes go
+through RPCs), and `revoke execute … from public` is now present on **every** RPC. So the phase is
+"post-lockdown, pre-auth": what's still deferred is ONLY `auth.uid()`/owner-RLS and the
+`SET search_path = ''` convention slice.
 
 Therefore:
 - **A missing `auth.uid()` / owner-scoping check is EXPECTED — report it as INFO, "tracked under
   #3", NEVER as CRITICAL or ISSUE**, until the auth slice lands. Do not cry wolf on the pre-auth
   phase; that would block every legitimate push.
 - **`with check (true)` on insert/update policies is intentional pre-auth — do NOT flag it** as a
-  weak `WITH CHECK`.
+  weak `WITH CHECK`. (But note: after lockdown, a *new mutable table* should not add direct anon
+  insert/update policies + grants at all — writes go through RPCs. A new table that opens a direct
+  anon write path is now an **ISSUE**, ref #3 / Decision 36 — see checklist item 4.)
 - Once auth *does* land (an `auth`-schema function exists, or the fixed auth-file list changes),
   a client-facing RPC missing `auth.uid()` (or the raw equivalent
   `(current_setting('request.jwt.claims', true)::jsonb ->> 'sub')::uuid`) becomes a real ISSUE.
@@ -66,13 +74,14 @@ call about whether a change "feels security-related"; use the glob.
    function without it is an **ISSUE**.
 4. **★ `revoke execute … from public`** on each **new** `SECURITY DEFINER` function. Postgres
    grants EXECUTE to `PUBLIC` by default; the explicit `grant … to anon` is **additive, not a
-   lock-down**. This is the highest-value check that is **actionable from a diff today**, and is
-   exactly issue #3's "revoke PUBLIC execute". Flag as **ISSUE, ref #3**: a FIX-NOW is a one-line
-   `revoke execute on function <name>(...) from public;`; **DEFER to the #3 sweep is acceptable**
-   while #3 is open. (Once #3 lands, a new RPC missing it is a regression → FIX.) When reviewing
-   **several RPCs at once** (a full sweep, not a single slice), emit **one consolidated ISSUE**
-   that enumerates the affected functions — not one near-identical entry per function (per DO-NOT
-   #5). Per-slice reviews touch one RPC and won't hit this.
+   lock-down**. **The #3 sweep has LANDED (Decision 36, `20260715120000`)** — every existing RPC now
+   has the revoke, so a new RPC missing it is a **regression → ISSUE (FIX, not defer)**. A one-line
+   fix: `revoke execute on function <name>(...) from public;`. When reviewing **several RPCs at
+   once**, emit **one consolidated ISSUE** enumerating the affected functions (per DO-NOT #5).
+   - **Also post-lockdown: RPC is the SOLE write path.** A new mutable table must grant anon/
+     authenticated **SELECT only** — no direct `insert`/`update` grants, no direct write RLS
+     policies (writes go through `create_*`/`update_*`/`soft_delete_*` RPCs). A new table that adds a
+     direct anon write path is an **ISSUE, ref #3 / Decision 36**.
    - **Out of scope (noted, not flagged):** plain trigger functions that are `SECURITY INVOKER`
      (e.g. `set_updated_at`) — the `SET search_path` rule (item 3) is scoped to `SECURITY
      DEFINER` only. A future hardening pass may pin their `search_path`, but do not flag it now.
@@ -104,8 +113,10 @@ deleted_at IS NULL`) on a function:
 - **CRITICAL** — hard-delete on a mutable table, or RLS missing on a new table.
   Surfaces loudly; the user resolves before I ask them to approve the push. (Secrets are **out of
   scope** — see below; the `.githooks/pre-push` scan owns them.)
-- **ISSUE** — missing `SET search_path`; missing `revoke execute … from public` (ref #3, DEFER
-  acceptable while #3 is open).
+- **ISSUE** — missing `SET search_path`; a **new** RPC missing `revoke execute … from public` (a
+  regression now that Decision 36 landed the sweep — FIX, no longer deferrable); a **new** mutable
+  table opening a direct anon write path (grants/policies) instead of RPC-only writes (ref #3 /
+  Decision 36).
 - **INFO** — missing owner-scoping (`auth.uid()`), tracked under #3 during the pre-auth phase.
 
 ## Output format

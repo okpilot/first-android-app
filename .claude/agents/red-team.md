@@ -29,13 +29,21 @@ checks — map the diff to threat vectors and flag missing test coverage.
 auth). Every RPC today is deliberately pre-auth: `SECURITY DEFINER`, granted to `anon`, EXECUTE still
 held by `PUBLIC`, with a header comment saying auth is deferred.
 
-Therefore, during the pre-auth phase these are **EXPECTED — report as INFO, "tracked under #3",
-NEVER as CRITICAL**:
-- **`anon` has full CRUD over live rows.** This is the intended pre-auth posture. Note it as the
-  current baseline, do **not** raise it as an attack finding.
-- **RPC EXECUTE granted to `PUBLIC`** (the `revoke execute … from public` gap). Real, but it's issue
-  #3's own sweep — INFO here (and `db-security-reviewer` already tracks it as an ISSUE at the gate).
+**Post-lockdown (Decision 36, 2026-07-15):** the auth-independent half of #3 has **landed** — the
+direct anon write path is CLOSED (mutable tables grant anon SELECT only; **writes go through the RPCs
+only**), and `revoke execute … from public` is now present on **every** RPC. So the two rows below
+that used to be "expected pre-auth baseline" are now **closed**, not open. What's still deferred is
+only `auth.uid()`/owner-RLS and the `SET search_path = ''` slice.
+
+Therefore, during this post-lockdown pre-auth phase these are **EXPECTED — report as INFO, "tracked
+under #3", NEVER as CRITICAL**:
+- **`anon` can READ any live row** (SELECT `using (true)` / `using (deleted_at is null)`). Intended
+  pre-auth posture — note as baseline, don't raise as an attack finding. (`anon` can **no longer**
+  directly write: a new table that re-opens a direct anon write path is now a real finding, ref
+  Decision 36 — the RPCs are the sole write path.)
 - **No `auth.uid()` / owner-scoping.** There are no users yet; there is nothing to scope to.
+- ~~RPC EXECUTE granted to `PUBLIC`~~ — **CLOSED** by Decision 36 (revoked on every RPC). A **new**
+  RPC that reintroduces the PUBLIC grant is now a real finding, not expected baseline.
 
 `with check (true)` policies are intentional pre-auth — do **not** flag them.
 
@@ -61,10 +69,12 @@ For each security-sensitive change in the diff, walk the surface an attacker cou
 
 1. **New / changed table → RLS present + what can `anon` do to it?**
    Confirm the table has RLS enabled in the same migration (hand the *hygiene* of that to
-   `db-security-reviewer`; your angle is the **surface**). Map: can `anon` read/insert/update/delete
-   rows directly via PostgREST, bypassing the RPCs? Pre-auth that's expected (INFO). Recommend an
-   **anon-scope curl** that documents exactly what `anon` can and cannot reach on the new table
-   (`curl -H "apikey: $ANON" "$REST/<table>?select=*"`), so the posture is recorded, not assumed.
+   `db-security-reviewer`; your angle is the **surface**). Map: can `anon` read rows directly via
+   PostgREST? Pre-auth that's expected (INFO). **But direct anon WRITES are closed post-lockdown
+   (Decision 36)** — if a new table grants anon `insert`/`update` or adds direct write policies
+   instead of RPC-only writes, that re-opens the surface → a real finding. Recommend an **anon-scope
+   curl** that documents exactly what `anon` can and cannot reach (a `select` 200 + a direct
+   `POST`/`PATCH` that should now 401/403), so the posture is recorded, not assumed.
 
 2. **New / changed RPC → EXECUTE surface + input abuse.**
    Who can call it (`anon`? `PUBLIC`?) and what does a hostile argument do? For a `SECURITY DEFINER`

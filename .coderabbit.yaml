@@ -33,11 +33,14 @@ reviews:
         filter deleted_at IS NULL, except event_comments, task_comments and tasks (which use SELECT USING (true)
         for archived items — docs/database.md #4); SECURITY DEFINER functions must
         SET search_path = public (and, once auth is wired — issue #3 — client-facing
-        ones must check auth.uid()). Auth (GoTrue) is NOT wired yet, so do NOT flag
-        missing auth.uid() checks on pre-auth client-facing RPCs, their expected anon
-        grants, or WITH CHECK (true) as issues today — but DO still review unexpected
-        anon privilege expansion (grants on new tables/sequences/admin RPCs) normally.
-        Use idempotent upserts (ON CONFLICT); migrations are forward-only.
+        ones must check auth.uid()). As of Decision 36 (2026-07-15) the RPC is now the SOLE write path:
+        a new mutable table must grant anon/authenticated SELECT ONLY (no direct INSERT/UPDATE grants and
+        no direct write RLS policies — writes go through the RPCs), and a new SECURITY DEFINER function
+        must REVOKE EXECUTE … FROM PUBLIC before granting to anon/authenticated — flag a new table with
+        direct anon write grants/policies, or a new RPC missing the revoke-from-public, as an issue.
+        Auth (GoTrue) is still NOT wired yet, so do NOT flag missing auth.uid() checks on client-facing
+        RPCs — but DO still review unexpected anon privilege expansion (grants on new tables/sequences/admin
+        RPCs) normally. Use idempotent upserts (ON CONFLICT); migrations are forward-only.
 
 chat:
   auto_reply: true

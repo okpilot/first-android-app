@@ -19,10 +19,15 @@
 -- The direct insert/update GRANTs and the insert/update RLS policies are intentionally in place;
 -- closing the direct write path (revoke + drop policies) is auth hardening, tracked under issue #3
 -- — same posture as contacts / event_types / event_comments.
+-- SUPERSEDED 2026-07-15 by 20260715120000_preauth_lockdown.sql (Decision 36): the direct write path
+-- is now CLOSED, PUBLIC execute revoked, AND the archived-task guard below is now IMPLEMENTED (the
+-- four RPCs guard the parent task's deleted_at). (Executable SQL in THIS migration is unchanged.)
 --
 -- (No auth.uid() ownership checks yet — GoTrue is deferred. Add them with the auth slice, #3.)
 --
--- DEFERRED TO #3 (server-side archived-task enforcement): these RPCs guard only the COMMENT's
+-- DEFERRED TO #3 (server-side archived-task enforcement) — ✅ NOW IMPLEMENTED by
+-- 20260715120000_preauth_lockdown.sql (Decision 36); the paragraph below is the original deferral
+-- rationale, kept for history (see the SUPERSEDED note above): these RPCs guard only the COMMENT's
 -- deleted_at, not the parent TASK's — so a direct API caller could still mutate comments on an
 -- archived task (which the UI presents as a frozen, read-only log via CommentsSection.readOnly).
 -- The client fully enforces frozen-history today; making the server enforce it (add `tasks.deleted_at
