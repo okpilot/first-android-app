@@ -24,7 +24,8 @@ project: First Android App (learning CRM)
 10. **Migrations are forward-only**, timestamped `YYYYMMDDHHMMSS_description.sql` (Supabase CLI format). Never edit a pushed migration — add a new one.
 11. **Record the linchpin verification curl(s).** Any RLS / soft-delete-touching slice records the curl(s) that prove its non-destructive-delete behaviour (the row survives with `deleted_at` set / the embed reads back null / the archived row stays selectable) in `backend/README.md`, as part of the slice — so "verified" is durable, not a one-off run.
 
-## task_categories (Decision 39, Slice A)
+## task_categories (Decision 39, Slice A) + task_category_links (Decision 40, Slice B)
+### Slice A — entity + manager
 A user-owned tag taxonomy for tasks, separate from `event_types`. Table: `id`, `name`
 (`check length(trim(name)) > 0`), `color` (`check color ~ '^#[0-9A-Fa-f]{6}$'`, 6-digit #RRGGBB,
 DB-authoritative), `created_at`/`updated_at` (bumped by the shared `set_updated_at` trigger),
@@ -34,9 +35,24 @@ insert/update policy or grant. The 3 write RPCs — `create_task_category(p_name
 `update_task_category(p_id, p_name, p_color)` (guards `deleted_at is null`, raises `no_data_found`),
 `soft_delete_task_category(p_id)` — follow the full lockdown discipline: `SECURITY DEFINER`,
 `SET search_path = public`, `revoke execute … from public`, `grant execute … to anon, authenticated`.
-Slice A is the entity + Settings manager only; no task references a category yet (Slice B adds a
-many-per-task `task_category_links` join, mirroring `task_contacts`). Verify curls:
-`backend/README.md` → "Verify: task category write RPCs".
+
+### Slice B — the join (many-per-task)
+The `task_category_links` join table mirrors `task_contacts`: composite PK on `(task_id,
+category_id)`, both FKs `on delete cascade`, no timestamps or `deleted_at` (membership is derived,
+not a soft-deletable entity). Reverse index on `category_id` (so "which tasks carry this category?"
+doesn't scan). RLS `SELECT` policy `using (true)` — not a parent-live gate (archived tasks stay
+embeddable, their category roster comes along; a soft-deleted category → embedded null when RLS
+hides it, client skips). No write policy/grant — membership set only by RPCs.
+
+**Task write RPC signatures (Slice B changes, via drop+recreate):**
+- `create_task(p_title text, p_notes text default null, p_contacts uuid[] default '{}', p_importance smallint default 0, p_categories uuid[] default '{}')` → `uuid`. New: unnest-insert categories, same pattern as contacts.
+- `update_task(p_id uuid, p_title text, p_is_done boolean, p_notes text, p_contacts uuid[], p_importance smallint, p_categories uuid[])` → `uuid`. **No defaults on `p_contacts`, `p_importance`, or `p_categories` — defensive rule (update omits one → silent wipe → PGRST202 instead).** Deletes + reinsertsthe category membership, same pattern as contacts.
+
+**Lockdown invariant (Decision 36):** dropping the old sigs discarded the PUBLIC revoke, and recreate
+hands it back; the migration **re-issues both** the `revoke execute … from public` AND the
+`grant … to anon, authenticated` on the new sigs.
+
+Verify curls: `backend/README.md` → "Verify: task category write RPCs".
 
 ## Naming
 - RPC functions: `verb_noun` snake_case — `get_*`, `list_*`, `create_*`, `upsert_*`, `soft_delete_*`, `submit_*`. Internal helpers: `_leading_underscore`.

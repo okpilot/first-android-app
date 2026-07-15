@@ -421,6 +421,49 @@ void main() {
     expect(repo.lastUpdated!.categories.map((c) => c.id), ['k1']);
   });
 
+  testWidgets('removing a seeded category chip drops it from the save', (
+    tester,
+  ) async {
+    final repo = _RecordingTasksRepo();
+    await _pump(
+      tester,
+      _form(
+        repo,
+        existing: const Task(
+          id: 't1',
+          title: 'Prep the pitch',
+          categories: [
+            TaskCategory(id: 'k1', name: 'Work', colorHex: '#4E7BC9'),
+            TaskCategory(id: 'k2', name: 'Home', colorHex: '#22A06B'),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Both seeded categories show as chips.
+    expect(find.widgetWithText(InputChip, 'Work'), findsOneWidget);
+    expect(find.widgetWithText(InputChip, 'Home'), findsOneWidget);
+
+    // Tap Work's delete affordance (the InputChip's onDeleted → _removeCategory). The
+    // Categories section sits low on the form — scroll it in before hit-testing.
+    final workDelete = find.descendant(
+      of: find.widgetWithText(InputChip, 'Work'),
+      matching: find.byIcon(Icons.clear),
+    );
+    await tester.ensureVisible(workDelete);
+    await tester.pumpAndSettle();
+    await tester.tap(workDelete);
+    await tester.pumpAndSettle();
+
+    // Work's chip is gone; Home's remains, and the save carries only the survivor.
+    expect(find.widgetWithText(InputChip, 'Work'), findsNothing);
+    expect(find.widgetWithText(InputChip, 'Home'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Save changes'));
+    await tester.pumpAndSettle();
+    expect(repo.lastUpdated!.categories.map((c) => c.id), ['k2']);
+  });
+
   testWidgets('adding categories via the picker round-trips into create', (
     tester,
   ) async {

@@ -18,8 +18,9 @@ disposable vehicle for learning app development end to end.
   data throughout the calendar, so you can tell events apart at a glance.
 - **Event comments** — attach notes and decisions to an event. Archive old comments to
   keep them but hide them by default; unarchive to show them again.
-- **Task categories** — define your own colour-coded categories for tasks, separate from
-  event types. Manage them under Settings; assigning categories to tasks arrives in a later slice.
+- **Task categories** — define and assign your own colour-coded categories for tasks, separate from
+  event types. Manage them under Settings; choose multiple categories per task on the task form,
+  and see them as coloured labels on the task list and detail.
 - **Tasks** — a lightweight to-do list: add a task, then tap it to see its details (title,
   status, optional notes, dates, and linked People). **Edit** to change it; **Complete** (or **Reopen**) toggles
   done status, and **Archive** (or **Restore**) tidies away finished tasks. Completed and

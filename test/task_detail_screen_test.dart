@@ -627,6 +627,14 @@ void main() {
     expect(find.text('Urgent'), findsOneWidget);
   });
 
+  testWidgets('no CATEGORIES section when the task has none', (tester) async {
+    const t = Task(id: 't1', title: 'Prep the pitch');
+    await tester.pumpWidget(_detail(_StatefulTasksRepo(const [t]), t));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('CATEGORIES'), findsNothing);
+  });
+
   // ---- the Comments section is wired onto the task detail (Slice 2b): live tasks get the
   // composer; an archived task's log is read-only (frozen history).
 

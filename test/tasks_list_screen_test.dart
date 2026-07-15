@@ -332,6 +332,30 @@ void main() {
     },
   );
 
+  testWidgets(
+    'completing a task from the list circle preserves its linked categories',
+    (tester) async {
+      // Same _toggleDone path as the People case: copyWith(isDone:) must carry categories
+      // through so a complete-toggle doesn't clobber the task's colour tags (Decision 40).
+      final repo = _StatefulTasksRepo(const [
+        Task(
+          id: 't1',
+          title: 'Buy milk',
+          categories: [
+            TaskCategory(id: 'k1', name: 'Work', colorHex: '#4E7BC9'),
+          ],
+        ),
+      ]);
+      await _pumpNarrow(tester, repo);
+
+      await tester.tap(find.byKey(const ValueKey('check_t1')));
+      await tester.pumpAndSettle();
+
+      expect(repo.lastUpdated!.isDone, isTrue);
+      expect(repo.lastUpdated!.categories.map((c) => c.id), ['k1']);
+    },
+  );
+
   testWidgets('a failed load shows the error state, and Retry recovers', (
     tester,
   ) async {
