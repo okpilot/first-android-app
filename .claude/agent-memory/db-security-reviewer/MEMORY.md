@@ -26,10 +26,12 @@
   DELETE only on annotated derived join tables: `event_attendees`, `task_contacts`,
   `task_category_links` (composite-PK, no `deleted_at`, membership derived — set only by the
   SECURITY DEFINER task-write RPCs; delete-then-reinsert in `update_task` is guarded by the
-  `deleted_at is null` update + not-found raise firing BEFORE the join delete). These join tables
-  ship SELECT-only to anon/authenticated, `using (true)` (parent `tasks`/`events` is also readable
-  when archived), NO write grant/policy — do NOT flag as a missing `deleted_at` filter or a
-  reopened write path.
+  `deleted_at is null` update + not-found raise firing BEFORE the join delete). All three ship
+  SELECT-only to anon/authenticated, NO write grant/policy. **Their SELECT-policy shape differs, by
+  design:** `task_contacts` + `task_category_links` use `using (true)` (parent `tasks` is readable
+  when archived, so the roster stays embeddable); `event_attendees` uses a **parent-live `EXISTS`
+  gate** on `events` (`20260709120100_create_event_attendees.sql:30-40`), NOT `using (true)`. Do NOT
+  flag any of them as a missing `deleted_at` filter or a reopened write path.
   - **Documented `using (true)` read exception — THREE tables: `event_comments` (Decision 23),
     `task_comments` (Decision 33 / Slice 2b), `tasks` (reads only, Decision 27)** (database.md #4):
     SELECT (and for the comment tables, UPDATE) use `using (true)`, NOT `deleted_at is null`, so

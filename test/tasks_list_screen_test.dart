@@ -15,6 +15,7 @@ import 'package:first_android_app/screens/tasks_list_screen.dart';
 import 'package:first_android_app/theme.dart';
 import 'package:first_android_app/widgets/comments_section.dart';
 import 'package:first_android_app/widgets/importance_marks.dart';
+import 'package:first_android_app/widgets/type_label.dart';
 
 /// Inert comments repo — the tasks list threads it to the detail, but none of these tests
 /// exercise comments. fetchFor returns nothing; the mutators are never reached.
@@ -684,8 +685,14 @@ void main() {
     ]);
     await _pumpNarrow(tester, repo);
 
-    // Both category names render (colour never rides alone — Decision 19).
+    // Both category names render (colour never rides alone — Decision 19)...
     expect(find.text('Work'), findsOneWidget);
     expect(find.text('Urgent'), findsOneWidget);
+    // ...as actual colour chips, not bare Text: each _CategoryChip renders a TypeDot, so two
+    // categories → two dots (importance uses ImportanceMarks text, never a TypeDot). This guards
+    // against the chip degrading to unstyled Text.
+    expect(find.byType(TypeDot), findsNWidgets(2));
+    // And the second task (no categories) contributes no chip → exactly the two above.
+    expect(find.text('No tags here'), findsOneWidget);
   });
 }
