@@ -70,6 +70,15 @@ _Seed watch-items carried from the project's conventions:_
   [topics/write-rpc-ports.md](topics/write-rpc-ports.md). Reusable 4-check port shape; `.single()`
   and the non-atomic RPC-then-`_fetchOne` re-fetch are correct by design — do NOT flag as races.
 - **CLEAN slice traces** (full detail → [topics/clean-slices.md](topics/clean-slices.md)):
+  - Task categories entity + Settings manager (Decision 39 Slice A, `9377a61`) — byte-faithful
+    port of the event_types system (model/repo/screen/migration). All 3 RPC arities match
+    `toRpcParams()` (create `p_name,p_color`; update `+p_id`; soft-delete `p_id`); `_load` stale-guard
+    (`identical(future,_future)`) + `mounted`-after-await + messenger/navigator-captured-before-await
+    all preserved verbatim from event_types_screen; `fromJson` `#888888` fallback + case-insensitive
+    Dart sort mirror EventType; `update_task_category` raises `no_data_found` like update_event_type,
+    soft-delete idempotent void like sibling. Post-lockdown table (SELECT-only RLS, RPC-only writes,
+    PUBLIC-revoke+anon-grant) — no direct write path ever shipped. TypeSwatch imported (not forked) so
+    no regression to event-types; colour never rides alone (TypeSwatch always + `Text(name)`). Do NOT re-flag.
   - Pre-auth DB lockdown (Decision 36, `d549d45`) — behavior-preserving. `create or replace` (no drop)
     PRESERVES the function ACL, so the PUBLIC-execute revoke in part 2 survives the part-3 body
     replace regardless of order — NOT an ordering hazard. All 21 revoke signatures verified against

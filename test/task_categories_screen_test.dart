@@ -83,6 +83,44 @@ class _OrderedRepo implements TaskCategoriesRepository {
   Future<void> softDelete(String id) => throw UnimplementedError();
 }
 
+/// Fails `fetchAll` while [fail] is true — to assert the initial-load error state,
+/// then prove Retry recovers once the backend returns. Flip [fail] to false first.
+class _FailingCategoriesRepo implements TaskCategoriesRepository {
+  _FailingCategoriesRepo({this.categories = const []});
+  // Starts failing; the Retry test flips it to false directly to prove recovery.
+  bool fail = true;
+  final List<TaskCategory> categories;
+
+  @override
+  Future<List<TaskCategory>> fetchAll() async {
+    if (fail) throw Exception('offline');
+    return List.of(categories);
+  }
+
+  @override
+  Future<TaskCategory> create(TaskCategory draft) => throw UnimplementedError();
+  @override
+  Future<TaskCategory> update(TaskCategory category) =>
+      throw UnimplementedError();
+  @override
+  Future<void> softDelete(String id) => throw UnimplementedError();
+}
+
+/// `fetchAll` succeeds (empty); `create` throws — to exercise the editor's
+/// "Couldn't save" snackbar path.
+class _CreateFailsRepo implements TaskCategoriesRepository {
+  @override
+  Future<List<TaskCategory>> fetchAll() async => const [];
+  @override
+  Future<TaskCategory> create(TaskCategory draft) async =>
+      throw Exception('offline');
+  @override
+  Future<TaskCategory> update(TaskCategory category) =>
+      throw UnimplementedError();
+  @override
+  Future<void> softDelete(String id) => throw UnimplementedError();
+}
+
 Widget _wrap(Widget child) => MaterialApp(theme: AppTheme.light, home: child);
 
 /// Adds a category through the editor — the app's other way to trigger a reload.
@@ -159,6 +197,76 @@ void main() {
     expect(find.text('Follow-up'), findsNothing);
     expect(find.text('No task categories yet'), findsOneWidget);
     expect(repo.categories, isEmpty);
+  });
+
+  testWidgets(
+    'a failed initial load shows the error state, and Retry recovers',
+    (tester) async {
+      final repo = _FailingCategoriesRepo(
+        categories: const [
+          TaskCategory(id: 'c1', name: 'Follow-up', colorHex: '#4E7BC9'),
+        ],
+      );
+      await tester.pumpWidget(_wrap(TaskCategoriesScreen(repository: repo)));
+      await tester.pumpAndSettle();
+
+      expect(find.text("Couldn't load task categories"), findsOneWidget);
+      expect(find.widgetWithText(OutlinedButton, 'Retry'), findsOneWidget);
+
+      // Backend comes back; Retry re-fetches and the list renders.
+      repo.fail = false;
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Retry'));
+      await tester.pumpAndSettle();
+      expect(find.text('Follow-up'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'renaming and recolouring an existing category persists via update',
+    (tester) async {
+      final repo = _FakeCategoriesRepo([
+        const TaskCategory(id: 'c1', name: 'Follow-up', colorHex: '#4E7BC9'),
+      ]);
+      await tester.pumpWidget(_wrap(TaskCategoriesScreen(repository: repo)));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Follow-up'));
+      await tester.pumpAndSettle();
+
+      // Rename and pick a different swatch (Blue -> Teal, #2fa090).
+      await tester.enterText(find.byType(TextFormField), 'Waiting-on');
+      await tester.tap(find.bySemanticsLabel('Teal'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Save changes'));
+      await tester.pumpAndSettle();
+
+      // Back on the manager with the persisted rename + recolour (same id).
+      expect(find.text('Waiting-on'), findsOneWidget);
+      final saved = repo.categories.single;
+      expect(saved.id, 'c1');
+      expect(saved.name, 'Waiting-on');
+      expect(saved.colorHex, '#2fa090');
+    },
+  );
+
+  testWidgets('a failed save surfaces the error and stays on the editor', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(TaskCategoriesScreen(repository: _CreateFailsRepo())),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(FloatingActionButton, 'New category'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField), 'Waiting-on');
+    await tester.tap(find.widgetWithText(FilledButton, 'Add category'));
+    await tester.pumpAndSettle();
+
+    // The failure is surfaced and we're still on the editor (the typed name shows).
+    expect(find.text("Couldn't save — please try again"), findsOneWidget);
+    expect(find.text('Waiting-on'), findsOneWidget);
   });
 
   testWidgets('a failed refresh keeps cached data and surfaces the failure', (

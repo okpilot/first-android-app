@@ -60,6 +60,18 @@ See [positive-signals](topics/positive-signals.md) for the per-slice-type win co
   through create + archive + restore, not just update. Full dartdoc sweep held clean.
 - **Template-port** (contacts/event_types/event-comments write-RPCs, Dec 26 S1–2): diff vs green
   template; security posture must be byte-for-byte; new fn = no CR-chain.
+- **Full-stack new-entity mirror of EventType** (task_categories Slice A, Decision 39, Jul 15; clean
+  0 blocking): NEW table created POST-lockdown ships RPC-only from day one — SELECT-only policy
+  `using(deleted_at is null)` + `grant select`, NO insert/update policy or grant, 3 SECURITY DEFINER
+  RPCs `set search_path=public` each with `revoke execute … from public` + `grant … to anon,
+  authenticated` on the exact typed signatures. RPC arity matched toRpcParams 1:1 (create 2
+  p_name/p_color, update 3 adds p_id via repo spread, soft_delete 1). Model mirrors EventType:
+  `_validHex` → `#888888` fallback, draft ctor empty id, pure-Dart no dart:ui. Screen imports
+  `TypeSwatch` via `show` (not redefined), reuses kEventTypePalette/colorFromHex/hexFromColor; new
+  colour = user-data swatches (Decision 19 OK) + Semantics label so colour never rides alone;
+  `_lastData` stale-guard + `identical(future,_future)` both present; mounted-after-await on every
+  path; messenger/navigator captured pre-await. All 4 hand-fakes (calendar/home_shell/widget×2)
+  threaded, both ContactsApp sites updated. NO Slice-B leak (no Task/create_task/tasks-repo/join).
 - **Shared-widget second-consumer** (task_comments, Dec 33 / Slice 2b): faithful twin of
   event_comments (table+4 RPCs in one file) + `readOnly` gating (default false → events untouched);
   alias `parent_id:task_id` select-only; second repo threaded end-to-end, NO cross-wiring.
