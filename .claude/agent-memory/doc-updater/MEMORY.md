@@ -22,6 +22,7 @@
 - **Rule-reversal sweep (Decision 26 Slice 3):** in a reversal, **grep the WHOLE of each touched file + every subsection of the decisions ledger** (not just main bullets). Implementation/Why safe/Principle sections can have factual statements contradicted by code. Decision 23's "Implementation" still said "direct-CRUD repository" when code now uses RPCs — caught as DRIFT post-commit, fixed with dated amendment. The in-commit sweep may miss these subsections.
 
 ## Recent syncs (commit snapshots; trim after /wrapup curates)
+- **2026-07-14, Decision 35 / issue #40 (b5486f0):** plan.md (Phone QA backlog clarified — device is back on tailnet) + decisions.md (Decision 35 appended, Decision 7 amended in place) + HANDOVER.md + README (no rule numbers cited as current). All surfaces synced post-commit; fleet-only rule/docs slice.
 - **2026-07-14, Slice 2b (643bbeb):** plan.md + decisions.md (Decision 33) + database.md (#4 exception) + backend README + HANDOVER.md (Status + Prior Slice 2a) + README Features (task comments bullet). All surfaces synced post-commit; full fleet clean.
 
 ## Known false-positive traps (do NOT record as DRIFT)

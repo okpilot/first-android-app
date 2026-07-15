@@ -27,7 +27,7 @@ CodeRabbit local catches things our own reading misses — missing error paths, 
 
 5. **Multi-round stop rule** (CodeRabbit is non-deterministic — one quiet round is weak evidence):
    - Run a **minimum of M rounds**, then stop on the first round at/after M with **no apply-worthy findings**.
-   - **M = 2** normal diff. **M = 3** when the diff touches `**/*.sql` or auth/security code.
+   - **M = 1** normal diff. **M = 2** when the diff touches `**/*.sql` or auth/security code. (Deliberately thin — CodeRabbit credits are scarce and the in-house fleet carries the review weight; cr-local is a pre-push *preview*, the cloud CR bot on the PR is the authoritative gate. See Decision 35.)
    - An **Apply** verdict extends the loop by one round (fix, then one more clean round). Never stop *on* a round that still has an Apply.
    - **Hard ceiling: 4 fix-commits** on the branch → stop and escalate to the user even if unmet.
 

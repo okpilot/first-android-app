@@ -17,6 +17,15 @@ _First run pending. Seed watch-items carried from the project's conventions:_
   literal (`draft.toRpcParams() is exactly {p_title}`) goes stale in the SAME file as the change.
   Minor (SUGGESTION), but it's the doc-comment-sweep discipline in miniature — grep the entity's repo
   for a comment quoting the pre-change param literal whenever the create shape grows.
+- **Docs-sync "same file, >1 stale surface" — the backlog/owed-list twin (WATCHING, count 1 — issue
+  #40 review-bar rebalance, 2026-07-14):** a rules/docs slice that updates a status line (plan.md
+  current-status: "`/updatephone` done"; Decision 35 codifying #40) but leaves the SAME file's
+  "Owed first / to-do" list still citing the very item the commit completed — plan.md:14 "phone done"
+  vs plan.md:51 "phone owed", and #40 still listed as owed at :54 while THIS commit does it. Numbers
+  were correct; the staleness was STATUS framing. RULE-IN-MINIATURE: on any doc-sync slice, after
+  editing a status/shipped line, grep the SAME file's "Owed"/"Next"/"backlog"/"TODO" lists for the
+  same task keyword — a file has >1 surface (this is the project's rule-reversal-sync discipline
+  applied to plan.md, not just repos/migrations).
 - **State-lift-vs-`widget.x` trap (WATCHING, count 1 — Decision 29 view-first Tasks):** a thin
   Scaffold host whose AppBar title/state claims (in a comment) to track the LIVE entity but reads
   `widget.task`/`widget.contact` (frozen at push) while the mutation lives in the child body via
