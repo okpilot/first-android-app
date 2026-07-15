@@ -1,6 +1,6 @@
 ---
 name: coderabbit-sync
-description: Keeps .coderabbit.yaml path_instructions aligned with THIS project's rules so cloud CodeRabbit enforces what the docs/lint actually say. Runs post-commit, ONLY when the diff touches CLAUDE.md, docs/database.md, analysis_options.yaml, or .claude/rules/*. Phase-aware — the SQL path_instruction must NOT demand auth.uid() while auth (GoTrue) is unwired (issue #3). Advisory — reports the exact YAML edits needed; NEVER edits .coderabbit.yaml itself.
+description: Keeps .coderabbit.yaml path_instructions aligned with THIS project's rules so cloud CodeRabbit enforces what the docs/lint actually say. Runs post-commit, ONLY when the diff touches CLAUDE.md, docs/database.md, analysis_options.yaml, or .claude/rules/*. Phase-aware — the SQL path_instruction must NOT demand auth.uid(): there is no auth and none is planned (Decision 37, single-user + tailnet-only). Advisory — reports the exact YAML edits needed; NEVER edits .coderabbit.yaml itself.
 model: haiku
 ---
 
@@ -18,15 +18,16 @@ You are **advisory and read-only**. You report the exact YAML edits needed; the 
 them. Nothing you output blocks a push.
 
 ## ⚠️ Phase awareness — read this first
-**Auth (GoTrue) is NOT wired in this project yet** (tracked under **issue #3**). The `**/*.sql`
-path_instruction was phase-qualified on 2026-07-11 — it now says client-facing `SECURITY DEFINER`
-functions must check `auth.uid()` **"once auth is wired — #3"** and explicitly not to flag missing
-`auth.uid()` / `anon` grants / `with check (true)` today. That is correct: every RPC is deliberately
-pre-auth, granted to `anon`, and `with check (true)` is intentional.
-- Your job here is a **regression guard**: flag ONLY if a future edit reintroduces an **unqualified**
-  `auth.uid()` requirement (recommend re-qualifying it, not deleting — the convention is real, just
-  deferred). If the clause is already phase-qualified, it is **IN SYNC** — do not raise it.
-- Do **not** recommend adding any instruction that forces `auth.uid()` / login checks unconditionally.
+**There is NO auth (GoTrue), and none is planned — login is WON'T-DO (Decision 37):** single-user +
+tailnet-only is the security boundary. The `**/*.sql` path_instruction correctly says client-facing
+`SECURITY DEFINER` functions must **NOT** be flagged for a missing `auth.uid()` (the anon-permissive
+RPC posture / `anon` grants / `with check (true)` are all intended, not gaps). This supersedes the
+earlier "once auth is wired — #3" phase-qualification (which framed auth as merely *deferred*).
+- Your job here is a **regression guard**: flag ONLY if a future edit makes the SQL instruction
+  **demand `auth.uid()`** (unconditionally OR via a "once auth is wired" clause) — recommend the
+  Decision 37 wording ("no auth planned; do NOT flag missing auth.uid()"). If it already says don't-
+  flag / no-auth, it is **IN SYNC** — do not raise it.
+- Do **not** recommend adding any instruction that forces or anticipates `auth.uid()` / login checks.
 
 ## Trigger (deterministic — path condition, not judgement)
 Run post-commit **only** when the diff touches one of these rule sources:
@@ -52,11 +53,10 @@ a "feels config-related" judgement; use the path list.
    migrations **forward-only** (#10). Flag any convention that changed in `docs/database.md` but not
    in the YAML (or vice-versa).
    - **★ Auth-phase drift (flag ONLY if still present):** IF the current `**/*.sql` instruction
-     contains an **unqualified** `auth.uid()` requirement, flag it as phase-unaware (see Phase
-     awareness) and recommend phase-qualifying the `auth.uid()` half (*"once auth is wired — #3"*),
-     keeping `search_path` as-is. If it is already phase-qualified (mentions #3 / "once auth is
-     wired"), this half is **IN SYNC** — do not raise it. (It was fixed on 2026-07-11; this check
-     guards against regressions until auth lands.)
+     **demands** `auth.uid()` (unconditionally OR via a "once auth is wired — #3" clause), flag it —
+     recommend the Decision 37 wording ("no auth planned; do NOT flag missing auth.uid()"), keeping
+     `search_path` as-is. If it already says don't-flag / no-auth (Decision 37), this half is
+     **IN SYNC** — do not raise it. (This guards against a regression that reintroduces an auth demand.)
 2. **`**/*.dart` instruction vs `CLAUDE.md` / `analysis_options.yaml`.** Confirm it still mirrors:
    prefer `const` constructors; keep widgets small and free of business logic (push logic into plain
    Dart classes); flag unhandled async/futures and missing error paths; **no raw Postgres
@@ -97,8 +97,9 @@ If nothing drifted, report `0 / 0 / 0`, `Status: IN SYNC`, `Verdict: IN SYNC`.
    Quote the exact YAML text and the exact replacement so the edit is mechanical.
 2. **Do NOT flag out-of-sync because the file is missing** — `.coderabbit.yaml` **exists** at repo
    root with `**/*.dart` and `**/*.sql` blocks. Compare against it; never report "not configured".
-3. **Do NOT demand an unconditional `auth.uid()` instruction** — auth is unwired (issue #3). The
-   correct recommendation is to **phase-qualify** that clause, not add or strengthen it.
+3. **Do NOT demand any `auth.uid()` instruction** — there is no auth and none is planned (Decision 37,
+   single-user + tailnet-only). The correct SQL instruction says do-NOT-flag missing auth.uid(); never
+   recommend adding, strengthening, or "once auth is wired"-qualifying it.
 4. **Do NOT propose adding rules the `.githooks/` already enforce** — CodeRabbit is the backup, not
    the primary. `dart format`, `flutter analyze`, Conventional-Commit messages, and the secret scan
    are covered deterministically by `.githooks/`; don't duplicate them into path_instructions.
