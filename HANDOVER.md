@@ -1,4 +1,4 @@
-> Cross-session work tracker. Update in place. Last updated: 2026-07-15 (Task categories Slice A — ✅ COMMITTED ON BRANCH `slice-a-task-categories` (`9377a61` + fleet follow-up); NOT pushed — /fullpush gate + push + PR + merge + deploy all still owed. Decision 39. Prior: Task importance MERGED & DEPLOYED (Decision 38).).
+> Cross-session work tracker. Update in place. Last updated: 2026-07-15 (Task categories Slice A — 🚧 PUSHED, PR #45 OPEN (branch `slice-a-task-categories`); awaiting cloud CodeRabbit → merge → deploy. Decision 39. Prior: Task importance MERGED & DEPLOYED (Decision 38).).
 
 # Handover
 
