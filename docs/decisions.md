@@ -510,6 +510,16 @@ notes migration; light/dark emulator + Linux QA of task comments **and** notes i
 
 ---
 
+## Decision 43: Shared `DetailField` widget (issue #10 item 2 — closes #10, 2026-07-16)
+**Context:** The other half of CodeRabbit's PR #8 duplication finding (deferred as #10): the labelled-field row (`icon` + `label` + value) was copy-pasted as a private `_Field` in both `contact_detail_screen.dart` and `event_detail_screen.dart` — the same reason PR #8 had already extracted `InitialsAvatar`. The two copies had **diverged**: contact's rendered a nullable value with a muted **"Not added"** placeholder for empties; event's took a value XOR a `child` (for the Type row's `TypeLabel`), added a `selectable` flag (link locations → `SelectableText`), and had **no** placeholder (every event field is caller-guarded `isNotEmpty`).
+**Decided:**
+- **New `lib/widgets/detail_field.dart`, `DetailField`** (matches the `initials_avatar.dart`→`InitialsAvatar` convention) — the **superset**: `icon`/`label` required, `String? value`, `Widget? child`, `bool selectable = false`. Build: `child` → child; else empty(`null`/`''`) → muted "Not added"; else `selectable` → `SelectableText`; else `Text`. Widget tree byte-identical to both originals (paddings 20/16/2, `Icon(size:20, onSurfaceVariant)`, `labelMedium` label, `bodyLarge` value).
+- **`assert(child == null || value == null)`** — forbids both-non-null, **allows both-null**. The relaxation is *required*, not cosmetic: contact passes `value: c.email` (nullable) with no child, which event's old `assert(value != null || child != null)` would have tripped. The empty→"Not added" branch is unreachable for event (every field guarded non-empty; Type uses `child`; When is always non-empty), so folding it in is behavior-preserving for both screens.
+- **9 call sites** (5 contact + 4 event) are keyword-arg drop-ins (`_Field(`→`DetailField(`). Net ≈ −0 lines of logic (moved, not added). No visual change — verified by a light+dark isolated-widget screenshot QA of all four states (empty / plain / selectable / child).
+**Principle:** Same as Decision 42 for widgets — extract a duplicated UI atom once it recurs, merging divergent copies into a superset whose extra branches are unreachable for the stricter caller (so the merge can't change either screen). **This closes issue #10** (both items done).
+
+---
+
 ## IDEAS / NOTES
 - The `okpilot/selfhost` repo on homebase is where the backend stack (a new `stacks/` dir + a Caddy route) will live, committed like the others.
 - **Styling / theming (for the first styling slice — not yet):** Flutter needs no shadcn-style component library — Material 3 is built in. Default plan: stock Material 3 + `ColorScheme.fromSeed(seedColor: …)` (one seed → full light+dark palette). References to reach for when we theme: **Material Theme Builder** (https://material-foundation.github.io/material-theme-builder/ — visual editor, exports `ThemeData`); **`flex_color_scheme`** pub package (dozens of polished pre-made themes); **`shadcn_ui`** / **`forui`** packages if we ever want the specific flat shadcn aesthetic. Decide emergently when a slice calls for it.

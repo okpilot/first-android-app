@@ -78,6 +78,20 @@ See [positive-signals](topics/positive-signals.md) for the per-slice-type win co
   sensitive; binding key doc-comment lives on the *EditView*, syncs in same slice.
 - **Pure-refactor extraction** (CommentsSection, Dec 2a): byte-equivalent behaviour; only the rename
   axis differs; every async invariant survives verbatim; grep no dangling old names.
+- **Superset-merge widget extraction** (DetailField from two `_Field`s, #10 item 2, Jul 16; clean 0
+  blocking): merging two variant private widgets into one shared superset — the trap is a
+  PIXEL/behaviour diff between the two originals surviving the merge. Verified: both `_Field` trees
+  were byte-identical (pad-bottom 20, icon 20 onSurfaceVariant, SizedBox 16/2, labelMedium label,
+  bodyLarge value); contact's non-empty `copyWith(color:null)` == event's plain bodyLarge (no
+  flatten diff). The RELAXED assert `child==null||value==null` (both-null ALLOWED, both-non-null
+  forbidden) is required+safe: contact's dob passes value=null/no-child (both-null — old event
+  assert would've tripped it), no call site passes both. Behavioural-drift check (item 7): merged
+  adds an empty→"Not added" branch the event original lacked, but every event caller guards
+  non-empty (`if location!.isNotEmpty` / `if notes!.isNotEmpty`) and `_whenLabel` always returns
+  non-empty + Type uses child → empty branch unreachable for events, so no blank→"Not added" drift.
+  New `super.key` idiomatic, no identity-dependent call site. 5 contact + 4 event sites all keyword
+  args → mechanical rename; grep confirmed 0 leftover `_Field`; new file imports only material.dart
+  (child/TypeLabel passed by caller); no orphaned imports either screen.
 - **Pure-UI / adaptive-layout** (desktop sidebar, Dec 28 S-A): theme-token fidelity; colours from
   `colorScheme` = chrome; `Flexible`+ellipsis vs fixed-height textScaler overflow (SUGGESTION).
 - **Infra / bash / SQL-only**: trace quoting per shell hop; verify NOTIFY contract; check cold-start
