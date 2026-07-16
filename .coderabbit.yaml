@@ -10,6 +10,13 @@ reviews:
   poem: false
   review_status: true
   collapse_walkthrough: true
+  # Scope cloud CR to CODE, not prose. Negation globs = exclusions; with no inclusion
+  # patterns everything else stays reviewed. The in-house fleet (doc-updater +
+  # coderabbit-sync + /wrapup) owns docs; CR earns its keep on .dart / .sql / config
+  # (async/race/guard bugs lint can't see), not documentation status. (Decision 44.)
+  path_filters:
+    - "!**/*.md"        # all prose: README / HANDOVER / CLAUDE + docs/** + .claude/**/*.md
+    - "!.claude/**"     # agent defs, rules, memory, commands — internal, fleet-owned
   auto_review:
     enabled: true
     drafts: false

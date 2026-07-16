@@ -41,4 +41,5 @@ CodeRabbit local catches things our own reading misses — missing error paths, 
 
 ## Notes
 - The cloud CodeRabbit bot reviews the actual PR on push (org-wide install) — that's the authoritative gate; cr-local is the cheaper pre-push preview.
+- Both cloud and local review are **scoped to code/SQL/config** — `.coderabbit.yaml` `path_filters` exclude `**/*.md` + `.claude/**` (Decision 44), and cr-local passes `-c .coderabbit.yaml` so it inherits the same scope. Docs/agent files are the in-house fleet's job; don't expect CR findings on them.
 - Common mistakes: trusting CR's severity labels; trusting its line numbers; applying everything to silence it (scope creep); skipping the plan step; not re-running after a fix.

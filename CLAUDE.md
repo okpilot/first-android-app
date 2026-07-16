@@ -50,7 +50,7 @@ list the OLD param set after the RPC gains one, prose the compiler can't catch (
 - **Before every push, run the `/fullpush` gate** (`.claude/commands/fullpush.md`):
   `flutter analyze` + `flutter test` + `flutter build web`, then **`/crlocal`** (mandatory
   CodeRabbit local review — `.claude/commands/crlocal.md`), then **ask for explicit push approval**.
-- CodeRabbit is installed org-wide, so the cloud bot also reviews the PR on push — that's the authoritative gate; `/crlocal` is the cheaper pre-push preview.
+- CodeRabbit is installed org-wide, so the cloud bot also reviews the PR on push — that's the authoritative gate; `/crlocal` is the cheaper pre-push preview. Cloud CR is **scoped to code/SQL/config** (`.coderabbit.yaml` `path_filters` exclude `**/*.md` + `.claude/**`) — docs + agent files are the in-house fleet's job, not CR's (Decision 44).
 - **Answering the cloud bot is two commands, split by moment** (both call `scripts/cr-findings.sh`):
   **`/coderabbit`** triages the cloud review (investigate each finding vs source → fix/defer/skip,
   records dispositions on the PR) → **`/fullpush`** pushes the fixes → **`/replycoderabbit`** posts the
