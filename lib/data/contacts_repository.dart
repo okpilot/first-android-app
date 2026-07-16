@@ -40,10 +40,9 @@ class SupabaseContactsRepository implements ContactsRepository {
 
   @override
   Future<Contact> update(Contact contact) async {
-    await _client.rpc(
-      'update_contact',
-      params: {'p_id': contact.id, ...contact.toRpcParams()},
-    );
+    // toRpcParams() now carries p_id (the create shape gained it for idempotency, issue #9) and
+    // matches update_contact's param set exactly, so no separate p_id is needed here.
+    await _client.rpc('update_contact', params: contact.toRpcParams());
     return _fetchOne(contact.id);
   }
 

@@ -1,3 +1,5 @@
+import '../util/ids.dart';
+
 /// An event type (category) — mirrors the `public.event_types` table.
 ///
 /// Pure Dart (no Flutter import, like [Contact]/[Event]): the colour is kept as the raw
@@ -20,14 +22,21 @@ class EventType {
     required this.colorHex,
   });
 
-  /// A not-yet-persisted type. Empty id — the DB assigns the real one.
-  const EventType.draft({required this.name, required this.colorHex}) : id = '';
+  /// A not-yet-persisted type. Mints a client-side id up front (issue #9) so `create_event_type`
+  /// is idempotent on it; pass [id] to reuse one across a retry (the form holds a stable id).
+  factory EventType.draft({
+    String? id,
+    required String name,
+    required String colorHex,
+  }) => EventType(id: id ?? newEntityId(), name: name, colorHex: colorHex);
 
   /// Params for the `create_event_type` / `update_event_type` RPCs (Decision 26 — all writes
   /// go through RPCs). `p_name` is trimmed here (belt-and-suspenders with the server, which also
-  /// trims); `p_color` is already a clean `#RRGGBB` built from the palette. The repo adds `p_id`
-  /// for updates.
+  /// trims); `p_color` is already a clean `#RRGGBB` built from the palette. `p_id` is the
+  /// client-minted id — `create_event_type` inserts it with `on conflict (id) do nothing`
+  /// (idempotent, issue #9), and `update_event_type` uses it as the target row.
   Map<String, dynamic> toRpcParams() => {
+    'p_id': id,
     'p_name': name.trim(),
     'p_color': colorHex,
   };

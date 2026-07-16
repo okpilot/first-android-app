@@ -29,20 +29,23 @@ void main() {
 
   group('EventType.toRpcParams', () {
     test('maps to p_-prefixed params and trims the name', () {
-      final params = const EventType.draft(
-        name: '  Focus  ',
-        colorHex: '#4E7BC9',
-      ).toRpcParams();
-      expect(params, {'p_name': 'Focus', 'p_color': '#4E7BC9'});
+      // .draft mints the id, so capture the instance to assert its p_id round-trips.
+      final et = EventType.draft(name: '  Focus  ', colorHex: '#4E7BC9');
+      expect(et.id, isNotEmpty); // guards against both sides regressing to ''
+      expect(et.toRpcParams(), {
+        'p_id': et.id,
+        'p_name': 'Focus',
+        'p_color': '#4E7BC9',
+      });
     });
 
-    test('does not include the id — the repo adds p_id for updates', () {
+    test('includes the client-minted p_id (issue #9), not a raw id key', () {
       final params = const EventType(
         id: 't1',
         name: 'Work',
         colorHex: '#22A06B',
       ).toRpcParams();
-      expect(params.containsKey('p_id'), isFalse);
+      expect(params['p_id'], 't1');
       expect(params.containsKey('id'), isFalse);
     });
   });

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../data/task_categories_repository.dart';
 import '../models/task_category.dart';
 import '../util/event_type_palette.dart';
+import '../util/ids.dart';
 import '../widgets/empty_state.dart';
 import 'event_types_screen.dart' show TypeSwatch;
 
@@ -140,6 +141,11 @@ class _TaskCategoryEditorScreenState extends State<TaskCategoryEditorScreen> {
   late Color _color;
   bool _saving = false;
 
+  // A stable client-minted id for the new category, reused across save re-taps so a retry after a
+  // hung create is idempotent (create_task_category does `on conflict (id) do nothing`, issue #9).
+  // The editor pops on success, so a later "New category" gets a fresh State → fresh id. Unused when editing.
+  late final String _pendingId = newEntityId();
+
   bool get _isEditing => widget.existing != null;
 
   @override
@@ -164,7 +170,11 @@ class _TaskCategoryEditorScreenState extends State<TaskCategoryEditorScreen> {
     final hex = hexFromColor(_color);
     final draft = _isEditing
         ? widget.existing!.copyWith(name: _name.text.trim(), colorHex: hex)
-        : TaskCategory.draft(name: _name.text.trim(), colorHex: hex);
+        : TaskCategory.draft(
+            id: _pendingId,
+            name: _name.text.trim(),
+            colorHex: hex,
+          );
 
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);

@@ -27,6 +27,9 @@ class _FakeCommentsRepo implements CommentsRepository {
   final List<Comment> _items;
   int _seq = 0;
   bool throwOnFetch = false;
+  // The client-minted draft id seen on each add() — lets a test prove the composer retires its
+  // _pendingId after a successful add so back-to-back comments don't collide (issue #9).
+  final List<String> addedDraftIds = [];
   // When set, archive() awaits this before mutating — holds a write in flight so a test
   // can observe the `_busy` re-entrancy guard mid-write. Complete it to let the write finish.
   Completer<void>? archiveGate;
@@ -40,6 +43,7 @@ class _FakeCommentsRepo implements CommentsRepository {
 
   @override
   Future<Comment> add(Comment draft) async {
+    addedDraftIds.add(draft.id);
     final saved = Comment(
       id: 'c${_seq++}',
       parentId: draft.parentId,
@@ -249,6 +253,36 @@ void main() {
     expect(find.text('New note'), findsOneWidget); // trimmed + persisted
     expect(find.text('No comments yet.'), findsNothing);
   });
+
+  testWidgets(
+    'back-to-back adds use different client-minted ids (the composer resets _pendingId, issue #9)',
+    (tester) async {
+      // The composer stays mounted after a successful send (unlike the pop-on-success forms), so its
+      // client-minted id is MUTABLE and must be retired after each add — else the second comment would
+      // reuse the first id and the DB's `on conflict (id) do nothing` would silently drop it.
+      final repo = _FakeCommentsRepo();
+      await tester.pumpWidget(_detail(repo));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).first, 'First');
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilledButton, 'Comment'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).first, 'Second');
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilledButton, 'Comment'));
+      await tester.pumpAndSettle();
+
+      expect(repo.addedDraftIds, hasLength(2));
+      expect(repo.addedDraftIds.first, isNotEmpty);
+      expect(repo.addedDraftIds[1], isNotEmpty);
+      expect(repo.addedDraftIds[0], isNot(repo.addedDraftIds[1]));
+      // Both comments actually persisted — the second wasn't conflict-skipped.
+      expect(find.text('First'), findsOneWidget);
+      expect(find.text('Second'), findsOneWidget);
+    },
+  );
 
   testWidgets('edits a comment inline', (tester) async {
     final repo = _FakeCommentsRepo([_live('c1', 'Draft wording')]);

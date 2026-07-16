@@ -1,4 +1,5 @@
 import '../util/format.dart';
+import '../util/ids.dart';
 import 'contact.dart';
 import 'event_type.dart';
 
@@ -45,18 +46,31 @@ class Event {
     this.attendees = const [],
   });
 
-  /// A not-yet-persisted event. Empty id — the DB assigns the real one.
-  const Event.draft({
-    required this.title,
-    required this.date,
-    required this.allDay,
-    this.startMin,
-    this.endMin,
-    this.location,
-    this.notes,
-    this.type,
-    this.attendees = const [],
-  }) : id = '';
+  /// A not-yet-persisted event. Mints a client-side id up front (issue #9) so `create_event` is
+  /// idempotent on it; pass [id] to reuse one across a retry (the form holds a stable id).
+  factory Event.draft({
+    String? id,
+    required String title,
+    required DateTime date,
+    required bool allDay,
+    int? startMin,
+    int? endMin,
+    String? location,
+    String? notes,
+    EventType? type,
+    List<Contact> attendees = const [],
+  }) => Event(
+    id: id ?? newEntityId(),
+    title: title,
+    date: date,
+    allDay: allDay,
+    startMin: startMin,
+    endMin: endMin,
+    location: location,
+    notes: notes,
+    type: type,
+    attendees: attendees,
+  );
 
   factory Event.fromJson(Map<String, dynamic> json) {
     // event_attendees is a to-many array; each row's `contacts` is a to-ONE object (or
@@ -97,6 +111,7 @@ class Event {
   /// null (RLS hides the embed), so re-saving such an event nulls its `type_id` — intended
   /// (the type is gone; the event already shows "No type").
   Map<String, dynamic> toRpcParams() => {
+    'p_id': id,
     'p_title': title.trim(),
     'p_event_date': ymd(date),
     'p_all_day': allDay,

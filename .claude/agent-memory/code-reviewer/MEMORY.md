@@ -86,6 +86,15 @@ Full detail in [positive-signals](topics/positive-signals.md). One-line index:
 - **`task_detail_screen.dart` / `ContactDetailView`** — view-first detail reference: thin
   Scaffold host + shared body that NEVER pops, reuses `SubtleButton`/`MetaLine`, `_StatusPill` is
   label-paired (not colour-as-data).
+- **Idempotent create_* slice (issue #9 / Decision 41)** — reference id-minting + `.draft` factory
+  conversion: new `lib/util/ids.dart` (single shared `const _uuid = Uuid()` + `newEntityId()`, private
+  instance, tested with a v4-regex + 1000-distinct check); 6 models' `.draft` const-ctor → id-minting
+  `factory` (`id: id ?? newEntityId()`, delegates to the main ctor); `toRpcParams()` gains `p_id` so the
+  4 spread-update repos (contacts/events/event_types/task_categories) drop `{p_id: …, ...spread}` and
+  pass `toRpcParams()` whole (tasks + comments keep explicit maps); forms hold
+  `late final String _pendingId = newEntityId()` (fresh State per open), while the long-lived
+  `CommentsSection` composer holds a MUTABLE `_pendingId` reset after each success (correct, documented).
+  Mint lives in util not build(); directive order + comments clean. CLEAN 0/0/0.
 - **`CommentsSection` (`lib/widgets/comments_section.dart`, Slice 2a `2717da9`)** — reference shared
   stateful sub-section, extracted verbatim from `event_detail_screen.dart`, now parent-agnostic
   (`CommentsRepository`+`parentId`); own `_lastData` + `identical(future,_future)` stale-guard;

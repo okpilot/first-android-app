@@ -73,9 +73,12 @@ void main() {
   });
 
   group('Comment.draft', () {
-    test('has an empty id and null server fields', () {
+    test('has a client-minted id and null server fields', () {
       final c = Comment.draft(parentId: 'e1', body: 'x');
-      expect(c.id, '');
+      expect(
+        c.id,
+        isNotEmpty,
+      ); // client-minted up front for idempotency (issue #9)
       expect(c.parentId, 'e1');
       expect(c.createdAt, isNull);
       expect(c.updatedAt, isNull);

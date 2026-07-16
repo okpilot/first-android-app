@@ -45,10 +45,16 @@ class SupabaseEventCommentsRepository implements CommentsRepository {
 
   @override
   Future<Comment> add(Comment draft) async {
-    // p_event_id is this table's FK param; the shared model exposes it as parentId.
+    // p_event_id is this table's FK param; the shared model exposes it as parentId. p_id is the
+    // client-minted id (Comment has no toRpcParams — built here); create_comment inserts it with
+    // `on conflict (id) do nothing` so a retry is idempotent (issue #9).
     final id = await _client.rpc(
       'create_comment',
-      params: {'p_event_id': draft.parentId, 'p_body': draft.body.trim()},
+      params: {
+        'p_id': draft.id,
+        'p_event_id': draft.parentId,
+        'p_body': draft.body.trim(),
+      },
     );
     return _fetchOne(id as String);
   }
@@ -115,10 +121,16 @@ class SupabaseTaskCommentsRepository implements CommentsRepository {
 
   @override
   Future<Comment> add(Comment draft) async {
-    // p_task_id is this table's FK param; the shared model exposes it as parentId.
+    // p_task_id is this table's FK param; the shared model exposes it as parentId. p_id is the
+    // client-minted id (Comment has no toRpcParams — built here); create_task_comment inserts it
+    // with `on conflict (id) do nothing` so a retry is idempotent (issue #9).
     final id = await _client.rpc(
       'create_task_comment',
-      params: {'p_task_id': draft.parentId, 'p_body': draft.body.trim()},
+      params: {
+        'p_id': draft.id,
+        'p_task_id': draft.parentId,
+        'p_body': draft.body.trim(),
+      },
     );
     return _fetchOne(id as String);
   }

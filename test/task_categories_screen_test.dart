@@ -18,7 +18,8 @@ class _FakeCategoriesRepo implements TaskCategoriesRepository {
   @override
   Future<TaskCategory> create(TaskCategory draft) async {
     final saved = TaskCategory(
-      id: 'id-${categories.length}',
+      id: draft
+          .id, // persist the client-supplied id (issue #9), like the real repo
       name: draft.name,
       colorHex: draft.colorHex,
     );
@@ -75,7 +76,7 @@ class _OrderedRepo implements TaskCategoriesRepository {
 
   @override
   Future<TaskCategory> create(TaskCategory draft) async =>
-      TaskCategory(id: 'new', name: draft.name, colorHex: draft.colorHex);
+      TaskCategory(id: draft.id, name: draft.name, colorHex: draft.colorHex);
   @override
   Future<TaskCategory> update(TaskCategory category) =>
       throw UnimplementedError();

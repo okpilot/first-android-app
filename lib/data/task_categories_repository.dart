@@ -44,10 +44,9 @@ class SupabaseTaskCategoriesRepository implements TaskCategoriesRepository {
 
   @override
   Future<TaskCategory> update(TaskCategory category) async {
-    await _client.rpc(
-      'update_task_category',
-      params: {'p_id': category.id, ...category.toRpcParams()},
-    );
+    // toRpcParams() now carries p_id (the create shape gained it for idempotency, issue #9) and
+    // matches update_task_category's param set exactly, so no separate p_id is needed here.
+    await _client.rpc('update_task_category', params: category.toRpcParams());
     return _fetchOne(category.id);
   }
 

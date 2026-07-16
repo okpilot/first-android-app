@@ -1,3 +1,5 @@
+import '../util/ids.dart';
+
 /// A task category (user-owned tag) — mirrors the `public.task_categories` table.
 ///
 /// Pure Dart (no Flutter import, like [Contact]/[Task]/[EventType]): the colour is kept as the raw
@@ -24,14 +26,21 @@ class TaskCategory {
     required this.colorHex,
   });
 
-  /// A not-yet-persisted category. Empty id — the DB assigns the real one.
-  const TaskCategory.draft({required this.name, required this.colorHex})
-    : id = '';
+  /// A not-yet-persisted category. Mints a client-side id up front (issue #9) so
+  /// `create_task_category` is idempotent on it; pass [id] to reuse one across a retry.
+  factory TaskCategory.draft({
+    String? id,
+    required String name,
+    required String colorHex,
+  }) => TaskCategory(id: id ?? newEntityId(), name: name, colorHex: colorHex);
 
   /// Params for the `create_task_category` / `update_task_category` RPCs (all writes go through RPCs).
   /// `p_name` is trimmed here (belt-and-suspenders with the server, which also trims); `p_color` is
-  /// already a clean `#RRGGBB` built from the palette. The repo adds `p_id` for updates.
+  /// already a clean `#RRGGBB` built from the palette. `p_id` is the client-minted id —
+  /// `create_task_category` inserts it with `on conflict (id) do nothing` (idempotent, issue #9),
+  /// and `update_task_category` uses it as the target row.
   Map<String, dynamic> toRpcParams() => {
+    'p_id': id,
     'p_name': name.trim(),
     'p_color': colorHex,
   };

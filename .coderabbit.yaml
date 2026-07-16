@@ -45,7 +45,9 @@ reviews:
         boundary, login is WON'T-DO (Decision 37) — so do NOT flag missing auth.uid() checks or the
         anon-permissive RPC posture; that is intended, not a gap. DO still review unexpected anon
         privilege expansion (grants on new tables/sequences/admin RPCs) normally. Use idempotent
-        upserts (ON CONFLICT); migrations are forward-only.
+        upserts (ON CONFLICT); every create_* RPC must accept an optional p_id uuid default null,
+        insert with on conflict (id) do nothing, and return the id (Decision 41 / issue #9) — flag a
+        new create_* that server-mints without this pattern as an issue. Migrations are forward-only.
 
 chat:
   auto_reply: true

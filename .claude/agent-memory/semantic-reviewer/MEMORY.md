@@ -70,6 +70,28 @@ _Seed watch-items carried from the project's conventions:_
   [topics/write-rpc-ports.md](topics/write-rpc-ports.md). Reusable 4-check port shape; `.single()`
   and the non-atomic RPC-then-`_fetchOne` re-fetch are correct by design — do NOT flag as races.
 - **CLEAN slice traces** (full detail → [topics/clean-slices.md](topics/clean-slices.md)):
+  - Idempotent create RPCs on client-minted id (issue #9 / Decision 41, `20260716120000`) — CLEAN.
+    All 7 `create_*` gain trailing `p_id uuid default null`; `coalesce(p_id, gen_random_uuid())` +
+    `on conflict (id) do nothing` + `return v_id`. **toRpcParams now carries `p_id` for BOTH create
+    AND update** — verified all 4 spread-update paths (event/contact/event_type/task_category) send a
+    named key SET that EXACTLY equals the update_* signature (PostgREST binds by name, order/trailing
+    irrelevant); task update stays explicit (has p_is_done, not in create) — correct. All 7 DROP
+    signatures match the pre-migration latest defs exactly (a wrong sig would silently no-op under IF
+    EXISTS → leave old overload → PGRST203) — checked each. **create_task_comment restructure is
+    correct**: folded `insert...select...where exists(task live)...on conflict(id) do nothing` then
+    post-`if not exists(id=v_id) raise` distinguishes the two zero-row causes — archived/missing parent
+    (new id absent → raise) vs idempotent replay (row present → success); never lets a NEW comment onto
+    an archived parent, correctly treats "created live, parent archived between attempts, retried" as
+    success. `_pendingId` lifecycle sound: 5 pop-on-success forms use `late final` (fresh State per
+    open, edit uses `existing.id ?? _pendingId` so edit never touches it); in-pane TaskEditView
+    (`ValueKey('new')`) is unmounted by `_onCreated` → fresh State → fresh id per create; CommentsSection
+    field is mutable, reset to `newEntityId()` only AFTER a successful add (inside `_run`, guarded by
+    `_busy`). Forms rely on button-disable/AbsorbPointer (one-frame gap) but idempotency now CLOSES the
+    double-tap window by design. KNOWN, ACCEPTED design limit (not a bug): a changed-payload replay with
+    the same id after a silently-committed attempt-1 keeps old scalars (first-write-wins) and UNIONs
+    junction rows (attendees/contacts/categories add, never remove) — window is narrow (commit + dropped
+    response + user edit + re-Save), the returned `_fetchOne` reflects truth (not silent corruption), and
+    first-write-wins is the correct idempotent-create semantic. Do NOT re-flag as a race/lost-update.
   - Task↔categories m2m link (Decision 40 Slice B, `d95f85b`) — verbatim mirror of task_contacts
     join. copyWith `categories ?? this.categories` (toggle-safety) + update() re-sends full
     `p_categories`: both list & detail `_toggleDone` hold. fromJson `task_category_links`(to-many)→

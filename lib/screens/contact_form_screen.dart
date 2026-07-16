@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/contacts_repository.dart';
 import '../models/contact.dart';
 import '../util/format.dart';
+import '../util/ids.dart';
 
 /// Add (when [existing] is null) or edit a contact. Pops the saved [Contact] on
 /// success, or nothing on cancel.
@@ -25,6 +26,11 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
   late final TextEditingController _remarks;
   DateTime? _dob;
   bool _saving = false;
+
+  // A stable client-minted id for the new contact, reused across save re-taps so a retry after a
+  // hung create is idempotent (create_contact does `on conflict (id) do nothing`, issue #9). The
+  // form pops on success, so a later "New contact" gets a fresh State → fresh id. Unused when editing.
+  late final String _pendingId = newEntityId();
 
   bool get _isEditing => widget.existing != null;
 
@@ -67,7 +73,7 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
     setState(() => _saving = true);
 
     final draft = Contact(
-      id: widget.existing?.id ?? '',
+      id: widget.existing?.id ?? _pendingId,
       name: _name.text,
       dob: _dob,
       email: _email.text,
