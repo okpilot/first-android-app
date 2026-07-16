@@ -46,7 +46,7 @@ hides it, client skips). No write policy/grant — membership set only by RPCs.
 
 **Task write RPC signatures (Slice B changes, via drop+recreate):**
 - `create_task(p_title text, p_notes text default null, p_contacts uuid[] default '{}', p_importance smallint default 0, p_categories uuid[] default '{}')` → `uuid`. New: unnest-insert categories, same pattern as contacts.
-- `update_task(p_id uuid, p_title text, p_is_done boolean, p_notes text, p_contacts uuid[], p_importance smallint, p_categories uuid[])` → `uuid`. **No defaults on `p_contacts`, `p_importance`, or `p_categories` — defensive rule (update omits one → silent wipe → PGRST202 instead).** Deletes + reinsertsthe category membership, same pattern as contacts.
+- `update_task(p_id uuid, p_title text, p_is_done boolean, p_notes text, p_contacts uuid[], p_importance smallint, p_categories uuid[])` → `uuid`. **No defaults on `p_contacts`, `p_importance`, or `p_categories` — defensive rule (update omits one → silent wipe → PGRST202 instead).** Deletes + reinserts the category membership, same pattern as contacts.
 
 **Lockdown invariant (Decision 36):** dropping the old sigs discarded the PUBLIC revoke, and recreate
 hands it back; the migration **re-issues both** the `revoke execute … from public` AND the

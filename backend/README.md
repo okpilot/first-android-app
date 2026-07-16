@@ -424,7 +424,7 @@ IID=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -d '{"p_title":"Ship the release","p_importance":3}' | tr -d '"')
 curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   "$REST/tasks?id=eq.$IID&select=title,importance"              # -> importance 3
-# update lowers it to 1 (must re-send the whole task: title/is_done/notes/contacts/importance)
+# update lowers it to 1 (must re-send the whole task: title/is_done/notes/contacts/importance/categories)
 curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/rpc/update_task" \
   -d "{\"p_id\":\"$IID\",\"p_title\":\"Ship the release\",\"p_is_done\":false,\"p_notes\":null,\"p_contacts\":[],\"p_importance\":1,\"p_categories\":[]}"

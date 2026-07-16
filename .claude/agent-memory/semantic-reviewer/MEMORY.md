@@ -79,9 +79,7 @@ _Seed watch-items carried from the project's conventions:_
     DEFAULTED / update REQUIRED (omitted arg → PGRST202 not silent wipe). Embed cols
     `task_categories(id,name,color)` ↔ fromJson `json['color']` (DB col is `color`). mounted-guards
     in `_openCategories`/`_save`; `_lastData` `identical` guard intact; colour never rides alone
-    (row/detail/picker/form all dot+name). Wiring un-crossed. Only nit: STALE inline comment in
-    repo `create()` (lines 55-56) still lists 4-arg `{p_title,p_notes,p_contacts,p_importance}` —
-    omits p_categories (cosmetic). Do NOT re-flag.
+    (row/detail/picker/form all dot+name). Wiring un-crossed.
   - Task categories entity + Settings manager (Decision 39 Slice A, `9377a61`) — byte-faithful
     port of the event_types system (model/repo/screen/migration). All 3 RPC arities match
     `toRpcParams()` (create `p_name,p_color`; update `+p_id`; soft-delete `p_id`); `_load` stale-guard
