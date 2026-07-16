@@ -113,9 +113,10 @@
 
 ## Client-minted ids / idempotency (issue #9, Decision 41) — how to test
 - Every model's **`.draft` is now a `factory` that mints a v4 uuid** via `newEntityId()` (`lib/util/
-  ids.dart`) and accepts an optional `id` to reuse across a retry. All 6 `toRpcParams()` maps now
-  carry **`p_id`** (was omitted pre-Decision 41). `create_*` RPCs insert it `on conflict (id) do
-  nothing`, so a retry with the same id is a no-op, not a dup.
+  ids.dart`) and accepts an optional `id` to reuse across a retry. The **5 entity-model**
+  `toRpcParams()` maps now carry **`p_id`** (was omitted pre-Decision 41); `Comment` has NO
+  `toRpcParams()` (dropped in Slice 2a) — its repos build `p_id` inline in `add()`. `create_*` RPCs
+  insert it `on conflict (id) do nothing`, so a retry with the same id is a no-op, not a dup.
 - Model-level: assert `Model.draft(...).id` is `isNotEmpty` AND `toRpcParams()['p_id'] == draft.id`
   (capture the instance — the id is random, can't hardcode). `test/util/ids_test.dart` proves
   `newEntityId` is a canonical v4 uuid + distinct across 1000 calls (uuid must be real or Postgres

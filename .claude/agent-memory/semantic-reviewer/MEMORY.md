@@ -71,7 +71,7 @@ _Seed watch-items carried from the project's conventions:_
   and the non-atomic RPC-then-`_fetchOne` re-fetch are correct by design — do NOT flag as races.
 - **CLEAN slice traces** (full detail → [topics/clean-slices.md](topics/clean-slices.md)):
   - Idempotent create RPCs on client-minted id (issue #9 / Decision 41, `20260716120000`) — CLEAN.
-    All 7 create_* gain trailing `p_id uuid default null`; `coalesce(p_id, gen_random_uuid())` +
+    All 7 `create_*` gain trailing `p_id uuid default null`; `coalesce(p_id, gen_random_uuid())` +
     `on conflict (id) do nothing` + `return v_id`. **toRpcParams now carries `p_id` for BOTH create
     AND update** — verified all 4 spread-update paths (event/contact/event_type/task_category) send a
     named key SET that EXACTLY equals the update_* signature (PostgREST binds by name, order/trailing
