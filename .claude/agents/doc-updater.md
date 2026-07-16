@@ -30,6 +30,27 @@ because a committed RPC lacks `auth.uid()`, or because a policy uses `with check
 intended, permanent state, not a doc contradiction. (Issue #3 is closed; the `auth.uid()` gap would
 only reopen if the no-auth decision is ever revisited — sharing / public exposure / multi-tenant.)
 
+## ⚠️ Lifecycle-state discipline — read this too (recurring miss)
+You keep **over-stating lifecycle state**: writing "merged" / "on main" / "deployed" / "Issue #N
+CLOSED" when the slice was only *committed on a branch* (learner tracker, count 2 — Decision 39, then
+issue #10). Before you write ANY lifecycle word, **derive it from real state; never infer it from the
+commit message, the branch name, or intent.** You run **post-commit — always pre-push** (see Trigger),
+so on nearly every run the branch is un-pushed and there is no PR: an empty/erroring `gh`/`git ls-remote`
+result is the **expected** signal to use the conservative wording, NOT a cue to guess the next step
+happened.
+
+| Word you may write | ONLY if… | How to verify |
+|---|---|---|
+| committed | a commit exists on the current branch | `git log` (true by definition post-commit) |
+| pushed | the branch is on origin | `git ls-remote --heads origin <branch>` returns it |
+| merged / on main | a squash/merge actually landed on `origin/main` | `gh pr view <n> --json state` = `MERGED`, or `git log origin/main --grep '(#<n>)'` |
+| deployed | a deploy step actually ran | never inferred — cite the SSH / migration-applied evidence, else don't write it |
+| closed (issue #N) | the closing PR merged | issue state — `Closes #N` in a PR body is intent, not a closed issue |
+
+**Default when unverified: "committed on branch `<name>`; `/fullpush` + push + PR pending."** When a
+prior slice really did merge/deploy (e.g. a "Prior:" block), keep its verified state — this rule is
+about the slice that *just committed*, not re-litigating history.
+
 ## Trigger
 Runs **post-commit, unconditionally**, as one of the parallel batch (`code-reviewer` ·
 `semantic-reviewer` · `doc-updater` · `test-writer`) — see `.claude/rules/agent-workflow.md`. You
@@ -131,6 +152,10 @@ If nothing to update and no drift, report `Docs updated: none` and `0 / 0 / 0`, 
    (issue #3), not a doc contradiction. See Phase awareness.
 8. **Do NOT create new doc files** unless the user explicitly asks.
 9. **Do NOT pad** — minimal, accurate edits that match each doc's existing format and voice.
+10. **Do NOT over-state lifecycle state** — "committed" ≠ "pushed" ≠ "merged" ≠ "deployed" ≠ "issue
+    closed". Verify each word from real git/gh state (see *Lifecycle-state discipline* above) and
+    default to "committed on branch, push/PR pending". (#5 governs *whether* to document — only
+    committed work; #10 governs *which lifecycle word* to use for it.)
 
 ## After each review
 Update `.claude/agent-memory/doc-updater/MEMORY.md` **in place** (durable recipes + tracker rows,

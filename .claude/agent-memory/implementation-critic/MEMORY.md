@@ -52,6 +52,16 @@ See [positive-signals](topics/positive-signals.md) for the per-slice-type win co
   CommentsSection mutable `_pendingId` reset AFTER success inside the op (throw-before-reset = retry
   reuses id = dedupe — the actual payoff). Zero empty-id sentinels left in lib/; full doc-comment +
   database.md rule#2 + Decision 41 sweep held clean (no stale "server owns id"/"DB assigns").
+- **Rules/config CR-scoping slice** (`.coderabbit.yaml` path_filters + doc-updater lifecycle rule,
+  Decision 44, Jul 16; clean 0 blocking): no app code. Win conditions: `path_filters` under `reviews:`
+  at 2-space indent alongside siblings, negation-ONLY globs (`!**/*.md` + `!.claude/**`) = exclude those
+  + keep everything else (CR idiom — does NOT collapse to exclude-all), `path_instructions` untouched;
+  doc-updater DO-NOT renumbered #9→#10 with a #5-vs-#10 cross-link (whether-to-doc vs which-word), the
+  lifecycle verify-command table accurate for a squash-merge repo (`git ls-remote --heads`,
+  `gh pr view --json state`=MERGED, `git log origin/main --grep '(#N)'`); Decision 44 gap-over-43
+  carries an HTML comment naming the concurrent branch (PR #51) — sane, transient, out of the diff's
+  control. Stale-surface sweep: "authoritative gate"/"reviews the PR" lines are about WHICH-PR not
+  WHICH-FILES, so not contradicted (only CLAUDE.md:53 needed the clause, edited).
 - **Template-port** (contacts/event_types/event-comments write-RPCs, Dec 26 S1–2): diff vs green
   template; security posture must be byte-for-byte; new fn = no CR-chain.
 - **Full-stack new-entity mirror of EventType** (task_categories Slice A, Decision 39, Jul 15; clean
