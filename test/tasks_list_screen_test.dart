@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:first_android_app/data/comments_repository.dart';
 import 'package:first_android_app/data/contacts_repository.dart';
-import 'package:first_android_app/data/task_categories_repository.dart';
 import 'package:first_android_app/data/tasks_repository.dart';
 import 'package:first_android_app/models/comment.dart';
 import 'package:first_android_app/models/contact.dart';
@@ -17,122 +16,7 @@ import 'package:first_android_app/widgets/comments_section.dart';
 import 'package:first_android_app/widgets/importance_marks.dart';
 import 'package:first_android_app/widgets/type_label.dart';
 
-/// Inert comments repo — the tasks list threads it to the detail, but none of these tests
-/// exercise comments. fetchFor returns nothing; the mutators are never reached.
-class _InertCommentsRepo implements CommentsRepository {
-  @override
-  Future<List<Comment>> fetchFor(String parentId) async => const [];
-  @override
-  Future<Comment> add(Comment draft) async => draft;
-  @override
-  Future<Comment> edit(Comment comment) async => comment;
-  @override
-  Future<Comment> archive(String id) async =>
-      Comment.draft(parentId: '', body: '');
-  @override
-  Future<Comment> unarchive(String id) async =>
-      Comment.draft(parentId: '', body: '');
-}
-
-/// A seedable comments repo — like [_InertCommentsRepo] but its [fetchFor] returns the seeded
-/// comments (filtered by parentId), so a wide-pane test can prove the detail pane's embedded
-/// [CommentsSection] actually loads the selected task's comments.
-class _SeededCommentsRepo implements CommentsRepository {
-  _SeededCommentsRepo([List<Comment>? seed]) : _items = seed ?? [];
-  final List<Comment> _items;
-  int _seq = 0;
-
-  @override
-  Future<List<Comment>> fetchFor(String parentId) async =>
-      _items.where((c) => c.parentId == parentId).toList()
-        ..sort((a, b) => b.id.compareTo(a.id));
-  @override
-  Future<Comment> add(Comment draft) async {
-    final saved = Comment(
-      id: 'c${_seq++}',
-      parentId: draft.parentId,
-      body: draft.body.trim(),
-    );
-    _items.add(saved);
-    return saved;
-  }
-
-  @override
-  Future<Comment> edit(Comment comment) async => comment;
-  @override
-  Future<Comment> archive(String id) async =>
-      Comment.draft(parentId: '', body: '');
-  @override
-  Future<Comment> unarchive(String id) async =>
-      Comment.draft(parentId: '', body: '');
-}
-
-/// A stateful in-memory repo so a complete-toggle actually moves the row between sections.
-class _StatefulTasksRepo implements TasksRepository {
-  _StatefulTasksRepo(List<Task> initial) : _tasks = [...initial];
-  final List<Task> _tasks;
-  Task? lastUpdated;
-
-  @override
-  Future<List<Task>> fetchAll() async => List.of(_tasks);
-
-  @override
-  Future<Task> create(Task draft) async {
-    final t = Task(
-      id: draft
-          .id, // persist the client-supplied id (issue #9), like the real repo
-      title: draft.title.trim(),
-      notes: draft.notes,
-      contacts: draft.contacts,
-      importance: draft.importance,
-      categories: draft.categories,
-    );
-    _tasks.add(t);
-    return t;
-  }
-
-  @override
-  Future<Task> update(Task task) async {
-    lastUpdated = task;
-    final i = _tasks.indexWhere((t) => t.id == task.id);
-    if (i >= 0) _tasks[i] = task;
-    return task;
-  }
-
-  @override
-  Future<Task> archive(String id) async {
-    final i = _tasks.indexWhere((t) => t.id == id);
-    final t = _tasks[i];
-    // Only deleted_at changes server-side — notes/People/title/is_done/importance/categories survive.
-    _tasks[i] = Task(
-      id: t.id,
-      title: t.title,
-      isDone: t.isDone,
-      notes: t.notes,
-      contacts: t.contacts,
-      importance: t.importance,
-      categories: t.categories,
-      deletedAt: DateTime(2026, 7, 12),
-    );
-    return _tasks[i];
-  }
-
-  @override
-  Future<Task> restore(String id) async {
-    final i = _tasks.indexWhere((t) => t.id == id);
-    final t = _tasks[i];
-    _tasks[i] = Task(
-      id: t.id,
-      title: t.title,
-      isDone: t.isDone,
-      notes: t.notes,
-      contacts: t.contacts,
-      importance: t.importance,
-      categories: t.categories,
-    );
-    return _tasks[i];
-  }
-}
+import 'support/fakes.dart';
 
 /// fetchAll throws while [fail] is true — drives the load-error state, then flip
 /// [fail] to false to prove Retry recovers.
@@ -175,32 +59,6 @@ class _UpdateFailsRepo implements TasksRepository {
   Future<Task> restore(String id) => throw UnimplementedError();
 }
 
-/// Minimal fake contacts repo — the list threads it to the form/detail for the People picker,
-/// but these tests don't drive the picker (People are seeded on the Task directly).
-class _FakeContactsRepo implements ContactsRepository {
-  @override
-  Future<List<Contact>> fetchAll() async => const [];
-  @override
-  Future<Contact> create(Contact draft) async => draft;
-  @override
-  Future<Contact> update(Contact contact) async => contact;
-  @override
-  Future<void> softDelete(String id) async {}
-}
-
-/// Minimal fake categories repo — threaded to the form/detail for the category picker, which
-/// these tests don't drive (categories are seeded on the Task directly).
-class _FakeTaskCategoriesRepo implements TaskCategoriesRepository {
-  @override
-  Future<List<TaskCategory>> fetchAll() async => const [];
-  @override
-  Future<TaskCategory> create(TaskCategory draft) async => draft;
-  @override
-  Future<TaskCategory> update(TaskCategory category) async => category;
-  @override
-  Future<void> softDelete(String id) async {}
-}
-
 Widget _screen(
   TasksRepository repo, {
   CommentsRepository? comments,
@@ -209,9 +67,9 @@ Widget _screen(
   theme: AppTheme.light,
   home: TasksListScreen(
     repository: repo,
-    commentsRepository: comments ?? _InertCommentsRepo(),
-    contactsRepository: contacts ?? _FakeContactsRepo(),
-    taskCategoriesRepository: _FakeTaskCategoriesRepo(),
+    commentsRepository: comments ?? FakeCommentsRepo(),
+    contactsRepository: contacts ?? FakeContactsRepo(),
+    taskCategoriesRepository: FakeTaskCategoriesRepo(),
   ),
 );
 
@@ -239,7 +97,7 @@ Future<void> _pumpWide(
 
 void main() {
   testWidgets('renders active tasks', (tester) async {
-    final repo = _StatefulTasksRepo(const [
+    final repo = StatefulTasksRepo(const [
       Task(id: 't1', title: 'Call Nadia'),
       Task(id: 't2', title: 'Prep demo'),
     ]);
@@ -251,7 +109,7 @@ void main() {
   });
 
   testWidgets('shows the empty state when there are no tasks', (tester) async {
-    await _pumpNarrow(tester, _StatefulTasksRepo(const []));
+    await _pumpNarrow(tester, StatefulTasksRepo(const []));
 
     expect(find.text('No tasks yet'), findsOneWidget);
     expect(find.text('New task'), findsWidgets); // FAB + empty-state CTA
@@ -260,7 +118,7 @@ void main() {
   testWidgets('a completed task lives in a collapsed Completed section', (
     tester,
   ) async {
-    final repo = _StatefulTasksRepo(const [
+    final repo = StatefulTasksRepo(const [
       Task(id: 't1', title: 'Active one'),
       Task(id: 't2', title: 'Done one', isDone: true),
     ]);
@@ -278,7 +136,7 @@ void main() {
   testWidgets('archived tasks live in a collapsed Archived section', (
     tester,
   ) async {
-    final repo = _StatefulTasksRepo([
+    final repo = StatefulTasksRepo([
       const Task(id: 't1', title: 'Active one'),
       Task(id: 't9', title: 'Old checklist', deletedAt: DateTime(2026, 7, 11)),
     ]);
@@ -295,7 +153,7 @@ void main() {
   testWidgets('tapping the circle completes a task and moves it out of active', (
     tester,
   ) async {
-    final repo = _StatefulTasksRepo(const [Task(id: 't1', title: 'Buy milk')]);
+    final repo = StatefulTasksRepo(const [Task(id: 't1', title: 'Buy milk')]);
     await _pumpNarrow(tester, repo);
 
     expect(find.text('Buy milk'), findsOneWidget);
@@ -317,7 +175,7 @@ void main() {
     (tester) async {
       // The list's own _toggleDone path (distinct from the detail Complete button) must not
       // clobber People — copyWith(isDone:) has to carry contacts through.
-      final repo = _StatefulTasksRepo(const [
+      final repo = StatefulTasksRepo(const [
         Task(
           id: 't1',
           title: 'Buy milk',
@@ -339,7 +197,7 @@ void main() {
     (tester) async {
       // Same _toggleDone path as the People case: copyWith(isDone:) must carry categories
       // through so a complete-toggle doesn't clobber the task's colour tags (Decision 40).
-      final repo = _StatefulTasksRepo(const [
+      final repo = StatefulTasksRepo(const [
         Task(
           id: 't1',
           title: 'Buy milk',
@@ -382,7 +240,7 @@ void main() {
   testWidgets(
     'with only history, active shows the "All clear" note (not the big empty state)',
     (tester) async {
-      final repo = _StatefulTasksRepo(const [
+      final repo = StatefulTasksRepo(const [
         Task(id: 't1', title: 'Done one', isDone: true),
       ]);
       await _pumpNarrow(tester, repo);
@@ -397,7 +255,7 @@ void main() {
   testWidgets(
     'tapping a live task row opens the read-only detail (not the form)',
     (tester) async {
-      final repo = _StatefulTasksRepo(const [
+      final repo = StatefulTasksRepo(const [
         Task(id: 't1', title: 'Call Nadia'),
       ]);
       await _pumpNarrow(tester, repo);
@@ -419,7 +277,7 @@ void main() {
   testWidgets(
     'tapping an archived task row opens the read-only detail with Restore',
     (tester) async {
-      final repo = _StatefulTasksRepo([
+      final repo = StatefulTasksRepo([
         Task(
           id: 't9',
           title: 'Old checklist',
@@ -461,7 +319,7 @@ void main() {
   testWidgets(
     'wide: selecting a task opens its DETAIL in place, no push (+ no AppBar/FAB)',
     (tester) async {
-      final repo = _StatefulTasksRepo(const [
+      final repo = StatefulTasksRepo(const [
         Task(id: 't1', title: 'Call Nadia'),
         Task(id: 't2', title: 'Prep demo'),
       ]);
@@ -501,7 +359,7 @@ void main() {
   testWidgets('wide: auto-selects the first ACTIVE task (not a done one)', (
     tester,
   ) async {
-    final repo = _StatefulTasksRepo(const [
+    final repo = StatefulTasksRepo(const [
       Task(id: 't1', title: 'Call Nadia'),
       Task(id: 't2', title: 'Done one', isDone: true),
     ]);
@@ -522,9 +380,7 @@ void main() {
   testWidgets('wide: New opens the title form IN THE PANE (no push)', (
     tester,
   ) async {
-    final repo = _StatefulTasksRepo(const [
-      Task(id: 't1', title: 'Call Nadia'),
-    ]);
+    final repo = StatefulTasksRepo(const [Task(id: 't1', title: 'Call Nadia')]);
     await _pumpWide(tester, repo);
 
     await tester.tap(find.widgetWithText(FilledButton, 'New'));
@@ -541,9 +397,7 @@ void main() {
   testWidgets('wide: the in-pane New form saves and shows the new task', (
     tester,
   ) async {
-    final repo = _StatefulTasksRepo(const [
-      Task(id: 't1', title: 'Call Nadia'),
-    ]);
+    final repo = StatefulTasksRepo(const [Task(id: 't1', title: 'Call Nadia')]);
     await _pumpWide(tester, repo);
 
     await tester.tap(find.widgetWithText(FilledButton, 'New'));
@@ -566,7 +420,7 @@ void main() {
   testWidgets(
     'wide: New task from the empty state opens the in-pane form (not a dead-end)',
     (tester) async {
-      await _pumpWide(tester, _StatefulTasksRepo(const []));
+      await _pumpWide(tester, StatefulTasksRepo(const []));
 
       // Wide + totally empty → the full-screen empty state (no pane yet).
       expect(find.text('No tasks yet'), findsOneWidget);
@@ -586,7 +440,7 @@ void main() {
   testWidgets(
     'wide: toggling the selected task done from the list remounts the pane with the new state',
     (tester) async {
-      final repo = _StatefulTasksRepo(const [
+      final repo = StatefulTasksRepo(const [
         Task(id: 't1', title: 'Call Nadia'),
         Task(id: 't2', title: 'Prep demo'),
       ]);
@@ -618,7 +472,7 @@ void main() {
   testWidgets(
     'wide: the detail pane embeds the Comments section — live gets the composer, archived is read-only',
     (tester) async {
-      final repo = _StatefulTasksRepo([
+      final repo = StatefulTasksRepo([
         const Task(id: 't1', title: 'Call Nadia'),
         Task(
           id: 't9',
@@ -626,7 +480,7 @@ void main() {
           deletedAt: DateTime(2026, 7, 11),
         ),
       ]);
-      final comments = _SeededCommentsRepo([
+      final comments = SeededCommentsRepo([
         const Comment(id: 'c1', parentId: 't1', body: 'Left a voicemail.'),
         const Comment(id: 'c9', parentId: 't9', body: 'Closed out last week.'),
       ]);
@@ -655,7 +509,7 @@ void main() {
   testWidgets('a task row shows its importance marks (none for level 0)', (
     tester,
   ) async {
-    final repo = _StatefulTasksRepo([
+    final repo = StatefulTasksRepo([
       const Task(id: 't1', title: 'Ship it', importance: 3),
       const Task(id: 't2', title: 'Reply to Dana', importance: 1),
       const Task(id: 't3', title: 'Water plants'), // level 0 → no marks
@@ -673,7 +527,7 @@ void main() {
   testWidgets('a task row shows its category tags as named chips', (
     tester,
   ) async {
-    final repo = _StatefulTasksRepo([
+    final repo = StatefulTasksRepo([
       const Task(
         id: 't1',
         title: 'Prep the pitch',

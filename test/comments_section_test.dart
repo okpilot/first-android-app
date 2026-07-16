@@ -4,16 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:first_android_app/data/comments_repository.dart';
-import 'package:first_android_app/data/contacts_repository.dart';
-import 'package:first_android_app/data/event_types_repository.dart';
-import 'package:first_android_app/data/events_repository.dart';
 import 'package:first_android_app/models/comment.dart';
-import 'package:first_android_app/models/contact.dart';
 import 'package:first_android_app/models/event.dart';
-import 'package:first_android_app/models/event_type.dart';
 import 'package:first_android_app/screens/event_detail_screen.dart';
 import 'package:first_android_app/theme.dart';
 import 'package:first_android_app/widgets/comments_section.dart';
+
+import 'support/fakes.dart';
 
 // The Comments section is private to event_detail_screen.dart, so it's exercised through
 // its public host, EventDetailScreen. Only the comments repo does anything here; the other
@@ -21,8 +18,8 @@ import 'package:first_android_app/widgets/comments_section.dart';
 
 /// In-memory comments repo: add/edit/archive/unarchive mutate the list and fetch re-reads
 /// it (newest first), so the widget round-trips like the real direct-CRUD repository.
-class _FakeCommentsRepo implements CommentsRepository {
-  _FakeCommentsRepo([List<Comment>? seed]) : _items = seed ?? [];
+class _GatedCommentsRepo implements CommentsRepository {
+  _GatedCommentsRepo([List<Comment>? seed]) : _items = seed ?? [];
 
   final List<Comment> _items;
   int _seq = 0;
@@ -84,39 +81,6 @@ class _FakeCommentsRepo implements CommentsRepository {
   }
 }
 
-class _InertEventsRepo implements EventsRepository {
-  @override
-  Future<List<Event>> fetchAll() async => const [];
-  @override
-  Future<Event> create(Event draft) async => draft;
-  @override
-  Future<Event> update(Event event) async => event;
-  @override
-  Future<void> softDelete(String id) async {}
-}
-
-class _InertContactsRepo implements ContactsRepository {
-  @override
-  Future<List<Contact>> fetchAll() async => const [];
-  @override
-  Future<Contact> create(Contact draft) async => draft;
-  @override
-  Future<Contact> update(Contact contact) async => contact;
-  @override
-  Future<void> softDelete(String id) async {}
-}
-
-class _InertTypesRepo implements EventTypesRepository {
-  @override
-  Future<List<EventType>> fetchAll() async => const [];
-  @override
-  Future<EventType> create(EventType draft) async => draft;
-  @override
-  Future<EventType> update(EventType type) async => type;
-  @override
-  Future<void> softDelete(String id) async {}
-}
-
 final _event = Event(
   id: 'e1',
   title: 'Design review',
@@ -124,12 +88,12 @@ final _event = Event(
   allDay: true, // all-day → no stray time digits to collide with the count chip
 );
 
-Widget _detail(_FakeCommentsRepo comments) => MaterialApp(
+Widget _detail(_GatedCommentsRepo comments) => MaterialApp(
   theme: AppTheme.light,
   home: EventDetailScreen(
-    eventsRepository: _InertEventsRepo(),
-    contactsRepository: _InertContactsRepo(),
-    eventTypesRepository: _InertTypesRepo(),
+    eventsRepository: FakeEventsRepo(),
+    contactsRepository: FakeContactsRepo(),
+    eventTypesRepository: FakeEventTypesRepo(),
     commentsRepository: comments,
     event: _event,
   ),
@@ -186,7 +150,7 @@ class _ReadOnlyFlipHostState extends State<_ReadOnlyFlipHost> {
 // the way Slice 2b will wire it onto a task. Proves CommentsSection is genuinely
 // parent-agnostic and doesn't depend on any event-specific plumbing.
 Widget _standalone(
-  _FakeCommentsRepo comments,
+  _GatedCommentsRepo comments,
   String parentId, {
   bool readOnly = false,
 }) => MaterialApp(
@@ -204,7 +168,7 @@ Widget _standalone(
 
 void main() {
   testWidgets('empty state when there are no comments', (tester) async {
-    await tester.pumpWidget(_detail(_FakeCommentsRepo()));
+    await tester.pumpWidget(_detail(_GatedCommentsRepo()));
     await tester.pumpAndSettle();
 
     expect(find.text('Comments'), findsOneWidget);
@@ -214,7 +178,7 @@ void main() {
   testWidgets('lists live comments and hides archived behind the toggle', (
     tester,
   ) async {
-    final repo = _FakeCommentsRepo([
+    final repo = _GatedCommentsRepo([
       _live('c1', 'Sent the agenda round.'),
       Comment(
         id: 'c0',
@@ -241,7 +205,7 @@ void main() {
   });
 
   testWidgets('adds a comment and clears the composer', (tester) async {
-    final repo = _FakeCommentsRepo();
+    final repo = _GatedCommentsRepo();
     await tester.pumpWidget(_detail(repo));
     await tester.pumpAndSettle();
 
@@ -260,7 +224,7 @@ void main() {
       // The composer stays mounted after a successful send (unlike the pop-on-success forms), so its
       // client-minted id is MUTABLE and must be retired after each add — else the second comment would
       // reuse the first id and the DB's `on conflict (id) do nothing` would silently drop it.
-      final repo = _FakeCommentsRepo();
+      final repo = _GatedCommentsRepo();
       await tester.pumpWidget(_detail(repo));
       await tester.pumpAndSettle();
 
@@ -285,7 +249,7 @@ void main() {
   );
 
   testWidgets('edits a comment inline', (tester) async {
-    final repo = _FakeCommentsRepo([_live('c1', 'Draft wording')]);
+    final repo = _GatedCommentsRepo([_live('c1', 'Draft wording')]);
     await tester.pumpWidget(_detail(repo));
     await tester.pumpAndSettle();
 
@@ -306,7 +270,7 @@ void main() {
   testWidgets('archive removes from live; unarchive restores it', (
     tester,
   ) async {
-    final repo = _FakeCommentsRepo([_live('c1', 'Tentative — confirming.')]);
+    final repo = _GatedCommentsRepo([_live('c1', 'Tentative — confirming.')]);
     await tester.pumpWidget(_detail(repo));
     await tester.pumpAndSettle();
 
@@ -334,7 +298,7 @@ void main() {
   testWidgets(
     'a failed initial load shows the inline error and Retry recovers',
     (tester) async {
-      final repo = _FakeCommentsRepo([_live('c1', 'Loaded on retry.')])
+      final repo = _GatedCommentsRepo([_live('c1', 'Loaded on retry.')])
         ..throwOnFetch = true;
       await tester.pumpWidget(_detail(repo));
       await tester.pumpAndSettle();
@@ -357,7 +321,7 @@ void main() {
   testWidgets('a refresh that throws keeps cached comments and surfaces it', (
     tester,
   ) async {
-    final repo = _FakeCommentsRepo([_live('c1', 'Still here.')]);
+    final repo = _GatedCommentsRepo([_live('c1', 'Still here.')]);
     await tester.pumpWidget(_detail(repo));
     await tester.pumpAndSettle();
     expect(find.text('Still here.'), findsOneWidget);
@@ -379,7 +343,7 @@ void main() {
   testWidgets(
     'Comment is disabled until the composer has non-whitespace text',
     (tester) async {
-      await tester.pumpWidget(_detail(_FakeCommentsRepo()));
+      await tester.pumpWidget(_detail(_GatedCommentsRepo()));
       await tester.pumpAndSettle();
 
       FilledButton commentButton() => tester.widget<FilledButton>(
@@ -404,7 +368,7 @@ void main() {
   testWidgets('Save is disabled when the inline editor is emptied', (
     tester,
   ) async {
-    final repo = _FakeCommentsRepo([_live('c1', 'Original')]);
+    final repo = _GatedCommentsRepo([_live('c1', 'Original')]);
     await tester.pumpWidget(_detail(repo));
     await tester.pumpAndSettle();
 
@@ -435,7 +399,7 @@ void main() {
       // Gate the archive write so it stays pending — `_busy` is true across the await,
       // which is exactly the re-entrancy window the doc-comment on `_run` promises.
       final gate = Completer<void>();
-      final repo = _FakeCommentsRepo([_live('c1', 'Still around.')])
+      final repo = _GatedCommentsRepo([_live('c1', 'Still around.')])
         ..archiveGate = gate;
       await tester.pumpWidget(_detail(repo));
       await tester.pumpAndSettle();
@@ -481,7 +445,7 @@ void main() {
   testWidgets('Cancel discards inline edits and keeps the original body', (
     tester,
   ) async {
-    final repo = _FakeCommentsRepo([_live('c1', 'Original body')]);
+    final repo = _GatedCommentsRepo([_live('c1', 'Original body')]);
     await tester.pumpWidget(_detail(repo));
     await tester.pumpAndSettle();
 
@@ -511,7 +475,7 @@ void main() {
       tester,
     ) async {
       // Two parents in one repo; the widget must show only 'task-42' and never leak 'e1'.
-      final repo = _FakeCommentsRepo([
+      final repo = _GatedCommentsRepo([
         Comment(id: 'c9', parentId: 'task-42', body: 'Task-scoped note.'),
         _live('c1', 'Event-scoped note.'),
       ]);
@@ -526,7 +490,7 @@ void main() {
     testWidgets(
       'a comment added standalone is created under the given parentId',
       (tester) async {
-        final repo = _FakeCommentsRepo();
+        final repo = _GatedCommentsRepo();
         await tester.pumpWidget(_standalone(repo, 'task-42'));
         await tester.pumpAndSettle();
 
@@ -552,7 +516,7 @@ void main() {
   // (live and archived) still render and the "Show archived" toggle still works, but every
   // mutating affordance is gone: no composer, no per-comment Edit / Archive / Unarchive.
   group('read-only mode', () {
-    _FakeCommentsRepo seeded() => _FakeCommentsRepo([
+    _GatedCommentsRepo seeded() => _GatedCommentsRepo([
       _live('c1', 'Live note stays visible.'),
       Comment(
         id: 'c0',
@@ -620,7 +584,7 @@ void main() {
     testWidgets(
       'flipping to read-only in place closes an open editor (no live Save on a frozen log)',
       (tester) async {
-        final repo = _FakeCommentsRepo([_live('c1', 'Draft wording')]);
+        final repo = _GatedCommentsRepo([_live('c1', 'Draft wording')]);
         await tester.pumpWidget(
           _ReadOnlyFlipHost(repository: repo, parentId: 'e1'),
         );

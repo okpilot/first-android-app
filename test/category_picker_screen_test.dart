@@ -6,20 +6,7 @@ import 'package:first_android_app/models/task_category.dart';
 import 'package:first_android_app/screens/category_picker_screen.dart';
 import 'package:first_android_app/theme.dart';
 
-/// A minimal fake categories repo — the picker only reads the list via fetchAll; writes unused.
-class _FakeTaskCategoriesRepo implements TaskCategoriesRepository {
-  _FakeTaskCategoriesRepo([this._all = const []]);
-  final List<TaskCategory> _all;
-
-  @override
-  Future<List<TaskCategory>> fetchAll() async => _all;
-  @override
-  Future<TaskCategory> create(TaskCategory draft) async => draft;
-  @override
-  Future<TaskCategory> update(TaskCategory category) async => category;
-  @override
-  Future<void> softDelete(String id) async {}
-}
+import 'support/fakes.dart';
 
 /// fetchAll throws — drives the picker's "Couldn't load categories" error state.
 class _FailingCategoriesRepo implements TaskCategoriesRepository {
@@ -45,7 +32,7 @@ Widget _picker({
 }) => MaterialApp(
   theme: AppTheme.light,
   home: CategoryPickerScreen(
-    repository: repo ?? _FakeTaskCategoriesRepo(_list),
+    repository: repo ?? FakeTaskCategoriesRepo(_list),
     initialSelected: initialSelected,
   ),
 );
@@ -135,7 +122,7 @@ void main() {
                   popped = await Navigator.of(context).push<List<TaskCategory>>(
                     MaterialPageRoute(
                       builder: (_) => CategoryPickerScreen(
-                        repository: _FakeTaskCategoriesRepo(_list),
+                        repository: FakeTaskCategoriesRepo(_list),
                         initialSelected: const [],
                       ),
                     ),
@@ -163,7 +150,7 @@ void main() {
   testWidgets('an empty list shows the "Add categories in Settings" state', (
     tester,
   ) async {
-    await tester.pumpWidget(_picker(repo: _FakeTaskCategoriesRepo()));
+    await tester.pumpWidget(_picker(repo: FakeTaskCategoriesRepo()));
     await tester.pumpAndSettle();
 
     expect(find.text('No categories yet'), findsOneWidget);

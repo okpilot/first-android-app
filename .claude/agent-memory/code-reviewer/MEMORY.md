@@ -76,6 +76,15 @@ Full detail in [positive-signals](topics/positive-signals.md). One-line index:
   `_lastData` stale-guard, `mounted`-after-await, light snapshot `where` partition/search (NOT a
   heavy transform), `EmptyState` + hand-rolled `_ErrorState`, master-detail `ValueKey` remount.
 - **`_Sidebar`/`_SidebarItem` (`home_shell.dart`)** — clean UI-chrome `StatelessWidget` extraction.
+- **`test/support/fakes.dart` (`a08c199`, #10)** — reference shared-test-fake consolidation: the 9
+  fakes duplicated verbatim across ≥2 test files (`Fake{Contacts,Events,EventTypes,TaskCategories,
+  Tasks}Repo`, `StatefulTasksRepo`, `ThrowingTasksRepo`, `Fake`/`SeededCommentsRepo`) hoisted to one
+  file, made public (private `_Fake…` → public), positional seeds, public capture fields. Single-file
+  specials (load-error / ordering / full-CRUD-gated / recording / flaky fakes) correctly stayed local.
+  Verified: every hoisted fake used in ≥2 files (no dead public class), all doc-claims accurate.
+  CLEAN. This is the test-side analog of the `MetaLine`/`_SwatchGrid` byte-identical-duplication
+  tracker rows — the fixture equivalent, resolved. If a NEW test re-hand-rolls a fake that already
+  lives in `fakes.dart`, flag it (SUGGESTION #7-analog: reuse the shared fake).
 - **Task importance slice (`3bf48ea`, Decision 38)** — reference scalar-field-add + fixed-scale
   colour: `int importance` threaded through `Task` (draft/fromJson/toRpcParams/copyWith, defaults
   0, `copyWith` preserves it so complete-toggle can't reset), repo `p_importance` + `.order` sort

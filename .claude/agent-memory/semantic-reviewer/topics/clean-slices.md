@@ -2,6 +2,62 @@
 
 One-line pointers live in `MEMORY.md` → "Positive signals". Full traces here.
 
+## Shared test-fakes consolidation (`test/support/fakes.dart`)
+Behavior-preserving, tiers correct. Two local `_StatefulTasksRepo` merged into one SUPERSET
+(`lastUpdated`+`archivedId`+`restoredId`); the tasks_list variant lacked archivedId/restoredId but
+nothing referenced their absence, so the superset is safe. Comments inert-vs-seeded tiers mapped
+right: task_detail's SEEDED local → `SeededCommentsRepo` (not downgraded to inert), tasks_list
+default → inert `FakeCommentsRepo` + wide-pane test → `SeededCommentsRepo`. `FakeEventsRepo` gained
+`lastCreated` (superset over calendar's local) — harmless. comments_section keeps its local full-CRUD
+`_FakeCommentsRepo` (the one it exercises); all retained locals private-prefixed so no collision with
+public shared names. Seed lists passed as mutable `[...]` so `add`/`_tasks.add` never hit a const
+list — identical to the originals. Do NOT re-flag a fake-consolidation for tier/permissiveness drift
+when the shared body is char-identical + superset capture fields.
+
+## Idempotent create RPCs on client-minted id (issue #9 / Decision 41, `20260716120000`)
+All 7 `create_*` gain trailing `p_id uuid default null`; `coalesce(p_id, gen_random_uuid())` +
+`on conflict (id) do nothing` + `return v_id`. toRpcParams carries `p_id` for BOTH create AND update —
+all 4 spread-update paths send a named key SET that EXACTLY equals the update_* signature (PostgREST
+binds by name); task update stays explicit (has p_is_done, not in create). All 7 DROP signatures match
+the pre-migration latest defs exactly (a wrong sig silently no-ops under IF EXISTS → stale overload →
+PGRST203). create_task_comment restructure correct: `insert...select...where exists(task live)...on
+conflict(id) do nothing` then post-`if not exists(id=v_id) raise` distinguishes archived/missing parent
+(raise) vs idempotent replay (success); never lets a NEW comment onto an archived parent. `_pendingId`
+lifecycle sound (5 pop-on-success forms `late final`; in-pane TaskEditView `ValueKey('new')` remounts;
+CommentsSection field reset to `newEntityId()` only AFTER success). KNOWN ACCEPTED limit (not a bug):
+changed-payload replay after a silently-committed attempt-1 keeps old scalars (first-write-wins) and
+UNIONs junction rows — narrow window, `_fetchOne` reflects truth, correct idempotent-create semantic.
+Do NOT re-flag as a race/lost-update.
+
+## Task↔categories m2m link (Decision 40 Slice B, `d95f85b`)
+Verbatim mirror of task_contacts join. copyWith `categories ?? this.categories` (toggle-safety) +
+update() re-sends full `p_categories`: both list & detail `_toggleDone` hold. fromJson
+`task_category_links`(to-many)→`task_categories`(to-one) null-skip = RLS-hidden soft-deleted category.
+Migration drop targets `create_task(text,text,uuid[],smallint)` /
+`update_task(uuid,text,boolean,text,uuid[],smallint)` MATCH add_importance's current sigs; new 5-/7-arg
+revoke+grant match; create p_categories DEFAULTED / update REQUIRED (omitted arg → PGRST202 not silent
+wipe). Embed cols `task_categories(id,name,color)` ↔ fromJson `json['color']`. mounted-guards in
+`_openCategories`/`_save`; `_lastData` `identical` guard intact; colour never rides alone. Wiring
+un-crossed.
+
+## Task categories entity + Settings manager (Decision 39 Slice A, `9377a61`)
+Byte-faithful port of the event_types system. All 3 RPC arities match `toRpcParams()` (create
+`p_name,p_color`; update `+p_id`; soft-delete `p_id`); `_load` stale-guard (`identical`) +
+`mounted`-after-await + messenger/navigator-captured-before-await all preserved verbatim; `fromJson`
+`#888888` fallback + case-insensitive Dart sort mirror EventType; `update_task_category` raises
+`no_data_found` like update_event_type. Post-lockdown table (SELECT-only RLS, RPC-only writes,
+PUBLIC-revoke+anon-grant) — no direct write path ever shipped. TypeSwatch imported (not forked);
+colour never rides alone. Do NOT re-flag.
+
+## Pre-auth DB lockdown (Decision 36, `d549d45`)
+Behavior-preserving. `create or replace` (no drop) PRESERVES the function ACL, so the PUBLIC-execute
+revoke in part 2 survives the part-3 body replace regardless of order — NOT an ordering hazard. All 21
+revoke signatures verified against each function's LATEST (post-drop-chain) definition; drop chains
+contiguous so no stale overload retains PUBLIC execute. A wrong revoke signature ERRORs (aborts
+migration), not silent no-op. Client writes RPC-only + reads direct (`.from(_table).select`
+untouched). task_comment guard uses a correct correlated `exists(... tasks t where t.id =
+task_comments.task_id ...)`. Do NOT re-flag.
+
 ## Task importance 0..3 scalar (Decision 38, `3bf48ea`)
 Reusable **fixed-semantic-scale scalar on an RPC entity** shape (sibling of the notes scalar add,
 Decision 31 `4d3d6b8`, but NOT colour-as-data — a fixed 0..3 mapped to a hue, so Decision 19 does

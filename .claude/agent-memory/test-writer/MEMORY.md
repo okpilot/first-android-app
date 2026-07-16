@@ -7,10 +7,19 @@
 ## The fake pattern (durable — this project's whole test approach)
 - **Hand-written private fake repos**, injected via the screen/widget **constructor**. NO mockito,
   NO mocktail, NO build_runner, NO generated mocks, NO `__tests__/` folder.
+- **Reusable fakes now live in `test/support/fakes.dart`** (extracted, commit after `ee50b55`) —
+  PUBLIC classes `FakeContactsRepo` / `FakeEventsRepo` (has `lastCreated`) / `FakeEventTypesRepo` /
+  `FakeTaskCategoriesRepo` / `FakeTasksRepo` (inert) / `StatefulTasksRepo` (mutating, captures
+  `lastUpdated`/`archivedId`/`restoredId`) / `ThrowingTasksRepo` (all writes throw) / `FakeCommentsRepo`
+  (inert) / `SeededCommentsRepo` (fetchFor filters by parentId, add round-trips `c0/c1…`). A fake
+  belongs here once its body duplicates across ≥2 test files. **Import `'support/fakes.dart'` and reuse
+  before writing a new local fake.** Single-file specials — load-error (`_Failing*Repo`), ordering
+  (`_OrderedRepo`), full-CRUD recording (`_RecordingTasksRepo`, `_FlakyRecordingTasksRepo`), gated —
+  stay LOCAL to the one test. Seeds are positional (`FakeXRepo(seed)`); capture fields are public.
 - A fake `implements` the abstract repo interface and overrides all **four** methods
   (`fetchAll` / `create` / `update` / `softDelete`). Unused methods may `throw UnimplementedError()`
-  but the `@override` must exist. Canonical shapes live in `test/calendar_screen_test.dart` and
-  `test/event_types_screen_test.dart` — copy them verbatim.
+  but the `@override` must exist. Canonical shapes live in `test/support/fakes.dart`,
+  `test/calendar_screen_test.dart` and `test/event_types_screen_test.dart` — copy them verbatim.
 - Concurrency/failure fakes: **`_RefreshFailsRepo`** (call-counter: data on call 0, `throw` after →
   stale-keeps + failure banner) and **`_OrderedRepo`** (fresh `Completer` per fetch → out-of-order
   resolution proves stale load can't overwrite newer `_lastData`). A throw-on-`fetchAll`

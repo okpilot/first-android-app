@@ -2,69 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:first_android_app/app.dart';
-import 'package:first_android_app/data/comments_repository.dart';
-import 'package:first_android_app/data/contacts_repository.dart';
-import 'package:first_android_app/data/event_types_repository.dart';
 import 'package:first_android_app/data/events_repository.dart';
-import 'package:first_android_app/data/task_categories_repository.dart';
-import 'package:first_android_app/data/tasks_repository.dart';
-import 'package:first_android_app/models/comment.dart';
 import 'package:first_android_app/models/contact.dart';
 import 'package:first_android_app/models/event.dart';
 import 'package:first_android_app/models/event_type.dart';
-import 'package:first_android_app/models/task.dart';
-import 'package:first_android_app/models/task_category.dart';
 import 'package:first_android_app/screens/calendar_screen.dart';
 import 'package:first_android_app/theme.dart';
 import 'package:first_android_app/widgets/type_label.dart';
 
-class _FakeContactsRepo implements ContactsRepository {
-  _FakeContactsRepo([this.contacts = const []]);
-  final List<Contact> contacts;
-  @override
-  Future<List<Contact>> fetchAll() async => contacts;
-  @override
-  Future<Contact> create(Contact draft) async => draft;
-  @override
-  Future<Contact> update(Contact contact) async => contact;
-  @override
-  Future<void> softDelete(String id) async {}
-}
-
-class _FakeEventsRepo implements EventsRepository {
-  _FakeEventsRepo([this.events = const []]);
-  final List<Event> events;
-  @override
-  Future<List<Event>> fetchAll() async => events;
-  @override
-  Future<Event> create(Event draft) async => draft;
-  @override
-  Future<Event> update(Event event) async => event;
-  @override
-  Future<void> softDelete(String id) async {}
-}
-
-class _FakeEventTypesRepo implements EventTypesRepository {
-  @override
-  Future<List<EventType>> fetchAll() async => const [];
-  @override
-  Future<EventType> create(EventType draft) async => draft;
-  @override
-  Future<EventType> update(EventType type) async => type;
-  @override
-  Future<void> softDelete(String id) async {}
-}
-
-class _FakeTaskCategoriesRepo implements TaskCategoriesRepository {
-  @override
-  Future<List<TaskCategory>> fetchAll() async => const [];
-  @override
-  Future<TaskCategory> create(TaskCategory draft) async => draft;
-  @override
-  Future<TaskCategory> update(TaskCategory category) async => category;
-  @override
-  Future<void> softDelete(String id) async {}
-}
+import 'support/fakes.dart';
 
 class _FailingEventsRepo implements EventsRepository {
   @override
@@ -77,34 +23,6 @@ class _FailingEventsRepo implements EventsRepository {
   Future<void> softDelete(String id) async {}
 }
 
-class _FakeCommentsRepo implements CommentsRepository {
-  @override
-  Future<List<Comment>> fetchFor(String parentId) async => const [];
-  @override
-  Future<Comment> add(Comment draft) async => draft;
-  @override
-  Future<Comment> edit(Comment comment) async => comment;
-  @override
-  Future<Comment> archive(String id) async =>
-      Comment.draft(parentId: '', body: '');
-  @override
-  Future<Comment> unarchive(String id) async =>
-      Comment.draft(parentId: '', body: '');
-}
-
-class _FakeTasksRepo implements TasksRepository {
-  @override
-  Future<List<Task>> fetchAll() async => const [];
-  @override
-  Future<Task> create(Task draft) async => draft;
-  @override
-  Future<Task> update(Task task) async => task;
-  @override
-  Future<Task> archive(String id) async => const Task(id: '', title: 'x');
-  @override
-  Future<Task> restore(String id) async => const Task(id: '', title: 'x');
-}
-
 Widget _wrap(Widget child) => MaterialApp(theme: AppTheme.light, home: child);
 
 Widget _calendar({
@@ -114,10 +32,10 @@ Widget _calendar({
 }) => _wrap(
   CalendarScreen(
     initialDate: initialDate,
-    eventsRepository: _FakeEventsRepo(events),
-    contactsRepository: _FakeContactsRepo(contacts),
-    eventTypesRepository: _FakeEventTypesRepo(),
-    commentsRepository: _FakeCommentsRepo(),
+    eventsRepository: FakeEventsRepo(events),
+    contactsRepository: FakeContactsRepo(contacts),
+    eventTypesRepository: FakeEventTypesRepo(),
+    commentsRepository: FakeCommentsRepo(),
   ),
 );
 
@@ -256,9 +174,9 @@ void main() {
         CalendarScreen(
           initialDate: DateTime(2026, 7, 8),
           eventsRepository: _FailingEventsRepo(),
-          contactsRepository: _FakeContactsRepo(),
-          eventTypesRepository: _FakeEventTypesRepo(),
-          commentsRepository: _FakeCommentsRepo(),
+          contactsRepository: FakeContactsRepo(),
+          eventTypesRepository: FakeEventTypesRepo(),
+          commentsRepository: FakeCommentsRepo(),
         ),
       ),
     );
@@ -273,13 +191,13 @@ void main() {
   ) async {
     await tester.pumpWidget(
       ContactsApp(
-        repository: _FakeContactsRepo(),
-        eventsRepository: _FakeEventsRepo(),
-        eventTypesRepository: _FakeEventTypesRepo(),
-        commentsRepository: _FakeCommentsRepo(),
-        taskCommentsRepository: _FakeCommentsRepo(),
-        tasksRepository: _FakeTasksRepo(),
-        taskCategoriesRepository: _FakeTaskCategoriesRepo(),
+        repository: FakeContactsRepo(),
+        eventsRepository: FakeEventsRepo(),
+        eventTypesRepository: FakeEventTypesRepo(),
+        commentsRepository: FakeCommentsRepo(),
+        taskCommentsRepository: FakeCommentsRepo(),
+        tasksRepository: FakeTasksRepo(),
+        taskCategoriesRepository: FakeTaskCategoriesRepo(),
       ),
     );
     await tester.pumpAndSettle();

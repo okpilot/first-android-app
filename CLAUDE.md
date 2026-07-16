@@ -34,7 +34,9 @@ twice before it was made a rule (learner, count 2; the whole-file/every-subsecti
 field to a model (e.g. `Task.notes`, `Task.contacts`, `Task.importance`), thread it through **every**
 hand-fake repo path that RECONSTRUCTS the entity from scratch — `create` / `archive` / `restore`, not
 just the `update`/pass-through path — and update every exact-map `expect(…toRpcParams(), {…})`
-assertion. Grep `test/` for fakes that `Entity(...)` themselves and for `toRpcParams()` maps. The
+assertion. The reusable reconstructing fakes now live in **`test/support/fakes.dart`** (Decision 42) —
+thread the field through that one shared file first, then grep `test/` for the single-file specials
+that still reconstruct locally and for `toRpcParams()` maps. The
 field silently vanishing in a reconstructing fake is invisible to `flutter analyze`, the hooks, and
 CodeRabbit (test-fake completeness is opaque to all three) — it only surfaces as a widget-test
 assertion failure, or not at all. Recurred 4× (notes → contacts → importance → categories; learner
