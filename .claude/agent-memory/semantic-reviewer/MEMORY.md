@@ -85,6 +85,10 @@ _Seed watch-items carried from the project's conventions:_
   - Tasks view-first (Decision 29, `cfbfe7f`) — state-lift trap RESOLVED; `id:isArchived:isDone` key.
   - Tasks in-pane create wide-only (Decision 29 amend, `acb0043`) — `_creatingNew`+`ValueKey('new')`;
     synchronous setStates, draft survives background `_load()`.
+  - `DetailField` superset-merge extraction (Decision 43, `780c930`) — merging two divergent `_Field`s;
+    `copyWith(color:null)` is a no-op (`color ?? this.color`) so contact non-empty == plain bodyLarge;
+    relaxed assert `child==null||value==null` allows both-null (contact dob) forbids both-non-null;
+    `_whenLabel` always returns non-empty so event never reaches the empty→"Not added" branch. CLEAN.
   - CommentsSection extraction (Slice 2a, `2717da9`) — verbatim transplant; select-only alias deliberate.
   - Task `notes` scalar add (Decision 31, `4d3d6b8`) — nullable-scalar-on-RPC-entity shape; `''`→NULL clear.
   - Task `importance` 0..3 scalar (Decision 38, `3bf48ea`) — fixed-semantic-scale (NOT colour-as-data);

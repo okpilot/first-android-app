@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../data/contacts_repository.dart';
 import '../models/contact.dart';
 import '../util/format.dart';
+import '../widgets/detail_field.dart';
 import '../widgets/initials_avatar.dart';
 import '../widgets/meta_line.dart';
 import '../widgets/subtle_button.dart';
@@ -192,19 +193,23 @@ class _ContactDetailViewState extends State<ContactDetailView> {
           ],
         ),
         const SizedBox(height: 24),
-        _Field(
+        DetailField(
           icon: Icons.cake_outlined,
           label: 'Date of birth',
           value: c.dob == null ? null : ymd(c.dob!),
         ),
-        _Field(icon: Icons.email_outlined, label: 'Email', value: c.email),
-        _Field(icon: Icons.phone_outlined, label: 'Phone', value: c.phone),
-        _Field(
+        DetailField(icon: Icons.email_outlined, label: 'Email', value: c.email),
+        DetailField(icon: Icons.phone_outlined, label: 'Phone', value: c.phone),
+        DetailField(
           icon: Icons.business_outlined,
           label: 'Company',
           value: c.company,
         ),
-        _Field(icon: Icons.notes_outlined, label: 'Remarks', value: c.remarks),
+        DetailField(
+          icon: Icons.notes_outlined,
+          label: 'Remarks',
+          value: c.remarks,
+        ),
         const SizedBox(height: 24),
         OutlinedButton.icon(
           onPressed: _deleting ? null : _confirmDelete,
@@ -228,52 +233,6 @@ class _ContactDetailViewState extends State<ContactDetailView> {
           MetaLine(created: c.createdAt, updated: c.updatedAt),
         ],
       ],
-    );
-  }
-}
-
-/// One labelled field. Empty values render a muted "Not added" (rather than hiding
-/// the row) so a contact's shape is always visible — the same in both layouts.
-class _Field extends StatelessWidget {
-  const _Field({required this.icon, required this.label, required this.value});
-
-  final IconData icon;
-  final String label;
-  final String? value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final empty = value == null || value!.isEmpty;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  empty ? 'Not added' : value!,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: empty ? theme.colorScheme.onSurfaceVariant : null,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

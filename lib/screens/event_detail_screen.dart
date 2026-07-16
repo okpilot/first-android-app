@@ -10,6 +10,7 @@ import '../models/event.dart';
 import '../util/calendar.dart';
 import '../util/format.dart';
 import '../widgets/comments_section.dart';
+import '../widgets/detail_field.dart';
 import '../widgets/initials_avatar.dart';
 import '../widgets/type_label.dart';
 import 'event_form_screen.dart';
@@ -139,19 +140,19 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           children: [
             Text(e.title, style: theme.textTheme.headlineSmall),
             const SizedBox(height: 20),
-            _Field(
+            DetailField(
               icon: Icons.schedule_outlined,
               label: 'When',
               value: _whenLabel(e),
             ),
-            _Field(
+            DetailField(
               icon: Icons.sell_outlined,
               label: 'Type',
               // A soft-deleted type reads back null → "No type" (RLS hides the embed).
               child: TypeLabel(type: e.type, placeholder: 'No type'),
             ),
             if (e.location != null && e.location!.isNotEmpty)
-              _Field(
+              DetailField(
                 icon: _locationIsLink
                     ? Icons.link_outlined
                     : Icons.place_outlined,
@@ -160,7 +161,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 selectable: _locationIsLink,
               ),
             if (e.notes != null && e.notes!.isNotEmpty)
-              _Field(
+              DetailField(
                 icon: Icons.notes_outlined,
                 label: 'Notes',
                 value: e.notes!,
@@ -206,63 +207,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       return '$date · All day';
     }
     return '$date · ${hhmm(e.startMin!)} – ${hhmm(e.endMin!)}';
-  }
-}
-
-/// One labelled field. Renders nothing when the value is empty (no blank rows). A link
-/// value is made [selectable] so a video link can be copied (no in-app launcher yet).
-class _Field extends StatelessWidget {
-  const _Field({
-    required this.icon,
-    required this.label,
-    this.value,
-    this.child,
-    this.selectable = false,
-  }) : assert(value != null || child != null);
-
-  final IconData icon;
-  final String label;
-
-  /// The value as text. Mutually exclusive with [child]; exactly one is provided.
-  final String? value;
-
-  /// A custom value widget (e.g. a type dot + name) shown in place of [value].
-  final Widget? child;
-  final bool selectable;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                if (child != null)
-                  child!
-                else if (selectable)
-                  SelectableText(value!, style: theme.textTheme.bodyLarge)
-                else
-                  Text(value!, style: theme.textTheme.bodyLarge),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 

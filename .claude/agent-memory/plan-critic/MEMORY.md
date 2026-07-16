@@ -32,6 +32,22 @@ _Seed watch-items carried from the project's conventions (no recurrence yet):_
   (moot while parents are soft-delete-only, but a consistency smell).
 
 ## Positive signals
+- **DetailField extraction plan (2026-07-16, #10 item 2):** pure-UI widget extraction, ACCURATE and complete.
+  Correctly identified the superset merge (contact `value:String?`+"Not added" placeholder vs event
+  `value XOR child`+`selectable`+TypeLabel child), and that the relaxed assert `child==null||value==null`
+  (both-null allowed) is safe for BOTH callers — contact needs both-null (email may be null, no child) and
+  event never reaches the empty branch (every field caller-guarded non-empty). Verified pixel-identity: both
+  originals share the exact same tree (padding bottom 20, icon size 20 onSurfaceVariant, SizedBox 16/2,
+  labelMedium label, bodyLarge value); contact's non-empty `copyWith(color:null)` is a no-op vs event's plain
+  bodyLarge, so no flattening diff. Call-site counts exact (5 contact @195-207, 4 event @142-163), all keyword
+  args (`icon:/label:/value:|child:|selectable:`) → mechanical `_Field(`→`DetailField(` rename is safe; no
+  positional/renamed param. Imports: no orphan after removing local `_Field` (both screens still use material;
+  SelectableText/TypeLabel stay where used); DetailField needs NO TypeLabel import (child passed in). Tests:
+  correctly named `contacts_master_detail_test` (line 66-74 exercises `find.text('Not added')`) +
+  `comments_section_test` (mounts EventDetailScreen → renders event fields incl Type child); no test refs
+  `_Field` by type so none break. Naming/location right (`lib/widgets/detail_field.dart`/`DetailField` matches
+  InitialsAvatar/TypeLabel convention, no collision). Decision 43 is the correct next number (latest is 42).
+  Only nit: doc-comment merge left unspecified (SUGGESTION, non-blocking).
 - **task-people plan (2026-07-14, DB lens):** signature-change chain EXACTLY right — dropped the CURRENT
   binding sigs `create_task(text,text)` / `update_task(uuid,text,boolean,text)` (from the add_notes
   migration, not the original create_tasks), re-granted the new `(text,text,uuid[])` /
