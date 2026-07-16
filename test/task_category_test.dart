@@ -29,20 +29,22 @@ void main() {
 
   group('TaskCategory.toRpcParams', () {
     test('maps to p_-prefixed params and trims the name', () {
-      final params = const TaskCategory.draft(
-        name: '  Errand  ',
-        colorHex: '#4E7BC9',
-      ).toRpcParams();
-      expect(params, {'p_name': 'Errand', 'p_color': '#4E7BC9'});
+      // .draft mints the id, so capture the instance to assert its p_id round-trips.
+      final tc = TaskCategory.draft(name: '  Errand  ', colorHex: '#4E7BC9');
+      expect(tc.toRpcParams(), {
+        'p_id': tc.id,
+        'p_name': 'Errand',
+        'p_color': '#4E7BC9',
+      });
     });
 
-    test('does not include the id — the repo adds p_id for updates', () {
+    test('includes the client-minted p_id (issue #9), not a raw id key', () {
       final params = const TaskCategory(
         id: 'c1',
         name: 'Work',
         colorHex: '#22A06B',
       ).toRpcParams();
-      expect(params.containsKey('p_id'), isFalse);
+      expect(params['p_id'], 'c1');
       expect(params.containsKey('id'), isFalse);
     });
   });

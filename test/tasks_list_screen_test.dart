@@ -79,7 +79,8 @@ class _StatefulTasksRepo implements TasksRepository {
   @override
   Future<Task> create(Task draft) async {
     final t = Task(
-      id: 'new-${_tasks.length}',
+      id: draft
+          .id, // persist the client-supplied id (issue #9), like the real repo
       title: draft.title.trim(),
       notes: draft.notes,
       contacts: draft.contacts,

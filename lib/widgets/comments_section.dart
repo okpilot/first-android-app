@@ -6,6 +6,7 @@ import '../data/comments_repository.dart';
 import '../models/comment.dart';
 import '../util/calendar.dart';
 import '../util/format.dart';
+import '../util/ids.dart';
 
 /// Comments on a parent record (an event or a task) — add, edit, archive (soft-delete), and
 /// view archived. Parent-agnostic: give it a [CommentsRepository] and the [parentId] of the
@@ -45,6 +46,12 @@ class _CommentsSectionState extends State<CommentsSection> {
   String? _editingId; // the comment currently in inline-edit mode
   bool _showArchived = false;
   bool _busy = false; // a write is in flight — disable the actions
+
+  // A stable client-minted id for the next new comment, reused across re-taps so a retry after a hung
+  // add is idempotent (create_*_comment does `on conflict (id) do nothing`, issue #9). Unlike the
+  // pop-on-success forms, this composer stays mounted, so it's mutable — reset after each successful
+  // add (see _add), else the next comment would collide on this id and be silently dropped.
+  String _pendingId = newEntityId();
 
   @override
   void initState() {
@@ -101,9 +108,12 @@ class _CommentsSectionState extends State<CommentsSection> {
     if (text.isEmpty || _busy) return;
     await _run("Couldn't add comment — please try again", () async {
       await widget.repository.add(
-        Comment.draft(parentId: widget.parentId, body: text),
+        Comment.draft(id: _pendingId, parentId: widget.parentId, body: text),
       );
       _composer.clear();
+      // Only reached on success (a failed add throws out of _run before here): retire this id so the
+      // next comment gets a fresh one and doesn't conflict-skip against the row we just wrote.
+      _pendingId = newEntityId();
     });
   }
 

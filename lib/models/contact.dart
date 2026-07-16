@@ -1,9 +1,11 @@
 import '../util/format.dart';
+import '../util/ids.dart';
 
 /// A CRM contact — mirrors the `public.contacts` table.
 ///
-/// The server owns `id`, `created_at`, `updated_at`, and `deleted_at`; the client
-/// only ever writes the human fields (see [toRpcParams]). `dob` is a real date.
+/// The server owns `created_at`, `updated_at`, and `deleted_at`; the client writes the human
+/// fields plus `id` — a new contact mints its id client-side (see [Contact.draft]) so
+/// `create_contact` is idempotent on it (issue #9). See [toRpcParams]. `dob` is a real date.
 class Contact {
   final String id;
   final String name;
@@ -27,17 +29,25 @@ class Contact {
     this.updatedAt,
   });
 
-  /// A not-yet-persisted contact. Uses an empty id — the DB assigns the real one.
-  const Contact.draft({
-    required this.name,
-    this.dob,
-    this.email,
-    this.phone,
-    this.company,
-    this.remarks,
-  }) : id = '',
-       createdAt = null,
-       updatedAt = null;
+  /// A not-yet-persisted contact. Mints a client-side id up front (issue #9) so `create_contact`
+  /// is idempotent on it; pass [id] to reuse one across a retry (the form holds a stable id).
+  factory Contact.draft({
+    String? id,
+    required String name,
+    DateTime? dob,
+    String? email,
+    String? phone,
+    String? company,
+    String? remarks,
+  }) => Contact(
+    id: id ?? newEntityId(),
+    name: name,
+    dob: dob,
+    email: email,
+    phone: phone,
+    company: company,
+    remarks: remarks,
+  );
 
   factory Contact.fromJson(Map<String, dynamic> json) => Contact(
     id: json['id'] as String,
@@ -54,9 +64,11 @@ class Contact {
   /// Params for the `create_contact` / `update_contact` RPCs (Decision 26 — all writes go
   /// through RPCs). `p_name` is trimmed here (belt-and-suspenders with the server, mirroring
   /// `Event.toRpcParams`); the optional text fields are sent raw and the RPC normalizes
-  /// empty→null via `nullif(trim(...))`, so that logic lives in one place (the DB). The repo
-  /// adds `p_id` for updates.
+  /// empty→null via `nullif(trim(...))`, so that logic lives in one place (the DB). `p_id` is the
+  /// client-minted id — `create_contact` inserts it with `on conflict (id) do nothing` (idempotent,
+  /// issue #9), and `update_contact` uses it as the target row.
   Map<String, dynamic> toRpcParams() => {
+    'p_id': id,
     'p_name': name.trim(),
     'p_dob': dob == null ? null : ymd(dob!),
     'p_email': email,

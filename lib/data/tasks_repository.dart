@@ -52,8 +52,10 @@ class SupabaseTasksRepository implements TasksRepository {
 
   @override
   Future<Task> create(Task draft) async {
-    // draft.toRpcParams() is {p_title, p_notes, p_contacts, p_importance, p_categories} — matches
-    // create_task(p_title, p_notes, p_contacts, p_importance, p_categories). Spread, like siblings.
+    // draft.toRpcParams() is {p_id, p_title, p_notes, p_contacts, p_importance, p_categories} —
+    // matches create_task(p_title, p_notes, p_contacts, p_importance, p_categories, p_id). p_id is
+    // the client-minted id; create_task inserts it `on conflict (id) do nothing` so a retry is
+    // idempotent (issue #9). Spread, like siblings.
     final id = await _client.rpc('create_task', params: draft.toRpcParams());
     return _fetchOne(id as String);
   }

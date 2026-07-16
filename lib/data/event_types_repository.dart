@@ -44,10 +44,9 @@ class SupabaseEventTypesRepository implements EventTypesRepository {
 
   @override
   Future<EventType> update(EventType type) async {
-    await _client.rpc(
-      'update_event_type',
-      params: {'p_id': type.id, ...type.toRpcParams()},
-    );
+    // toRpcParams() now carries p_id (the create shape gained it for idempotency, issue #9) and
+    // matches update_event_type's param set exactly, so no separate p_id is needed here.
+    await _client.rpc('update_event_type', params: type.toRpcParams());
     return _fetchOne(type.id);
   }
 

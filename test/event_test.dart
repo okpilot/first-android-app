@@ -161,6 +161,18 @@ void main() {
       expect(p['p_attendees'], isEmpty);
     });
 
+    test('includes the client-minted p_id — .draft mints it (issue #9)', () {
+      // create_event inserts p_id with `on conflict (id) do nothing`, so the draft must carry a
+      // real (non-empty) client id that round-trips into the RPC param map.
+      final e = Event.draft(
+        title: 'Call',
+        date: DateTime(2026, 7, 9),
+        allDay: true,
+      );
+      expect(e.id, isNotEmpty);
+      expect(e.toRpcParams()['p_id'], e.id);
+    });
+
     test('p_type_id is null with no type and the type id when assigned', () {
       final none = Event.draft(
         title: 'Call',

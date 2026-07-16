@@ -1,11 +1,13 @@
+import '../util/ids.dart';
 import 'contact.dart';
 import 'task_category.dart';
 
 /// A task — mirrors the `public.tasks` table (Decision 27).
 ///
 /// Pure Dart (no Flutter import) so it unit-tests without a widget tree. The server owns
-/// `id`, `created_at`, `updated_at`, and `deleted_at`; the client writes only `title` and
-/// `is_done` (see [toRpcParams]). All writes — add / complete / edit / archive / restore — go
+/// `created_at`, `updated_at`, and `deleted_at`; the client writes `title`, `is_done`, and `id` —
+/// a new task mints its id client-side (see [Task.draft]) so `create_task` is idempotent on it
+/// (issue #9). See [toRpcParams]. All writes — add / complete / edit / archive / restore — go
 /// through SECURITY DEFINER RPCs (Decision 26); `deleted_at` is set server-side by the archive /
 /// restore RPCs, never by the client.
 ///
@@ -64,20 +66,25 @@ class Task {
     this.deletedAt,
   });
 
-  /// A not-yet-persisted task. Uses an empty id — the DB assigns the real one. Always live and
-  /// not-done: new tasks are created active. [notes], [contacts], [importance] and [categories] are
-  /// optional (a new task may carry all of them).
-  const Task.draft({
-    required this.title,
-    this.notes,
-    this.contacts = const [],
-    this.importance = 0,
-    this.categories = const [],
-  }) : id = '',
-       isDone = false,
-       createdAt = null,
-       updatedAt = null,
-       deletedAt = null;
+  /// A not-yet-persisted task. Mints a client-side id up front (issue #9) so `create_task` is
+  /// idempotent on it; pass [id] to reuse one across a retry (the form holds a stable id). Always
+  /// live and not-done: new tasks are created active. [notes], [contacts], [importance] and
+  /// [categories] are optional (a new task may carry all of them).
+  factory Task.draft({
+    String? id,
+    required String title,
+    String? notes,
+    List<Contact> contacts = const [],
+    int importance = 0,
+    List<TaskCategory> categories = const [],
+  }) => Task(
+    id: id ?? newEntityId(),
+    title: title,
+    notes: notes,
+    contacts: contacts,
+    importance: importance,
+    categories: categories,
+  );
 
   factory Task.fromJson(Map<String, dynamic> json) {
     // task_contacts is a to-many array; each row's `contacts` is a to-ONE object (or null when
@@ -110,17 +117,19 @@ class Task {
   }
 
   /// Params for the `create_task` RPC (Decision 26 — all writes go through RPCs). Matches the
-  /// `create_task(p_title, p_notes, p_contacts, p_importance, p_categories)` signature: `p_title` is
-  /// trimmed here (belt-and-suspenders with the server, which also trims); `p_notes` is sent verbatim
-  /// (possibly null — the server normalizes blank/whitespace to NULL); `p_contacts` is the
-  /// linked-People id list (empty when none); `p_importance` is the 0..3 priority; `p_categories` is
-  /// the linked-category id list (empty when none). Follows the project's RPC-write convention (as
+  /// `create_task(p_title, p_notes, p_contacts, p_importance, p_categories, p_id)` signature: `p_id`
+  /// is the client-minted id, inserted with `on conflict (id) do nothing` (idempotent, issue #9);
+  /// `p_title` is trimmed here (belt-and-suspenders with the server, which also trims); `p_notes` is
+  /// sent verbatim (possibly null — the server normalizes blank/whitespace to NULL); `p_contacts` is
+  /// the linked-People id list (empty when none); `p_importance` is the 0..3 priority; `p_categories`
+  /// is the linked-category id list (empty when none). Follows the project's RPC-write convention (as
   /// [Comment] does, though its param map now lives in the repo): `toRpcParams` matches the `create_*`
   /// shape and `is_done` is NOT included because `create_task` creates live+not-done. Updates go
   /// through `update_task` with an explicit
   /// `{p_id, p_title, p_is_done, p_notes, p_contacts, p_importance, p_categories}` built in the repo,
   /// never this map.
   Map<String, dynamic> toRpcParams() => {
+    'p_id': id,
     'p_title': title.trim(),
     'p_notes': notes,
     'p_contacts': [for (final c in contacts) c.id],

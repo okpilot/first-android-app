@@ -107,9 +107,28 @@
   model-level param test for comments; the repo builds `{p_event_id, p_body}` inline.
 - `Contact.toRpcParams()` (replaced `toWrite()`): trims `p_name` client-side; sends `p_email`/
   `p_phone`/`p_company`/`p_remarks` **raw** (server `nullif(trim(...))` owns empty→null); `p_dob` via
-  `ymd()` or null; omits id + server timestamps (repo adds `p_id` for updates). When testing a
-  `toRpcParams`/`toWrite` map, assert the **full key set** and every optional passthrough — a dropped
-  or mis-keyed field (e.g. `p_phone`) otherwise slips through.
+  `ymd()` or null; **includes `p_id`** (client-minted, Decision 41 — no longer omitted); omits server
+  timestamps. When testing a `toRpcParams`/`toWrite` map, assert the **full key set** and every
+  optional passthrough — a dropped or mis-keyed field (e.g. `p_phone`) otherwise slips through.
+
+## Client-minted ids / idempotency (issue #9, Decision 41) — how to test
+- Every model's **`.draft` is now a `factory` that mints a v4 uuid** via `newEntityId()` (`lib/util/
+  ids.dart`) and accepts an optional `id` to reuse across a retry. All 6 `toRpcParams()` maps now
+  carry **`p_id`** (was omitted pre-Decision 41). `create_*` RPCs insert it `on conflict (id) do
+  nothing`, so a retry with the same id is a no-op, not a dup.
+- Model-level: assert `Model.draft(...).id` is `isNotEmpty` AND `toRpcParams()['p_id'] == draft.id`
+  (capture the instance — the id is random, can't hardcode). `test/util/ids_test.dart` proves
+  `newEntityId` is a canonical v4 uuid + distinct across 1000 calls (uuid must be real or Postgres
+  `uuid` col rejects it). WATCH: a model gaining `p_id` easily ships with the p_id assertion missing
+  (Event shipped this way in Decision 41 — no event_test change in the diff; I added it).
+- Form `_pendingId` reuse (the idempotency payoff): pop-on-success forms hold `late final _pendingId
+  = newEntityId()`. Widget-test with a **flaky recording repo** (`create` records `draft.id` into a
+  list, throws on call 0, succeeds on call 1): enter title → tap save (snackbar, stays) → tap save
+  again → assert the two recorded ids are **equal** + non-empty. Mechanism identical across all 5
+  forms; task_form covers it — testing every form would be padding.
+- CommentsSection composer stays mounted, so its `_pendingId` is **mutable** and reset after each
+  successful add. Test the reset with a repo recording `draft.id` per `add`: two back-to-back adds →
+  assert the ids **differ** (else the 2nd collides + is conflict-skipped). Both comments must persist.
 
 ## Per-slice screen testing notes → [screen-testing-notes](topics/screen-testing-notes.md)
 How to test / what's a non-gap, one section per slice: `CommentsSection` (shared, Slice 2a +

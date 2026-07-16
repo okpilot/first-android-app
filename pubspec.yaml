@@ -39,6 +39,7 @@ dependencies:
   # PostgREST/GoTrue under RLS — never raw Postgres. Config via --dart-define (see
   # dev-defines.json / backend/README.md).
   supabase_flutter: ^2.8.0
+  uuid: ^4.6.0
 
 dev_dependencies:
   flutter_test:

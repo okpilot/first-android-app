@@ -10,6 +10,7 @@ import '../models/event.dart';
 import '../models/event_type.dart';
 import '../util/calendar.dart';
 import '../util/format.dart';
+import '../util/ids.dart';
 import '../widgets/initials_avatar.dart';
 import '../widgets/type_label.dart';
 import 'contact_picker_screen.dart';
@@ -58,6 +59,11 @@ class _EventFormScreenState extends State<EventFormScreen> {
   List<EventType> _types = const [];
   String? _timeError;
   bool _saving = false;
+
+  // A stable client-minted id for the new event, reused across save re-taps so a retry after a hung
+  // create is idempotent (create_event does `on conflict (id) do nothing`, issue #9). The form pops
+  // on success, so a later "New event" gets a fresh State → fresh id. Unused when editing.
+  late final String _pendingId = newEntityId();
 
   bool get _isEditing => widget.existing != null;
 
@@ -197,7 +203,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
     setState(() => _saving = true);
 
     final draft = Event(
-      id: widget.existing?.id ?? '',
+      id: widget.existing?.id ?? _pendingId,
       title: _title.text.trim(),
       date: _date,
       allDay: _allDay,

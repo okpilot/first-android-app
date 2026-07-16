@@ -6,6 +6,7 @@ import '../data/tasks_repository.dart';
 import '../models/contact.dart';
 import '../models/task.dart';
 import '../models/task_category.dart';
+import '../util/ids.dart';
 import '../util/importance.dart';
 import '../widgets/initials_avatar.dart';
 import 'category_picker_screen.dart';
@@ -89,6 +90,11 @@ class _TaskEditViewState extends State<TaskEditView> {
   late List<TaskCategory> _categories;
   bool _saving = false;
 
+  // A stable client-minted id for the new task, reused across save re-taps so a retry after a hung
+  // create is idempotent (create_task does `on conflict (id) do nothing`, issue #9). The form pops
+  // on success, so a later "New task" gets a fresh State → fresh id. Unused when editing.
+  late final String _pendingId = newEntityId();
+
   bool get _isEditing => widget.existing != null;
 
   @override
@@ -166,6 +172,7 @@ class _TaskEditViewState extends State<TaskEditView> {
             )
           : await widget.repository.create(
               Task.draft(
+                id: _pendingId,
                 title: _title.text,
                 notes: _notes.text,
                 contacts: _contacts,

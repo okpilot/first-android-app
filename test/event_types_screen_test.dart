@@ -18,7 +18,8 @@ class _FakeTypesRepo implements EventTypesRepository {
   @override
   Future<EventType> create(EventType draft) async {
     final saved = EventType(
-      id: 'id-${types.length}',
+      id: draft
+          .id, // persist the client-supplied id (issue #9), like the real repo
       name: draft.name,
       colorHex: draft.colorHex,
     );
@@ -74,7 +75,7 @@ class _OrderedRepo implements EventTypesRepository {
 
   @override
   Future<EventType> create(EventType draft) async =>
-      EventType(id: 'new', name: draft.name, colorHex: draft.colorHex);
+      EventType(id: draft.id, name: draft.name, colorHex: draft.colorHex);
   @override
   Future<EventType> update(EventType type) => throw UnimplementedError();
   @override

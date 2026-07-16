@@ -194,11 +194,15 @@ void main() {
 
   group('Task.toRpcParams', () {
     test('maps to trimmed p_title + p_notes + p_contacts (the create shape)', () {
-      final p = Task.draft(title: '  Prep the demo  ').toRpcParams();
-      // p_notes/p_contacts/p_importance/p_categories are always present
-      // (create_task(p_title, p_notes, p_contacts, p_importance, p_categories)); a draft without
-      // notes sends null (server → NULL); with no People/categories, empty id lists.
+      // .draft mints the id, so capture the instance to assert its p_id round-trips.
+      final t = Task.draft(title: '  Prep the demo  ');
+      final p = t.toRpcParams();
+      // p_id + p_notes/p_contacts/p_importance/p_categories are always present
+      // (create_task(p_title, p_notes, p_contacts, p_importance, p_categories, p_id)); a draft
+      // without notes sends null (server → NULL); with no People/categories, empty id lists. p_id is
+      // the client-minted id, inserted `on conflict (id) do nothing` for idempotency (issue #9).
       expect(p, {
+        'p_id': t.id,
         'p_title': 'Prep the demo',
         'p_notes': null,
         'p_contacts': [],
@@ -207,7 +211,6 @@ void main() {
       });
       // is_done is written by update_task, never create_task — must not leak in.
       expect(p.containsKey('p_is_done'), isFalse);
-      expect(p.containsKey('p_id'), isFalse);
       expect(p.containsKey('created_at'), isFalse);
       expect(p.containsKey('deleted_at'), isFalse);
     });
@@ -246,16 +249,22 @@ void main() {
   });
 
   group('Task.draft', () {
-    test('is live, not-done, with an empty id and null server fields', () {
-      final t = Task.draft(title: 'x');
-      expect(t.id, '');
-      expect(t.isDone, isFalse);
-      expect(t.isArchived, isFalse);
-      expect(t.notes, isNull); // notes optional → null when omitted
-      expect(t.createdAt, isNull);
-      expect(t.updatedAt, isNull);
-      expect(t.deletedAt, isNull);
-    });
+    test(
+      'is live, not-done, with a client-minted id and null server fields',
+      () {
+        final t = Task.draft(title: 'x');
+        expect(
+          t.id,
+          isNotEmpty,
+        ); // client-minted up front for idempotency (issue #9)
+        expect(t.isDone, isFalse);
+        expect(t.isArchived, isFalse);
+        expect(t.notes, isNull); // notes optional → null when omitted
+        expect(t.createdAt, isNull);
+        expect(t.updatedAt, isNull);
+        expect(t.deletedAt, isNull);
+      },
+    );
 
     test('carries optional notes', () {
       expect(Task.draft(title: 'x', notes: 'hi').notes, 'hi');

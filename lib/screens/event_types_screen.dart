@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../data/event_types_repository.dart';
 import '../models/event_type.dart';
 import '../util/event_type_palette.dart';
+import '../util/ids.dart';
 import '../widgets/empty_state.dart';
 
 /// Manage event types (Settings → Event types): the list, plus entry points to add and
@@ -156,6 +157,11 @@ class _EventTypeEditorScreenState extends State<EventTypeEditorScreen> {
   late Color _color;
   bool _saving = false;
 
+  // A stable client-minted id for the new type, reused across save re-taps so a retry after a hung
+  // create is idempotent (create_event_type does `on conflict (id) do nothing`, issue #9). The editor
+  // pops on success, so a later "New type" gets a fresh State → fresh id. Unused when editing.
+  late final String _pendingId = newEntityId();
+
   bool get _isEditing => widget.existing != null;
 
   @override
@@ -180,7 +186,11 @@ class _EventTypeEditorScreenState extends State<EventTypeEditorScreen> {
     final hex = hexFromColor(_color);
     final draft = _isEditing
         ? widget.existing!.copyWith(name: _name.text.trim(), colorHex: hex)
-        : EventType.draft(name: _name.text.trim(), colorHex: hex);
+        : EventType.draft(
+            id: _pendingId,
+            name: _name.text.trim(),
+            colorHex: hex,
+          );
 
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);

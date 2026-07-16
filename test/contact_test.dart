@@ -42,7 +42,9 @@ void main() {
       ); // raw — the RPC does nullif(trim()) server-side
       expect(p['p_company'], 'Engine Co');
       expect(p['p_dob'], isNull);
-      expect(p.containsKey('p_id'), isFalse); // the repo adds p_id for updates
+      // p_id is the client-minted id — sent so create_contact is idempotent (issue #9) and reused
+      // as the update target row.
+      expect(p['p_id'], 'x');
       expect(p.containsKey('created_at'), isFalse);
     },
   );
@@ -70,8 +72,10 @@ void main() {
     expect(p['p_remarks'], '  likes engines  ');
     expect(p['p_email'], 'ada@x.io');
     expect(p['p_company'], 'Engine Co');
-    // Exactly the six RPC params — the repo adds p_id for updates.
+    // Exactly the seven RPC params — p_id is the client-minted id (issue #9).
+    expect(p['p_id'], 'x');
     expect(p.keys.toSet(), {
+      'p_id',
       'p_name',
       'p_dob',
       'p_email',
@@ -93,4 +97,12 @@ void main() {
       expect(p['p_remarks'], isNull);
     },
   );
+
+  test('draft mints a non-empty client id that flows into p_id (issue #9)', () {
+    // create_contact inserts p_id with `on conflict (id) do nothing`, so a new contact carries a
+    // real client-minted id up front (not the old empty-string placeholder) and it round-trips.
+    final c = Contact.draft(name: 'Ada');
+    expect(c.id, isNotEmpty);
+    expect(c.toRpcParams()['p_id'], c.id);
+  });
 }

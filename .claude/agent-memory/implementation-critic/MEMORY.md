@@ -58,6 +58,20 @@ See [positive-signals](topics/positive-signals.md) for the per-slice-type win co
   BETWEEN is_done and created_at; new fixed-scale colour = chrome NOT Decision 19 (framed correctly);
   ImportanceMarks a11y = Semantics label so colour/'!' never rides alone; test fakes thread the field
   through create + archive + restore, not just update. Full dartdoc sweep held clean.
+- **Cross-cutting RPC-arity retrofit** (idempotent create_*, Decision 41 / issue #9, Jul 16; clean
+  0 blocking): all 7 create_* gain a trailing `p_id uuid default null` in ONE drop+recreate migration.
+  Win conditions verified: every DROP matched the CURRENT (latest-in-chain) old signature, every
+  revoke+grant listed the NEW signature (D36 lockdown re-issued on the recreate, D38 invariant); the
+  two-trailing-defaulted-uuid create_event `(…,uuid,uuid)` = p_type_id then p_id both correct;
+  create_task_comment's replay-vs-archived-parent split is sound (insert `where exists(live parent)
+  … on conflict do nothing` + post-`if not exists(id=v_id) raise no_data_found` — covers replay,
+  archived-first, and created-live-then-parent-archived-then-retried). Client: single mint point
+  `lib/util/ids.dart`, `.draft` const-ctor→id-minting factory (drops `id=''`), `p_id` rides in
+  toRpcParams so the 4 SPREAD-update repos correctly drop their now-redundant explicit p_id (task
+  update is an explicit map, untouched — correct); 5 pop-on-success forms `late final _pendingId`,
+  CommentsSection mutable `_pendingId` reset AFTER success inside the op (throw-before-reset = retry
+  reuses id = dedupe — the actual payoff). Zero empty-id sentinels left in lib/; full doc-comment +
+  database.md rule#2 + Decision 41 sweep held clean (no stale "server owns id"/"DB assigns").
 - **Template-port** (contacts/event_types/event-comments write-RPCs, Dec 26 S1–2): diff vs green
   template; security posture must be byte-for-byte; new fn = no CR-chain.
 - **Full-stack new-entity mirror of EventType** (task_categories Slice A, Decision 39, Jul 15; clean

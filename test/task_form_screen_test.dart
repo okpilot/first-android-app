@@ -51,6 +51,30 @@ class _ThrowingTasksRepo implements TasksRepository {
   Future<Task> restore(String id) => throw Exception('offline');
 }
 
+/// Fails the first create, then succeeds — and records the draft id it saw on EACH attempt.
+/// Lets a test prove the form reuses its stable client-minted `_pendingId` across a failed save +
+/// retry, so `create_task`'s `on conflict (id) do nothing` makes the retry idempotent (issue #9).
+class _FlakyRecordingTasksRepo implements TasksRepository {
+  final List<String> createIds = [];
+  int _calls = 0;
+
+  @override
+  Future<List<Task>> fetchAll() async => const [];
+  @override
+  Future<Task> create(Task draft) async {
+    createIds.add(draft.id);
+    if (_calls++ == 0) throw Exception('offline');
+    return draft;
+  }
+
+  @override
+  Future<Task> update(Task task) async => task;
+  @override
+  Future<Task> archive(String id) async => const Task(id: '', title: 'x');
+  @override
+  Future<Task> restore(String id) async => const Task(id: '', title: 'x');
+}
+
 /// A minimal fake contacts repo for the People picker. Returns a fixed roster; writes unused.
 class _FakeContactsRepo implements ContactsRepository {
   _FakeContactsRepo([this._all = const []]);
@@ -515,6 +539,31 @@ void main() {
     expect(find.text('New task'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Add task'), findsOneWidget);
   });
+
+  testWidgets(
+    'a failed create then a retry reuses the same client-minted id (idempotency, issue #9)',
+    (tester) async {
+      final repo = _FlakyRecordingTasksRepo();
+      await _pump(tester, _form(repo));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextFormField).first, 'Prep demo');
+      // First tap: create throws → snackbar, form stays.
+      await tester.tap(find.widgetWithText(FilledButton, 'Add task'));
+      await tester.pumpAndSettle();
+      expect(find.text("Couldn't save — please try again"), findsOneWidget);
+
+      // Second tap: retry succeeds.
+      await tester.tap(find.widgetWithText(FilledButton, 'Add task'));
+      await tester.pumpAndSettle();
+
+      // The form held ONE stable _pendingId across both attempts, so the DB's
+      // `on conflict (id) do nothing` collapses the retry into the same row — no duplicate task.
+      expect(repo.createIds, hasLength(2));
+      expect(repo.createIds.first, isNotEmpty);
+      expect(repo.createIds[0], repo.createIds[1]);
+    },
+  );
 
   // TaskEditView is the Scaffold-less body embedded in TaskFormScreen. Guard that a
   // successful save resets `_saving` (so the AbsorbPointer never freezes it) and reports
