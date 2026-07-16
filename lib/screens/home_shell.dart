@@ -93,6 +93,7 @@ class _HomeShellState extends State<HomeShell> {
           repository: widget.tasksRepository,
           commentsRepository: widget.taskCommentsRepository,
           contactsRepository: widget.repository,
+          taskCategoriesRepository: widget.taskCategoriesRepository,
         ),
         SettingsScreen(
           eventTypesRepository: widget.eventTypesRepository,

@@ -63,6 +63,16 @@
   emits **lowercase** alpha-stripped (Teal `#2fa090`, NOT `#2FA090`) — assert lowercase on recolour.
   Test file: `test/task_categories_screen_test.dart` (fakes: `_FakeCategoriesRepo`, `_RefreshFailsRepo`,
   `_OrderedRepo`, added `_FailingCategoriesRepo` + `_CreateFailsRepo`).
+- **Tasks ↔ task_categories M2M (Slice B, commit `d95f85b`, Decision 40)** — mirrors task↔contacts
+  People. `Task.categories` = `List<TaskCategory>` (full embed); `copyWith` preserves (toggle-safety),
+  `fromJson` skips a null/RLS-hidden category, `toRpcParams` adds `p_categories` (id-list). Form
+  `_CategoriesSection` mirrors `_PeopleSection`: seed chips, `InputChip` delete icon = `Icons.clear`
+  (ensureVisible first — section sits low), removal drops the id from the save; picker button label
+  **`Add categories`** (`OutlinedButton`), picker rows `CheckboxListTile` + `Done` `TextButton`.
+  Detail `_CategoriesList` header **`CATEGORIES · N`**, rendered ONLY when non-empty (parallels
+  `PEOPLE · N`). List `_toggleDone` = `copyWith(isDone:)` → carries categories through (widget-level
+  proof mirrors the People toggle test). Coverage gaps I filled this session: form category
+  remove-chip, detail no-CATEGORIES-when-empty, list toggle-preserves-categories (+3 → 222 green).
 - **Tasks (v0)** literals: list load-error copy **`"Couldn't load tasks"`** + Retry `OutlinedButton`;
   list toggle-failure snackbar **`"Couldn't update — please try again"`**; active-empty-with-history
   inline note **`"All clear — no active tasks."`** (only when `completed`/`archived` non-empty — full

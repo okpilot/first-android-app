@@ -70,6 +70,16 @@ _Seed watch-items carried from the project's conventions:_
   [topics/write-rpc-ports.md](topics/write-rpc-ports.md). Reusable 4-check port shape; `.single()`
   and the non-atomic RPC-then-`_fetchOne` re-fetch are correct by design — do NOT flag as races.
 - **CLEAN slice traces** (full detail → [topics/clean-slices.md](topics/clean-slices.md)):
+  - Task↔categories m2m link (Decision 40 Slice B, `d95f85b`) — verbatim mirror of task_contacts
+    join. copyWith `categories ?? this.categories` (toggle-safety) + update() re-sends full
+    `p_categories`: both list & detail `_toggleDone` hold. fromJson `task_category_links`(to-many)→
+    `task_categories`(to-one) null-skip = RLS-hidden soft-deleted category. Migration drop targets
+    `create_task(text,text,uuid[],smallint)`/`update_task(uuid,text,boolean,text,uuid[],smallint)`
+    MATCH add_importance's current sigs; new 5-/7-arg revoke+grant match; create p_categories
+    DEFAULTED / update REQUIRED (omitted arg → PGRST202 not silent wipe). Embed cols
+    `task_categories(id,name,color)` ↔ fromJson `json['color']` (DB col is `color`). mounted-guards
+    in `_openCategories`/`_save`; `_lastData` `identical` guard intact; colour never rides alone
+    (row/detail/picker/form all dot+name). Wiring un-crossed.
   - Task categories entity + Settings manager (Decision 39 Slice A, `9377a61`) — byte-faithful
     port of the event_types system (model/repo/screen/migration). All 3 RPC arities match
     `toRpcParams()` (create `p_name,p_color`; update `+p_id`; soft-delete `p_id`); `_load` stale-guard

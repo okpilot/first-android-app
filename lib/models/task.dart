@@ -1,4 +1,5 @@
 import 'contact.dart';
+import 'task_category.dart';
 
 /// A task — mirrors the `public.tasks` table (Decision 27).
 ///
@@ -25,6 +26,12 @@ import 'contact.dart';
 /// scalar column (Decision 38). A fixed semantic scale the UI maps to a hue, NOT user-owned
 /// colour-as-data. Written by the task-write RPCs (`p_importance`) and used to sort active tasks
 /// (highest first). The DB `check (importance between 0 and 3)` bounds it.
+///
+/// [categories] are the task's linked [TaskCategory]s (the `task_category_links` → `task_categories`
+/// embed) — a user-owned colour-as-data taxonomy (Decision 40, Slice B), managed exactly like the
+/// [contacts] People set. Written atomically by the task-write RPCs (`p_categories`); a soft-deleted
+/// (RLS-hidden) category comes back as a null `task_categories` on the join row and is skipped here
+/// (parity with [contacts]). Unlike [importance] (a fixed scale), each category carries its own hue.
 class Task {
   final String id;
   final String title;
@@ -36,6 +43,10 @@ class Task {
 
   /// Priority marker, 0..3 (0 = none, 1/2/3 = !/!!/!!!). See [importanceMarks].
   final int importance;
+
+  /// The linked categories. Full [TaskCategory]s (id/name/colorHex) from the embed, so rows and the
+  /// detail can render colour without a second fetch.
+  final List<TaskCategory> categories;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DateTime? deletedAt;
@@ -47,19 +58,21 @@ class Task {
     this.notes,
     this.contacts = const [],
     this.importance = 0,
+    this.categories = const [],
     this.createdAt,
     this.updatedAt,
     this.deletedAt,
   });
 
   /// A not-yet-persisted task. Uses an empty id — the DB assigns the real one. Always live and
-  /// not-done: new tasks are created active. [notes], [contacts] and [importance] are optional (a
-  /// new task may carry all three).
+  /// not-done: new tasks are created active. [notes], [contacts], [importance] and [categories] are
+  /// optional (a new task may carry all of them).
   const Task.draft({
     required this.title,
     this.notes,
     this.contacts = const [],
     this.importance = 0,
+    this.categories = const [],
   }) : id = '',
        isDone = false,
        createdAt = null,
@@ -74,6 +87,14 @@ class Task {
       final c = (row as Map<String, dynamic>)['contacts'];
       if (c is Map<String, dynamic>) contacts.add(Contact.fromJson(c));
     }
+    // task_category_links is a to-many array; each row's `task_categories` is a to-ONE object (or
+    // null when that category was soft-deleted and hidden by RLS — skip those). Mirrors the contacts
+    // embed above.
+    final categories = <TaskCategory>[];
+    for (final row in (json['task_category_links'] as List? ?? const [])) {
+      final c = (row as Map<String, dynamic>)['task_categories'];
+      if (c is Map<String, dynamic>) categories.add(TaskCategory.fromJson(c));
+    }
     return Task(
       id: json['id'] as String,
       title: json['title'] as String,
@@ -81,6 +102,7 @@ class Task {
       notes: json['notes'] as String?,
       contacts: contacts,
       importance: json['importance'] as int? ?? 0,
+      categories: categories,
       createdAt: _parseDate(json['created_at']),
       updatedAt: _parseDate(json['updated_at']),
       deletedAt: _parseDate(json['deleted_at']),
@@ -88,37 +110,42 @@ class Task {
   }
 
   /// Params for the `create_task` RPC (Decision 26 — all writes go through RPCs). Matches the
-  /// `create_task(p_title, p_notes, p_contacts, p_importance)` signature: `p_title` is trimmed here
-  /// (belt-and-suspenders with the server, which also trims); `p_notes` is sent verbatim (possibly
-  /// null — the server normalizes blank/whitespace to NULL); `p_contacts` is the linked-People id
-  /// list (empty when none); `p_importance` is the 0..3 priority. Follows the project's RPC-write
-  /// convention (as [Comment] does, though its param map now lives in the repo): `toRpcParams`
-  /// matches the `create_*` shape and `is_done` is NOT included because `create_task` creates
-  /// live+not-done. Updates go through `update_task` with an explicit
-  /// `{p_id, p_title, p_is_done, p_notes, p_contacts, p_importance}` built in the repo, never this map.
+  /// `create_task(p_title, p_notes, p_contacts, p_importance, p_categories)` signature: `p_title` is
+  /// trimmed here (belt-and-suspenders with the server, which also trims); `p_notes` is sent verbatim
+  /// (possibly null — the server normalizes blank/whitespace to NULL); `p_contacts` is the
+  /// linked-People id list (empty when none); `p_importance` is the 0..3 priority; `p_categories` is
+  /// the linked-category id list (empty when none). Follows the project's RPC-write convention (as
+  /// [Comment] does, though its param map now lives in the repo): `toRpcParams` matches the `create_*`
+  /// shape and `is_done` is NOT included because `create_task` creates live+not-done. Updates go
+  /// through `update_task` with an explicit
+  /// `{p_id, p_title, p_is_done, p_notes, p_contacts, p_importance, p_categories}` built in the repo,
+  /// never this map.
   Map<String, dynamic> toRpcParams() => {
     'p_title': title.trim(),
     'p_notes': notes,
     'p_contacts': [for (final c in contacts) c.id],
     'p_importance': importance,
+    'p_categories': [for (final c in categories) c.id],
   };
 
   /// Archived == soft-deleted. NULL `deleted_at` means a live task.
   bool get isArchived => deletedAt != null;
 
-  /// Rename / edit notes / edit People / edit importance / toggle done. A null [notes] argument
-  /// means "keep the current notes" (matching [title]); the form clears notes by passing `''`, which
-  /// the server normalizes to NULL on the round-trip — so this can't represent an explicit clear, and
-  /// doesn't need to. [contacts] and [importance] default to `this.` — LOAD-BEARING: both
-  /// complete-toggle paths call `copyWith(isDone: …)` WITHOUT them, and `update` re-sends the whole
-  /// `p_contacts` set + `p_importance` (delete-then-reinsert / overwrite), so preserving them here is
-  /// what stops a toggle from wiping the links or resetting the marker.
+  /// Rename / edit notes / edit People / edit importance / edit categories / toggle done. A null
+  /// [notes] argument means "keep the current notes" (matching [title]); the form clears notes by
+  /// passing `''`, which the server normalizes to NULL on the round-trip — so this can't represent an
+  /// explicit clear, and doesn't need to. [contacts], [importance] and [categories] default to
+  /// `this.` — LOAD-BEARING: both complete-toggle paths call `copyWith(isDone: …)` WITHOUT them, and
+  /// `update` re-sends the whole `p_contacts` + `p_categories` sets + `p_importance`
+  /// (delete-then-reinsert / overwrite), so preserving them here is what stops a toggle from wiping
+  /// the links or resetting the marker.
   Task copyWith({
     String? title,
     bool? isDone,
     String? notes,
     List<Contact>? contacts,
     int? importance,
+    List<TaskCategory>? categories,
   }) => Task(
     id: id,
     title: title ?? this.title,
@@ -126,6 +153,7 @@ class Task {
     notes: notes ?? this.notes,
     contacts: contacts ?? this.contacts,
     importance: importance ?? this.importance,
+    categories: categories ?? this.categories,
     createdAt: createdAt,
     updatedAt: updatedAt,
     deletedAt: deletedAt,

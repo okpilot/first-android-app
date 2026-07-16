@@ -37,7 +37,11 @@ just the `update`/pass-through path — and update every exact-map `expect(…to
 assertion. Grep `test/` for fakes that `Entity(...)` themselves and for `toRpcParams()` maps. The
 field silently vanishing in a reconstructing fake is invisible to `flutter analyze`, the hooks, and
 CodeRabbit (test-fake completeness is opaque to all three) — it only surfaces as a widget-test
-assertion failure, or not at all. Recurred 3× (notes → contacts → importance; learner count 3).
+assertion failure, or not at all. Recurred 4× (notes → contacts → importance → categories; learner
+count 4). **Also grep the repo file itself for inline comments that enumerate the `p_*` param shape**
+(the `create`/`update` doc-comments in `*_repository.dart` + the model's `toRpcParams` comment) — they
+list the OLD param set after the RPC gains one, prose the compiler can't catch (recurred: `p_contacts`
+2b100b7, `p_categories` d95f85b; learner count 2).
 
 ## Branching & the push gate
 - **Branch per slice** — never build on `main`. `main` stays green.

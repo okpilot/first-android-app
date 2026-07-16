@@ -4,14 +4,17 @@ import 'package:flutter/material.dart';
 
 import '../data/comments_repository.dart';
 import '../data/contacts_repository.dart';
+import '../data/task_categories_repository.dart';
 import '../data/tasks_repository.dart';
 import '../models/contact.dart';
 import '../models/task.dart';
+import '../models/task_category.dart';
 import '../widgets/comments_section.dart';
 import '../widgets/importance_marks.dart';
 import '../widgets/initials_avatar.dart';
 import '../widgets/meta_line.dart';
 import '../widgets/subtle_button.dart';
+import '../widgets/type_label.dart';
 import 'task_form_screen.dart';
 
 /// Full-screen read view for one task — the phone / narrow layout. A thin `Scaffold`
@@ -25,12 +28,14 @@ class TaskDetailScreen extends StatefulWidget {
     required this.repository,
     required this.commentsRepository,
     required this.contactsRepository,
+    required this.taskCategoriesRepository,
     required this.task,
   });
 
   final TasksRepository repository;
   final CommentsRepository commentsRepository;
   final ContactsRepository contactsRepository;
+  final TaskCategoriesRepository taskCategoriesRepository;
   final Task task;
 
   @override
@@ -63,6 +68,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           repository: widget.repository,
           commentsRepository: widget.commentsRepository,
           contactsRepository: widget.contactsRepository,
+          taskCategoriesRepository: widget.taskCategoriesRepository,
           task: widget.task,
           onChanged: (t) => setState(() {
             _dirty = true;
@@ -96,6 +102,7 @@ class TaskDetailView extends StatefulWidget {
     required this.repository,
     required this.commentsRepository,
     required this.contactsRepository,
+    required this.taskCategoriesRepository,
     required this.task,
     this.onChanged,
   });
@@ -103,6 +110,7 @@ class TaskDetailView extends StatefulWidget {
   final TasksRepository repository;
   final CommentsRepository commentsRepository;
   final ContactsRepository contactsRepository;
+  final TaskCategoriesRepository taskCategoriesRepository;
   final Task task;
 
   /// Called with the resulting task after any successful edit / complete / reopen /
@@ -133,6 +141,7 @@ class _TaskDetailViewState extends State<TaskDetailView> {
         builder: (_) => TaskFormScreen(
           repository: widget.repository,
           contactsRepository: widget.contactsRepository,
+          taskCategoriesRepository: widget.taskCategoriesRepository,
           existing: _task,
         ),
       ),
@@ -249,6 +258,12 @@ class _TaskDetailViewState extends State<TaskDetailView> {
                 const SizedBox(height: 6),
                 Text(_task.notes!, style: theme.textTheme.bodyLarge),
               ],
+              // Categories — the linked colour tags, read-only (edited via the form). Shown only
+              // when the task has any; between Notes and People. (Decision 40, Slice B.)
+              if (_task.categories.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                _CategoriesList(categories: _task.categories),
+              ],
               // People — the linked contacts, read-only (edited via the form, like attendees).
               // Shown only when the task has any; hidden entirely otherwise.
               if (_task.contacts.isNotEmpty) ...[
@@ -349,6 +364,48 @@ class _PeopleList extends StatelessWidget {
               ],
             ),
           ),
+      ],
+    );
+  }
+}
+
+/// The read-only category roster on a task detail (colour dot + name), header "CATEGORIES · N".
+/// Only rendered when the task has categories (the caller guards empty). Uses a local `TypeDot +
+/// Text` row — NOT `TypeLabel`, which is `EventType`-typed; the visible name keeps colour from
+/// riding alone (Decision 19). Mirrors [_PeopleList].
+class _CategoriesList extends StatelessWidget {
+  const _CategoriesList({required this.categories});
+
+  final List<TaskCategory> categories;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'CATEGORIES · ${categories.length}',
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final c in categories)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TypeDot(hex: c.colorHex),
+                  const SizedBox(width: 8),
+                  Text(c.name, style: theme.textTheme.bodyLarge),
+                ],
+              ),
+          ],
+        ),
       ],
     );
   }

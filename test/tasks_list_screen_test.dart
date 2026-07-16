@@ -3,16 +3,19 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:first_android_app/data/comments_repository.dart';
 import 'package:first_android_app/data/contacts_repository.dart';
+import 'package:first_android_app/data/task_categories_repository.dart';
 import 'package:first_android_app/data/tasks_repository.dart';
 import 'package:first_android_app/models/comment.dart';
 import 'package:first_android_app/models/contact.dart';
 import 'package:first_android_app/models/task.dart';
+import 'package:first_android_app/models/task_category.dart';
 import 'package:first_android_app/screens/task_detail_screen.dart';
 import 'package:first_android_app/screens/task_form_screen.dart';
 import 'package:first_android_app/screens/tasks_list_screen.dart';
 import 'package:first_android_app/theme.dart';
 import 'package:first_android_app/widgets/comments_section.dart';
 import 'package:first_android_app/widgets/importance_marks.dart';
+import 'package:first_android_app/widgets/type_label.dart';
 
 /// Inert comments repo — the tasks list threads it to the detail, but none of these tests
 /// exercise comments. fetchFor returns nothing; the mutators are never reached.
@@ -81,6 +84,7 @@ class _StatefulTasksRepo implements TasksRepository {
       notes: draft.notes,
       contacts: draft.contacts,
       importance: draft.importance,
+      categories: draft.categories,
     );
     _tasks.add(t);
     return t;
@@ -98,7 +102,7 @@ class _StatefulTasksRepo implements TasksRepository {
   Future<Task> archive(String id) async {
     final i = _tasks.indexWhere((t) => t.id == id);
     final t = _tasks[i];
-    // Only deleted_at changes server-side — notes/People/title/is_done/importance survive.
+    // Only deleted_at changes server-side — notes/People/title/is_done/importance/categories survive.
     _tasks[i] = Task(
       id: t.id,
       title: t.title,
@@ -106,6 +110,7 @@ class _StatefulTasksRepo implements TasksRepository {
       notes: t.notes,
       contacts: t.contacts,
       importance: t.importance,
+      categories: t.categories,
       deletedAt: DateTime(2026, 7, 12),
     );
     return _tasks[i];
@@ -122,6 +127,7 @@ class _StatefulTasksRepo implements TasksRepository {
       notes: t.notes,
       contacts: t.contacts,
       importance: t.importance,
+      categories: t.categories,
     );
     return _tasks[i];
   }
@@ -181,6 +187,19 @@ class _FakeContactsRepo implements ContactsRepository {
   Future<void> softDelete(String id) async {}
 }
 
+/// Minimal fake categories repo — threaded to the form/detail for the category picker, which
+/// these tests don't drive (categories are seeded on the Task directly).
+class _FakeTaskCategoriesRepo implements TaskCategoriesRepository {
+  @override
+  Future<List<TaskCategory>> fetchAll() async => const [];
+  @override
+  Future<TaskCategory> create(TaskCategory draft) async => draft;
+  @override
+  Future<TaskCategory> update(TaskCategory category) async => category;
+  @override
+  Future<void> softDelete(String id) async {}
+}
+
 Widget _screen(
   TasksRepository repo, {
   CommentsRepository? comments,
@@ -191,6 +210,7 @@ Widget _screen(
     repository: repo,
     commentsRepository: comments ?? _InertCommentsRepo(),
     contactsRepository: contacts ?? _FakeContactsRepo(),
+    taskCategoriesRepository: _FakeTaskCategoriesRepo(),
   ),
 );
 
@@ -310,6 +330,30 @@ void main() {
 
       expect(repo.lastUpdated!.isDone, isTrue);
       expect(repo.lastUpdated!.contacts.map((c) => c.id), ['c1']);
+    },
+  );
+
+  testWidgets(
+    'completing a task from the list circle preserves its linked categories',
+    (tester) async {
+      // Same _toggleDone path as the People case: copyWith(isDone:) must carry categories
+      // through so a complete-toggle doesn't clobber the task's colour tags (Decision 40).
+      final repo = _StatefulTasksRepo(const [
+        Task(
+          id: 't1',
+          title: 'Buy milk',
+          categories: [
+            TaskCategory(id: 'k1', name: 'Work', colorHex: '#4E7BC9'),
+          ],
+        ),
+      ]);
+      await _pumpNarrow(tester, repo);
+
+      await tester.tap(find.byKey(const ValueKey('check_t1')));
+      await tester.pumpAndSettle();
+
+      expect(repo.lastUpdated!.isDone, isTrue);
+      expect(repo.lastUpdated!.categories.map((c) => c.id), ['k1']);
     },
   );
 
@@ -623,5 +667,32 @@ void main() {
     ); // only the two marked rows
     expect(find.text('!!!'), findsOneWidget);
     expect(find.text('!'), findsOneWidget);
+  });
+
+  testWidgets('a task row shows its category tags as named chips', (
+    tester,
+  ) async {
+    final repo = _StatefulTasksRepo([
+      const Task(
+        id: 't1',
+        title: 'Prep the pitch',
+        categories: [
+          TaskCategory(id: 'k1', name: 'Work', colorHex: '#4E7BC9'),
+          TaskCategory(id: 'k2', name: 'Urgent', colorHex: '#C0473A'),
+        ],
+      ),
+      const Task(id: 't2', title: 'No tags here'), // no categories → no chips
+    ]);
+    await _pumpNarrow(tester, repo);
+
+    // Both category names render (colour never rides alone — Decision 19)...
+    expect(find.text('Work'), findsOneWidget);
+    expect(find.text('Urgent'), findsOneWidget);
+    // ...as actual colour chips, not bare Text: each _CategoryChip renders a TypeDot, so two
+    // categories → two dots (importance uses ImportanceMarks text, never a TypeDot). This guards
+    // against the chip degrading to unstyled Text.
+    expect(find.byType(TypeDot), findsNWidgets(2));
+    // And the second task (no categories) contributes no chip → exactly the two above.
+    expect(find.text('No tags here'), findsOneWidget);
   });
 }

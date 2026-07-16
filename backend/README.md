@@ -264,7 +264,7 @@ curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
 # update: rename + mark done + edit notes (one path serves the form save AND the list complete-toggle)
 curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/rpc/update_task" \
-  -d "{\"p_id\":\"$TID\",\"p_title\":\"Buy oat milk\",\"p_is_done\":true,\"p_notes\":\"  call the supplier back  \"}"
+  -d "{\"p_id\":\"$TID\",\"p_title\":\"Buy oat milk\",\"p_is_done\":true,\"p_notes\":\"  call the supplier back  \",\"p_contacts\":[],\"p_importance\":0,\"p_categories\":[]}"
 curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   "$REST/tasks?id=eq.$TID&select=title,is_done,notes"            # -> "Buy oat milk", is_done true, notes "call the supplier back" (trimmed)
 # archive: sets deleted_at; the row — INCLUDING its notes — is STILL selectable (using(true)) = the "view archived" feature
@@ -275,7 +275,7 @@ curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
 # update refuses an archived task -> no_data_found (P0002)
 curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/rpc/update_task" \
-  -d "{\"p_id\":\"$TID\",\"p_title\":\"x\",\"p_is_done\":false,\"p_notes\":null}"  # -> {"code":"P0002", ... "not found or already archived"}
+  -d "{\"p_id\":\"$TID\",\"p_title\":\"x\",\"p_is_done\":false,\"p_notes\":null,\"p_contacts\":[],\"p_importance\":0,\"p_categories\":[]}"  # -> {"code":"P0002", ... "not found or already archived"}
 # restore (unarchive): clears deleted_at back to null
 curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/rpc/restore_task" -d "{\"p_id\":\"$TID\"}"
@@ -318,19 +318,51 @@ curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
 # update replaces the whole set -> only C2 remains
 curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/rpc/update_task" \
-  -d "{\"p_id\":\"$PID\",\"p_title\":\"Prep the pitch\",\"p_is_done\":false,\"p_notes\":null,\"p_contacts\":[\"$C2\"]}"
+  -d "{\"p_id\":\"$PID\",\"p_title\":\"Prep the pitch\",\"p_is_done\":false,\"p_notes\":null,\"p_contacts\":[\"$C2\"],\"p_importance\":0,\"p_categories\":[]}"
 curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   "$REST/tasks?id=eq.$PID&select=task_contacts(contact_id)"      # -> exactly one row, contact_id = $C2
 # update with empty People clears the set
 curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/rpc/update_task" \
-  -d "{\"p_id\":\"$PID\",\"p_title\":\"Prep the pitch\",\"p_is_done\":false,\"p_notes\":null,\"p_contacts\":[]}"
+  -d "{\"p_id\":\"$PID\",\"p_title\":\"Prep the pitch\",\"p_is_done\":false,\"p_notes\":null,\"p_contacts\":[],\"p_importance\":0,\"p_categories\":[]}"
 curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   "$REST/task_contacts?task_id=eq.$PID"                          # -> [] (set cleared)
 # no direct write: anon INSERT into the join is refused (membership is RPC-only)
 curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/task_contacts" \
   -d "{\"task_id\":\"$PID\",\"contact_id\":\"$C1\"}"             # -> 401 (no insert grant)
+```
+
+## Verify: task categories (task_category_links, Decision 40, Slice B)
+`create_task` / `update_task` also carry `p_categories uuid[]` — the linked-category set, written
+atomically into the `task_category_links` join (membership is set ONLY by these RPCs;
+`task_category_links` grants anon SELECT only, no write). Mirrors `p_contacts` exactly. These curls
+prove: `p_categories` links categories, `update` replaces the whole set, the embed reads them back,
+and a direct anon write to the join is refused. Needs two existing category ids — reuse `$K1`/`$K2`
+from the task-category block, or create two:
+```bash
+K1=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_task_category" \
+  -d '{"p_name":"Work","p_color":"#4E7BC9"}' | tr -d '"')
+K2=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_task_category" \
+  -d '{"p_name":"Home","p_color":"#22A06B"}' | tr -d '"')
+# create with categories (create_task defaults every arg but p_title, so name only the ones we set)
+TCID=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_task" \
+  -d "{\"p_title\":\"Prep the pitch\",\"p_categories\":[\"$K1\",\"$K2\"]}" | tr -d '"')
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/tasks?id=eq.$TCID&select=title,task_category_links(category_id,task_categories(id,name,color))"  # -> two categories, embed resolves
+# update replaces the whole set -> only K2 remains (p_categories is REQUIRED on update — no default)
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/update_task" \
+  -d "{\"p_id\":\"$TCID\",\"p_title\":\"Prep the pitch\",\"p_is_done\":false,\"p_notes\":null,\"p_contacts\":[],\"p_importance\":0,\"p_categories\":[\"$K2\"]}"
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/task_category_links?task_id=eq.$TCID&select=category_id"   # -> exactly one row, category_id = $K2
+# no direct write: anon INSERT into the join is refused (membership is RPC-only)
+curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/task_category_links" \
+  -d "{\"task_id\":\"$TCID\",\"category_id\":\"$K1\"}"               # -> 401 (no insert grant)
 ```
 
 ## Verify: task comment write RPCs (Decision 33, Slice 2b)
@@ -392,10 +424,10 @@ IID=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -d '{"p_title":"Ship the release","p_importance":3}' | tr -d '"')
 curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   "$REST/tasks?id=eq.$IID&select=title,importance"              # -> importance 3
-# update lowers it to 1 (must re-send the whole task: title/is_done/notes/contacts/importance)
+# update lowers it to 1 (must re-send the whole task: title/is_done/notes/contacts/importance/categories)
 curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/rpc/update_task" \
-  -d "{\"p_id\":\"$IID\",\"p_title\":\"Ship the release\",\"p_is_done\":false,\"p_notes\":null,\"p_contacts\":[],\"p_importance\":1}"
+  -d "{\"p_id\":\"$IID\",\"p_title\":\"Ship the release\",\"p_is_done\":false,\"p_notes\":null,\"p_contacts\":[],\"p_importance\":1,\"p_categories\":[]}"
 curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   "$REST/tasks?id=eq.$IID&select=importance"                    # -> importance 1
 # out-of-range -> 400 check violation (importance_check)
