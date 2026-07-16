@@ -18,6 +18,18 @@
   `create or replace` (no drop) PRESERVES the ACL, so a revoke done in an earlier statement/migration
   survives — do NOT flag a recreated RPC as "lost its revoke". (Verified: lockdown part 3 recreates the
   4 task_comment RPCs after part 2's revoke; revoke survives.)
+- **Complementary case — `drop function … ; create or replace …` (SIGNATURE CHANGE) DISCARDS the ACL.**
+  A DROP resets the function to Postgres's DEFAULT PUBLIC execute, so the recreated RPC MUST re-issue
+  BOTH `revoke execute … from public` AND `grant execute … to anon, authenticated` on the NEW signature
+  (Decision 38 recreate invariant / database.md rule #2). When a param is APPENDED (even defaulted),
+  the new signature is a distinct identity: the DROP must target the EXACT latest prior signature or an
+  orphan overload survives with PUBLIC execute (grep the whole chrono chain, not one migration).
+  **Verified CLEAN in `20260716120000_idempotent_create_rpcs` (issue #9 / Decision 41):** all 7
+  `create_*` dropped their exact latest signature (create_task chain drop-recreated cleanly at every
+  param-add: text→…→5-param, no orphans), re-revoked + re-granted the new `+uuid` signature (7/7/7/7),
+  kept SECURITY DEFINER + `search_path = public`. create_task_comment's archived-parent guard was made
+  replay-safe: `insert … where exists(parent live) on conflict do nothing`, then post-insert
+  `if not exists(id=v_id) raise` — distinguishes a rejected archived parent from an idempotent replay.
 
 ## Confirmed-good baseline patterns (regression guards — flag if a NEW migration breaks them)
 - Every table enables RLS in the same migration as `create table`.

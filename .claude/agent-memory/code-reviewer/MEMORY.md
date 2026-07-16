@@ -90,7 +90,8 @@ Full detail in [positive-signals](topics/positive-signals.md). One-line index:
   conversion: new `lib/util/ids.dart` (single shared `const _uuid = Uuid()` + `newEntityId()`, private
   instance, tested with a v4-regex + 1000-distinct check); 6 models' `.draft` const-ctor → id-minting
   `factory` (`id: id ?? newEntityId()`, delegates to the main ctor); `toRpcParams()` gains `p_id` so the
-  5 update repos drop `{p_id: …, ...spread}` and pass `toRpcParams()` whole; forms hold
+  4 spread-update repos (contacts/events/event_types/task_categories) drop `{p_id: …, ...spread}` and
+  pass `toRpcParams()` whole (tasks + comments keep explicit maps); forms hold
   `late final String _pendingId = newEntityId()` (fresh State per open), while the long-lived
   `CommentsSection` composer holds a MUTABLE `_pendingId` reset after each success (correct, documented).
   Mint lives in util not build(); directive order + comments clean. CLEAN 0/0/0.

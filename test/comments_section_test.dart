@@ -276,6 +276,7 @@ void main() {
 
       expect(repo.addedDraftIds, hasLength(2));
       expect(repo.addedDraftIds.first, isNotEmpty);
+      expect(repo.addedDraftIds[1], isNotEmpty);
       expect(repo.addedDraftIds[0], isNot(repo.addedDraftIds[1]));
       // Both comments actually persisted — the second wasn't conflict-skipped.
       expect(find.text('First'), findsOneWidget);

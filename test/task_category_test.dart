@@ -31,6 +31,7 @@ void main() {
     test('maps to p_-prefixed params and trims the name', () {
       // .draft mints the id, so capture the instance to assert its p_id round-trips.
       final tc = TaskCategory.draft(name: '  Errand  ', colorHex: '#4E7BC9');
+      expect(tc.id, isNotEmpty); // guards against both sides regressing to ''
       expect(tc.toRpcParams(), {
         'p_id': tc.id,
         'p_name': 'Errand',

@@ -31,6 +31,7 @@ void main() {
     test('maps to p_-prefixed params and trims the name', () {
       // .draft mints the id, so capture the instance to assert its p_id round-trips.
       final et = EventType.draft(name: '  Focus  ', colorHex: '#4E7BC9');
+      expect(et.id, isNotEmpty); // guards against both sides regressing to ''
       expect(et.toRpcParams(), {
         'p_id': et.id,
         'p_name': 'Focus',

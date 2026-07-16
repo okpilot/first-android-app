@@ -51,20 +51,33 @@ class _ThrowingTasksRepo implements TasksRepository {
   Future<Task> restore(String id) => throw Exception('offline');
 }
 
-/// Fails the first create, then succeeds — and records the draft id it saw on EACH attempt.
-/// Lets a test prove the form reuses its stable client-minted `_pendingId` across a failed save +
-/// retry, so `create_task`'s `on conflict (id) do nothing` makes the retry idempotent (issue #9).
+/// Models issue #9's exact hazard: the FIRST create COMMITS server-side but the response is lost
+/// (persist, THEN throw), so the form shows a failure and the user retries. Because the form holds
+/// one stable `_pendingId`, the retry carries the SAME id — and `create_task`'s
+/// `on conflict (id) do nothing` collapses it onto the existing row instead of inserting a second.
+/// This fake mimics that: it dedupes on id and records the draft id seen on EACH attempt, so a test
+/// can assert both the id reuse AND that no duplicate row was created.
 class _FlakyRecordingTasksRepo implements TasksRepository {
   final List<String> createIds = [];
-  int _calls = 0;
+  final List<Task> tasks =
+      []; // persisted rows — deduped by id, like the real table's PK
+  bool _firstResponseLost = false;
 
   @override
-  Future<List<Task>> fetchAll() async => const [];
+  Future<List<Task>> fetchAll() async => List.of(tasks);
   @override
   Future<Task> create(Task draft) async {
     createIds.add(draft.id);
-    if (_calls++ == 0) throw Exception('offline');
-    return draft;
+    // Idempotent insert: a row with this id lands at most once (mimics `on conflict (id) do nothing`).
+    final existing = tasks.where((t) => t.id == draft.id).toList();
+    final saved = existing.isEmpty ? draft : existing.first;
+    if (existing.isEmpty) tasks.add(saved);
+    // First attempt: the row committed but the response never arrived → surface as a failed save.
+    if (!_firstResponseLost) {
+      _firstResponseLost = true;
+      throw Exception('offline');
+    }
+    return saved;
   }
 
   @override
@@ -562,6 +575,9 @@ void main() {
       expect(repo.createIds, hasLength(2));
       expect(repo.createIds.first, isNotEmpty);
       expect(repo.createIds[0], repo.createIds[1]);
+      // The retry did NOT create a second row — the whole point of #9 (the first attempt committed
+      // before its response was lost; the same-id retry is a no-op).
+      expect(repo.tasks, hasLength(1));
     },
   );
 
