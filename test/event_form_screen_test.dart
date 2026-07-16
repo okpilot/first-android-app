@@ -1,63 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:first_android_app/data/contacts_repository.dart';
-import 'package:first_android_app/data/event_types_repository.dart';
-import 'package:first_android_app/data/events_repository.dart';
-import 'package:first_android_app/models/contact.dart';
-import 'package:first_android_app/models/event.dart';
 import 'package:first_android_app/models/event_type.dart';
 import 'package:first_android_app/screens/event_form_screen.dart';
 import 'package:first_android_app/theme.dart';
 
-class _FakeContactsRepo implements ContactsRepository {
-  @override
-  Future<List<Contact>> fetchAll() async => const [];
-  @override
-  Future<Contact> create(Contact draft) async => draft;
-  @override
-  Future<Contact> update(Contact contact) async => contact;
-  @override
-  Future<void> softDelete(String id) async {}
-}
+import 'support/fakes.dart';
 
-class _FakeEventsRepo implements EventsRepository {
-  Event? lastCreated;
-
-  @override
-  Future<List<Event>> fetchAll() async => const [];
-  @override
-  Future<Event> create(Event draft) async {
-    lastCreated = draft;
-    return draft;
-  }
-
-  @override
-  Future<Event> update(Event event) async => event;
-  @override
-  Future<void> softDelete(String id) async {}
-}
-
-class _FakeEventTypesRepo implements EventTypesRepository {
-  _FakeEventTypesRepo([this.types = const []]);
-  final List<EventType> types;
-  @override
-  Future<List<EventType>> fetchAll() async => types;
-  @override
-  Future<EventType> create(EventType draft) async => draft;
-  @override
-  Future<EventType> update(EventType type) async => type;
-  @override
-  Future<void> softDelete(String id) async {}
-}
-
-Widget _form({_FakeEventsRepo? events, List<EventType> types = const []}) =>
+Widget _form({FakeEventsRepo? events, List<EventType> types = const []}) =>
     MaterialApp(
       theme: AppTheme.light,
       home: EventFormScreen(
-        eventsRepository: events ?? _FakeEventsRepo(),
-        contactsRepository: _FakeContactsRepo(),
-        eventTypesRepository: _FakeEventTypesRepo(types),
+        eventsRepository: events ?? FakeEventsRepo(),
+        contactsRepository: FakeContactsRepo(),
+        eventTypesRepository: FakeEventTypesRepo(types),
       ),
     );
 
@@ -87,7 +43,7 @@ void main() {
   });
 
   testWidgets('the title is trimmed before save', (tester) async {
-    final events = _FakeEventsRepo();
+    final events = FakeEventsRepo();
     await tester.pumpWidget(_form(events: events));
     await tester.pumpAndSettle();
 
@@ -104,7 +60,7 @@ void main() {
   testWidgets('type defaults to No type and a picked type reaches the draft', (
     tester,
   ) async {
-    final events = _FakeEventsRepo();
+    final events = FakeEventsRepo();
     const type = EventType(id: 't1', name: 'Meeting', colorHex: '#4E7BC9');
     await tester.pumpWidget(_form(events: events, types: const [type]));
     await tester.pumpAndSettle();

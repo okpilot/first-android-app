@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:first_android_app/data/comments_repository.dart';
 import 'package:first_android_app/data/contacts_repository.dart';
-import 'package:first_android_app/data/task_categories_repository.dart';
 import 'package:first_android_app/data/tasks_repository.dart';
 import 'package:first_android_app/models/comment.dart';
 import 'package:first_android_app/models/contact.dart';
@@ -15,152 +14,7 @@ import 'package:first_android_app/theme.dart';
 import 'package:first_android_app/widgets/comments_section.dart';
 import 'package:first_android_app/widgets/importance_marks.dart';
 
-/// In-memory comments repo — seed via the constructor; fetchFor filters by parentId so the
-/// section loads a task's own comments. Add round-trips (newest-first by id) so the composer
-/// path works; edit/archive/unarchive are inert (these tests don't drive them).
-class _FakeCommentsRepo implements CommentsRepository {
-  _FakeCommentsRepo([List<Comment>? seed]) : _items = seed ?? [];
-  final List<Comment> _items;
-  int _seq = 0;
-
-  @override
-  Future<List<Comment>> fetchFor(String parentId) async =>
-      _items.where((c) => c.parentId == parentId).toList()
-        ..sort((a, b) => b.id.compareTo(a.id));
-  @override
-  Future<Comment> add(Comment draft) async {
-    final saved = Comment(
-      id: 'c${_seq++}',
-      parentId: draft.parentId,
-      body: draft.body.trim(),
-    );
-    _items.add(saved);
-    return saved;
-  }
-
-  @override
-  Future<Comment> edit(Comment comment) async => comment;
-  @override
-  Future<Comment> archive(String id) async =>
-      Comment.draft(parentId: '', body: '');
-  @override
-  Future<Comment> unarchive(String id) async =>
-      Comment.draft(parentId: '', body: '');
-}
-
-/// A stateful fake so archive/restore return a genuinely (un)archived Task — the detail
-/// view applies the *returned* task in place, so `archive()` must set `deletedAt` and
-/// `restore()` must clear it for the control set to flip (mirrors the list test's repo).
-class _StatefulTasksRepo implements TasksRepository {
-  _StatefulTasksRepo(List<Task> initial) : _tasks = [...initial];
-  final List<Task> _tasks;
-  Task? lastUpdated;
-  String? archivedId;
-  String? restoredId;
-
-  @override
-  Future<List<Task>> fetchAll() async => List.of(_tasks);
-
-  @override
-  Future<Task> create(Task draft) async {
-    final t = Task(
-      id: draft
-          .id, // persist the client-supplied id (issue #9), like the real repo
-      title: draft.title.trim(),
-      notes: draft.notes,
-      contacts: draft.contacts,
-      importance: draft.importance,
-      categories: draft.categories,
-    );
-    _tasks.add(t);
-    return t;
-  }
-
-  @override
-  Future<Task> update(Task task) async {
-    lastUpdated = task;
-    final i = _tasks.indexWhere((t) => t.id == task.id);
-    if (i >= 0) _tasks[i] = task;
-    return task;
-  }
-
-  @override
-  Future<Task> archive(String id) async {
-    archivedId = id;
-    final i = _tasks.indexWhere((t) => t.id == id);
-    final t = _tasks[i];
-    // Archive changes only deleted_at server-side — notes, People, importance, categories (and
-    // title/is_done) survive.
-    _tasks[i] = Task(
-      id: t.id,
-      title: t.title,
-      isDone: t.isDone,
-      notes: t.notes,
-      contacts: t.contacts,
-      importance: t.importance,
-      categories: t.categories,
-      deletedAt: DateTime(2026, 7, 12),
-    );
-    return _tasks[i];
-  }
-
-  @override
-  Future<Task> restore(String id) async {
-    restoredId = id;
-    final i = _tasks.indexWhere((t) => t.id == id);
-    final t = _tasks[i];
-    _tasks[i] = Task(
-      id: t.id,
-      title: t.title,
-      isDone: t.isDone,
-      notes: t.notes,
-      contacts: t.contacts,
-      importance: t.importance,
-      categories: t.categories,
-    );
-    return _tasks[i];
-  }
-}
-
-/// Every mutation throws — to exercise the detail's failure snackbars.
-class _ThrowingTasksRepo implements TasksRepository {
-  @override
-  Future<List<Task>> fetchAll() async => const [];
-  @override
-  Future<Task> create(Task draft) => throw Exception('offline');
-  @override
-  Future<Task> update(Task task) => throw Exception('offline');
-  @override
-  Future<Task> archive(String id) => throw Exception('offline');
-  @override
-  Future<Task> restore(String id) => throw Exception('offline');
-}
-
-/// A minimal fake contacts repo for the Edit → form → People picker path. Roster unused by
-/// most detail tests (People are seeded on the Task directly), but the param is required.
-class _FakeContactsRepo implements ContactsRepository {
-  @override
-  Future<List<Contact>> fetchAll() async => const [];
-  @override
-  Future<Contact> create(Contact draft) async => draft;
-  @override
-  Future<Contact> update(Contact contact) async => contact;
-  @override
-  Future<void> softDelete(String id) async {}
-}
-
-/// A minimal fake categories repo for the Edit → form → category picker path. Required by the
-/// detail's constructor; these tests seed categories on the Task directly rather than driving it.
-class _FakeTaskCategoriesRepo implements TaskCategoriesRepository {
-  @override
-  Future<List<TaskCategory>> fetchAll() async => const [];
-  @override
-  Future<TaskCategory> create(TaskCategory draft) async => draft;
-  @override
-  Future<TaskCategory> update(TaskCategory category) async => category;
-  @override
-  Future<void> softDelete(String id) async {}
-}
+import 'support/fakes.dart';
 
 Widget _detail(
   TasksRepository repo,
@@ -171,9 +25,9 @@ Widget _detail(
   theme: AppTheme.light,
   home: TaskDetailScreen(
     repository: repo,
-    commentsRepository: comments ?? _FakeCommentsRepo(),
-    contactsRepository: contacts ?? _FakeContactsRepo(),
-    taskCategoriesRepository: _FakeTaskCategoriesRepo(),
+    commentsRepository: comments ?? SeededCommentsRepo(),
+    contactsRepository: contacts ?? FakeContactsRepo(),
+    taskCategoriesRepository: FakeTaskCategoriesRepo(),
     task: task,
   ),
 );
@@ -182,7 +36,7 @@ void main() {
   testWidgets(
     'a live task reads: title, Active pill, Edit + Complete + Archive',
     (tester) async {
-      final repo = _StatefulTasksRepo(const [
+      final repo = StatefulTasksRepo(const [
         Task(id: 't1', title: 'Call Nadia'),
       ]);
       await tester.pumpWidget(
@@ -204,9 +58,7 @@ void main() {
   testWidgets('Complete marks it done and flips the button to Reopen', (
     tester,
   ) async {
-    final repo = _StatefulTasksRepo(const [
-      Task(id: 't1', title: 'Call Nadia'),
-    ]);
+    final repo = StatefulTasksRepo(const [Task(id: 't1', title: 'Call Nadia')]);
     await tester.pumpWidget(
       _detail(repo, const Task(id: 't1', title: 'Call Nadia')),
     );
@@ -228,7 +80,7 @@ void main() {
     // The toggle re-sends the task via copyWith(isDone:) — which preserves notes —
     // and re-seeds _task from the result. Guard the whole chain end-to-end: a
     // Complete must not drop the notes block from the re-rendered detail.
-    final repo = _StatefulTasksRepo(const [
+    final repo = StatefulTasksRepo(const [
       Task(id: 't1', title: 'Call Nadia', notes: 'Prefers a call after 15:00.'),
     ]);
     await tester.pumpWidget(
@@ -254,7 +106,7 @@ void main() {
   });
 
   testWidgets('Reopen re-opens a completed task', (tester) async {
-    final repo = _StatefulTasksRepo(const [
+    final repo = StatefulTasksRepo(const [
       Task(id: 't1', title: 'Done one', isDone: true),
     ]);
     await tester.pumpWidget(
@@ -273,7 +125,7 @@ void main() {
   testWidgets(
     'Archive archives the task and swaps to a read-only Restore view',
     (tester) async {
-      final repo = _StatefulTasksRepo(const [
+      final repo = StatefulTasksRepo(const [
         Task(id: 't1', title: 'Call Nadia'),
       ]);
       await tester.pumpWidget(
@@ -297,7 +149,7 @@ void main() {
   testWidgets(
     'an archived task reads Restore-only, and Restore brings it back',
     (tester) async {
-      final repo = _StatefulTasksRepo([
+      final repo = StatefulTasksRepo([
         Task(
           id: 't9',
           title: 'Old checklist',
@@ -332,9 +184,7 @@ void main() {
   );
 
   testWidgets('Edit pushes the title-only form', (tester) async {
-    final repo = _StatefulTasksRepo(const [
-      Task(id: 't1', title: 'Call Nadia'),
-    ]);
+    final repo = StatefulTasksRepo(const [Task(id: 't1', title: 'Call Nadia')]);
     await tester.pumpWidget(
       _detail(repo, const Task(id: 't1', title: 'Call Nadia')),
     );
@@ -351,7 +201,7 @@ void main() {
   testWidgets('notes render (read-only) under the pill when present', (
     tester,
   ) async {
-    final repo = _StatefulTasksRepo(const [
+    final repo = StatefulTasksRepo(const [
       Task(id: 't1', title: 'Call Nadia', notes: 'Prefers a call after 15:00.'),
     ]);
     await tester.pumpWidget(
@@ -373,9 +223,7 @@ void main() {
   });
 
   testWidgets('no Notes section when the task has none', (tester) async {
-    final repo = _StatefulTasksRepo(const [
-      Task(id: 't1', title: 'Call Nadia'),
-    ]);
+    final repo = StatefulTasksRepo(const [Task(id: 't1', title: 'Call Nadia')]);
     await tester.pumpWidget(
       _detail(repo, const Task(id: 't1', title: 'Call Nadia')),
     );
@@ -393,7 +241,7 @@ void main() {
       notes: 'Superseded by the new onboarding flow.',
       deletedAt: DateTime(2026, 7, 11),
     );
-    await tester.pumpWidget(_detail(_StatefulTasksRepo([archived]), archived));
+    await tester.pumpWidget(_detail(StatefulTasksRepo([archived]), archived));
     await tester.pumpAndSettle();
 
     expect(find.text('Notes'), findsOneWidget);
@@ -410,7 +258,7 @@ void main() {
       title: 'Prep the pitch',
       contacts: [Contact(id: 'c1', name: 'Nadia', company: 'Acme')],
     );
-    await tester.pumpWidget(_detail(_StatefulTasksRepo(const [t]), t));
+    await tester.pumpWidget(_detail(StatefulTasksRepo(const [t]), t));
     await tester.pumpAndSettle();
 
     expect(find.text('PEOPLE · 1'), findsOneWidget);
@@ -420,7 +268,7 @@ void main() {
 
   testWidgets('no People section when the task has none', (tester) async {
     const t = Task(id: 't1', title: 'Call Nadia');
-    await tester.pumpWidget(_detail(_StatefulTasksRepo(const [t]), t));
+    await tester.pumpWidget(_detail(StatefulTasksRepo(const [t]), t));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('PEOPLE'), findsNothing);
@@ -434,7 +282,7 @@ void main() {
         title: 'Prep the pitch',
         contacts: [Contact(id: 'c1', name: 'Nadia')],
       );
-      final repo = _StatefulTasksRepo(const [t]);
+      final repo = StatefulTasksRepo(const [t]);
       await tester.pumpWidget(_detail(repo, t));
       await tester.pumpAndSettle();
 
@@ -452,7 +300,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      _detail(_ThrowingTasksRepo(), const Task(id: 't1', title: 'Call Nadia')),
+      _detail(ThrowingTasksRepo(), const Task(id: 't1', title: 'Call Nadia')),
     );
     await tester.pumpAndSettle();
 
@@ -468,7 +316,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      _detail(_ThrowingTasksRepo(), const Task(id: 't1', title: 'Call Nadia')),
+      _detail(ThrowingTasksRepo(), const Task(id: 't1', title: 'Call Nadia')),
     );
     await tester.pumpAndSettle();
 
@@ -485,9 +333,7 @@ void main() {
   testWidgets('archiving in place retitles the AppBar to "Archived task"', (
     tester,
   ) async {
-    final repo = _StatefulTasksRepo(const [
-      Task(id: 't1', title: 'Call Nadia'),
-    ]);
+    final repo = StatefulTasksRepo(const [Task(id: 't1', title: 'Call Nadia')]);
     await tester.pumpWidget(
       _detail(repo, const Task(id: 't1', title: 'Call Nadia')),
     );
@@ -506,9 +352,7 @@ void main() {
   testWidgets('backing out after a change pops true (so the list reloads)', (
     tester,
   ) async {
-    final repo = _StatefulTasksRepo(const [
-      Task(id: 't1', title: 'Call Nadia'),
-    ]);
+    final repo = StatefulTasksRepo(const [Task(id: 't1', title: 'Call Nadia')]);
     Object? popResult;
     var popped = false;
     await tester.pumpWidget(
@@ -523,9 +367,9 @@ void main() {
                     MaterialPageRoute(
                       builder: (_) => TaskDetailScreen(
                         repository: repo,
-                        commentsRepository: _FakeCommentsRepo(),
-                        contactsRepository: _FakeContactsRepo(),
-                        taskCategoriesRepository: _FakeTaskCategoriesRepo(),
+                        commentsRepository: SeededCommentsRepo(),
+                        contactsRepository: FakeContactsRepo(),
+                        taskCategoriesRepository: FakeTaskCategoriesRepo(),
                         task: const Task(id: 't1', title: 'Call Nadia'),
                       ),
                     ),
@@ -556,9 +400,7 @@ void main() {
   testWidgets('backing out without a change pops false (no needless reload)', (
     tester,
   ) async {
-    final repo = _StatefulTasksRepo(const [
-      Task(id: 't1', title: 'Call Nadia'),
-    ]);
+    final repo = StatefulTasksRepo(const [Task(id: 't1', title: 'Call Nadia')]);
     Object? popResult;
     var popped = false;
     await tester.pumpWidget(
@@ -573,9 +415,9 @@ void main() {
                     MaterialPageRoute(
                       builder: (_) => TaskDetailScreen(
                         repository: repo,
-                        commentsRepository: _FakeCommentsRepo(),
-                        contactsRepository: _FakeContactsRepo(),
-                        taskCategoriesRepository: _FakeTaskCategoriesRepo(),
+                        commentsRepository: SeededCommentsRepo(),
+                        contactsRepository: FakeContactsRepo(),
+                        taskCategoriesRepository: FakeTaskCategoriesRepo(),
                         task: const Task(id: 't1', title: 'Call Nadia'),
                       ),
                     ),
@@ -604,7 +446,7 @@ void main() {
   testWidgets('the detail shows linked categories under a CATEGORIES header', (
     tester,
   ) async {
-    final repo = _StatefulTasksRepo(const [
+    final repo = StatefulTasksRepo(const [
       Task(id: 't1', title: 'Prep the pitch'),
     ]);
     await tester.pumpWidget(
@@ -630,7 +472,7 @@ void main() {
 
   testWidgets('no CATEGORIES section when the task has none', (tester) async {
     const t = Task(id: 't1', title: 'Prep the pitch');
-    await tester.pumpWidget(_detail(_StatefulTasksRepo(const [t]), t));
+    await tester.pumpWidget(_detail(StatefulTasksRepo(const [t]), t));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('CATEGORIES'), findsNothing);
@@ -642,10 +484,8 @@ void main() {
   testWidgets('a live task shows the Comments section with a composer', (
     tester,
   ) async {
-    final repo = _StatefulTasksRepo(const [
-      Task(id: 't1', title: 'Call Nadia'),
-    ]);
-    final comments = _FakeCommentsRepo([
+    final repo = StatefulTasksRepo(const [Task(id: 't1', title: 'Call Nadia')]);
+    final comments = SeededCommentsRepo([
       const Comment(id: 'c1', parentId: 't1', body: 'Left a voicemail.'),
     ]);
     await tester.pumpWidget(
@@ -669,10 +509,10 @@ void main() {
     (tester) async {
       // readOnly keys only off _isArchived, not isDone — a done-but-live task is still
       // commentable (design intent: live/completed tasks get the composer).
-      final repo = _StatefulTasksRepo(const [
+      final repo = StatefulTasksRepo(const [
         Task(id: 't1', title: 'Ship the deck', isDone: true),
       ]);
-      final comments = _FakeCommentsRepo([
+      final comments = SeededCommentsRepo([
         const Comment(id: 'c1', parentId: 't1', body: 'Sent for review.'),
       ]);
       await tester.pumpWidget(
@@ -704,11 +544,11 @@ void main() {
         title: 'Old checklist',
         deletedAt: DateTime(2026, 7, 11),
       );
-      final comments = _FakeCommentsRepo([
+      final comments = SeededCommentsRepo([
         const Comment(id: 'c1', parentId: 't9', body: 'Closed out last week.'),
       ]);
       await tester.pumpWidget(
-        _detail(_StatefulTasksRepo([archived]), archived, comments: comments),
+        _detail(StatefulTasksRepo([archived]), archived, comments: comments),
       );
       await tester.pumpAndSettle();
 
@@ -724,7 +564,7 @@ void main() {
     tester,
   ) async {
     const task = Task(id: 't1', title: 'Ship it', importance: 3);
-    await tester.pumpWidget(_detail(_StatefulTasksRepo(const [task]), task));
+    await tester.pumpWidget(_detail(StatefulTasksRepo(const [task]), task));
     await tester.pumpAndSettle();
 
     expect(find.byType(ImportanceMarks), findsOneWidget);
@@ -734,7 +574,7 @@ void main() {
 
   testWidgets('a level-0 task shows no importance marker', (tester) async {
     const task = Task(id: 't1', title: 'Water plants');
-    await tester.pumpWidget(_detail(_StatefulTasksRepo(const [task]), task));
+    await tester.pumpWidget(_detail(StatefulTasksRepo(const [task]), task));
     await tester.pumpAndSettle();
 
     expect(find.byType(ImportanceMarks), findsNothing);

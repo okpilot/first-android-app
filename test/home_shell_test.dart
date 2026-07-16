@@ -1,109 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:first_android_app/data/comments_repository.dart';
-import 'package:first_android_app/data/contacts_repository.dart';
-import 'package:first_android_app/data/event_types_repository.dart';
-import 'package:first_android_app/data/events_repository.dart';
-import 'package:first_android_app/data/task_categories_repository.dart';
-import 'package:first_android_app/data/tasks_repository.dart';
-import 'package:first_android_app/models/comment.dart';
 import 'package:first_android_app/models/contact.dart';
-import 'package:first_android_app/models/event.dart';
-import 'package:first_android_app/models/event_type.dart';
-import 'package:first_android_app/models/task.dart';
-import 'package:first_android_app/models/task_category.dart';
 import 'package:first_android_app/screens/home_shell.dart';
 
-// Fakes copied verbatim from widget_test.dart — the project's hand-written
-// private-fake-repository convention (no mockito). Each repo's method set differs,
-// so they are NOT interchangeable.
-class _FakeRepo implements ContactsRepository {
-  _FakeRepo(this.contacts);
-  final List<Contact> contacts;
-
-  @override
-  Future<List<Contact>> fetchAll() async => contacts;
-  @override
-  Future<Contact> create(Contact draft) async => draft;
-  @override
-  Future<Contact> update(Contact contact) async => contact;
-  @override
-  Future<void> softDelete(String id) async {}
-}
-
-class _FakeEventsRepo implements EventsRepository {
-  @override
-  Future<List<Event>> fetchAll() async => const [];
-  @override
-  Future<Event> create(Event draft) async => draft;
-  @override
-  Future<Event> update(Event event) async => event;
-  @override
-  Future<void> softDelete(String id) async {}
-}
-
-class _FakeEventTypesRepo implements EventTypesRepository {
-  @override
-  Future<List<EventType>> fetchAll() async => const [];
-  @override
-  Future<EventType> create(EventType draft) async => draft;
-  @override
-  Future<EventType> update(EventType type) async => type;
-  @override
-  Future<void> softDelete(String id) async {}
-}
-
-class _FakeTaskCategoriesRepo implements TaskCategoriesRepository {
-  @override
-  Future<List<TaskCategory>> fetchAll() async => const [];
-  @override
-  Future<TaskCategory> create(TaskCategory draft) async => draft;
-  @override
-  Future<TaskCategory> update(TaskCategory category) async => category;
-  @override
-  Future<void> softDelete(String id) async {}
-}
-
-class _FakeCommentsRepo implements CommentsRepository {
-  @override
-  Future<List<Comment>> fetchFor(String parentId) async => const [];
-  @override
-  Future<Comment> add(Comment draft) async => draft;
-  @override
-  Future<Comment> edit(Comment comment) async => comment;
-  @override
-  Future<Comment> archive(String id) async =>
-      Comment.draft(parentId: '', body: '');
-  @override
-  Future<Comment> unarchive(String id) async =>
-      Comment.draft(parentId: '', body: '');
-}
-
-class _FakeTasksRepo implements TasksRepository {
-  @override
-  Future<List<Task>> fetchAll() async => const [];
-  @override
-  Future<Task> create(Task draft) async => draft;
-  @override
-  Future<Task> update(Task task) async => task;
-  @override
-  Future<Task> archive(String id) async => const Task(id: '', title: 'x');
-  @override
-  Future<Task> restore(String id) async => const Task(id: '', title: 'x');
-}
+import 'support/fakes.dart';
 
 Widget _shell() => MaterialApp(
   home: HomeShell(
     // One contact so the Contacts screen shows its list (not the empty state,
     // whose button would duplicate the FAB's "New contact" text).
-    repository: _FakeRepo(const [Contact(id: '1', name: 'Ada Lovelace')]),
-    eventsRepository: _FakeEventsRepo(),
-    eventTypesRepository: _FakeEventTypesRepo(),
-    commentsRepository: _FakeCommentsRepo(),
-    taskCommentsRepository: _FakeCommentsRepo(),
-    tasksRepository: _FakeTasksRepo(),
-    taskCategoriesRepository: _FakeTaskCategoriesRepo(),
+    repository: FakeContactsRepo(const [
+      Contact(id: '1', name: 'Ada Lovelace'),
+    ]),
+    eventsRepository: FakeEventsRepo(),
+    eventTypesRepository: FakeEventTypesRepo(),
+    commentsRepository: FakeCommentsRepo(),
+    taskCommentsRepository: FakeCommentsRepo(),
+    tasksRepository: FakeTasksRepo(),
+    taskCategoriesRepository: FakeTaskCategoriesRepo(),
   ),
 );
 

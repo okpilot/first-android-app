@@ -10,6 +10,8 @@ import 'package:first_android_app/models/task_category.dart';
 import 'package:first_android_app/screens/task_form_screen.dart';
 import 'package:first_android_app/theme.dart';
 
+import 'support/fakes.dart';
+
 /// Records what the screen asked the repository to do. The form edits title + notes
 /// (Decision 29 view-first; notes added later) — completion / archive / restore live on
 /// the detail view — so this only needs create + update.
@@ -35,20 +37,6 @@ class _RecordingTasksRepo implements TasksRepository {
   Future<Task> archive(String id) async => const Task(id: '', title: 'x');
   @override
   Future<Task> restore(String id) async => const Task(id: '', title: 'x');
-}
-
-/// Every mutation throws — to exercise the form's failure snackbar.
-class _ThrowingTasksRepo implements TasksRepository {
-  @override
-  Future<List<Task>> fetchAll() async => const [];
-  @override
-  Future<Task> create(Task draft) => throw Exception('offline');
-  @override
-  Future<Task> update(Task task) => throw Exception('offline');
-  @override
-  Future<Task> archive(String id) => throw Exception('offline');
-  @override
-  Future<Task> restore(String id) => throw Exception('offline');
 }
 
 /// Models issue #9's exact hazard: the FIRST create COMMITS server-side but the response is lost
@@ -88,36 +76,6 @@ class _FlakyRecordingTasksRepo implements TasksRepository {
   Future<Task> restore(String id) async => const Task(id: '', title: 'x');
 }
 
-/// A minimal fake contacts repo for the People picker. Returns a fixed roster; writes unused.
-class _FakeContactsRepo implements ContactsRepository {
-  _FakeContactsRepo([this._all = const []]);
-  final List<Contact> _all;
-
-  @override
-  Future<List<Contact>> fetchAll() async => _all;
-  @override
-  Future<Contact> create(Contact draft) async => draft;
-  @override
-  Future<Contact> update(Contact contact) async => contact;
-  @override
-  Future<void> softDelete(String id) async {}
-}
-
-/// A minimal fake categories repo for the category picker. Returns a fixed list; writes unused.
-class _FakeTaskCategoriesRepo implements TaskCategoriesRepository {
-  _FakeTaskCategoriesRepo([this._all = const []]);
-  final List<TaskCategory> _all;
-
-  @override
-  Future<List<TaskCategory>> fetchAll() async => _all;
-  @override
-  Future<TaskCategory> create(TaskCategory draft) async => draft;
-  @override
-  Future<TaskCategory> update(TaskCategory category) async => category;
-  @override
-  Future<void> softDelete(String id) async {}
-}
-
 Widget _form(
   TasksRepository repo, {
   Task? existing,
@@ -127,8 +85,8 @@ Widget _form(
   theme: AppTheme.light,
   home: TaskFormScreen(
     repository: repo,
-    contactsRepository: contactsRepo ?? _FakeContactsRepo(),
-    taskCategoriesRepository: categoriesRepo ?? _FakeTaskCategoriesRepo(),
+    contactsRepository: contactsRepo ?? FakeContactsRepo(),
+    taskCategoriesRepository: categoriesRepo ?? FakeTaskCategoriesRepo(),
     existing: existing,
   ),
 );
@@ -402,7 +360,7 @@ void main() {
       tester,
       _form(
         repo,
-        contactsRepo: _FakeContactsRepo(const [
+        contactsRepo: FakeContactsRepo(const [
           Contact(id: 'c1', name: 'Nadia'),
           Contact(id: 'c2', name: 'Bo'),
         ]),
@@ -509,7 +467,7 @@ void main() {
       tester,
       _form(
         repo,
-        categoriesRepo: _FakeTaskCategoriesRepo(const [
+        categoriesRepo: FakeTaskCategoriesRepo(const [
           TaskCategory(id: 'k1', name: 'Work', colorHex: '#4E7BC9'),
           TaskCategory(id: 'k2', name: 'Home', colorHex: '#22A06B'),
         ]),
@@ -540,7 +498,7 @@ void main() {
   testWidgets('a failed save surfaces a snackbar and stays on the form', (
     tester,
   ) async {
-    await _pump(tester, _form(_ThrowingTasksRepo()));
+    await _pump(tester, _form(ThrowingTasksRepo()));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextFormField).first, 'Prep demo');
@@ -596,8 +554,8 @@ void main() {
           home: Scaffold(
             body: TaskEditView(
               repository: repo,
-              contactsRepository: _FakeContactsRepo(),
-              taskCategoriesRepository: _FakeTaskCategoriesRepo(),
+              contactsRepository: FakeContactsRepo(),
+              taskCategoriesRepository: FakeTaskCategoriesRepo(),
               existing: const Task(id: 't1', title: 'Call Nadia'),
               onChanged: saved.add,
             ),

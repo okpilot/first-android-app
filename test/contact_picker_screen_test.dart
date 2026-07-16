@@ -6,20 +6,7 @@ import 'package:first_android_app/models/contact.dart';
 import 'package:first_android_app/screens/contact_picker_screen.dart';
 import 'package:first_android_app/theme.dart';
 
-/// A minimal fake contacts repo — the picker only reads the roster via fetchAll; writes unused.
-class _FakeContactsRepo implements ContactsRepository {
-  _FakeContactsRepo([this._all = const []]);
-  final List<Contact> _all;
-
-  @override
-  Future<List<Contact>> fetchAll() async => _all;
-  @override
-  Future<Contact> create(Contact draft) async => draft;
-  @override
-  Future<Contact> update(Contact contact) async => contact;
-  @override
-  Future<void> softDelete(String id) async {}
-}
+import 'support/fakes.dart';
 
 /// fetchAll throws — drives the picker's "Couldn't load contacts" error state.
 class _FailingContactsRepo implements ContactsRepository {
@@ -45,7 +32,7 @@ Widget _picker({
 }) => MaterialApp(
   theme: AppTheme.light,
   home: ContactPickerScreen(
-    repository: repo ?? _FakeContactsRepo(_roster),
+    repository: repo ?? FakeContactsRepo(_roster),
     initialSelected: initialSelected,
     title: title,
   ),
@@ -127,7 +114,7 @@ void main() {
                   popped = await Navigator.of(context).push<List<Contact>>(
                     MaterialPageRoute(
                       builder: (_) => ContactPickerScreen(
-                        repository: _FakeContactsRepo(_roster),
+                        repository: FakeContactsRepo(_roster),
                         initialSelected: const [],
                         title: 'people',
                       ),
@@ -159,7 +146,7 @@ void main() {
     (tester) async {
       // Attendees (event path) and people (task path) each get their own noun.
       await tester.pumpWidget(
-        _picker(title: 'attendees', repo: _FakeContactsRepo()),
+        _picker(title: 'attendees', repo: FakeContactsRepo()),
       );
       await tester.pumpAndSettle();
       expect(find.text('No contacts yet'), findsOneWidget);
@@ -169,7 +156,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        _picker(title: 'people', repo: _FakeContactsRepo()),
+        _picker(title: 'people', repo: FakeContactsRepo()),
       );
       await tester.pumpAndSettle();
       expect(

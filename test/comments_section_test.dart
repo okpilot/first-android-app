@@ -4,16 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:first_android_app/data/comments_repository.dart';
-import 'package:first_android_app/data/contacts_repository.dart';
-import 'package:first_android_app/data/event_types_repository.dart';
-import 'package:first_android_app/data/events_repository.dart';
 import 'package:first_android_app/models/comment.dart';
-import 'package:first_android_app/models/contact.dart';
 import 'package:first_android_app/models/event.dart';
-import 'package:first_android_app/models/event_type.dart';
 import 'package:first_android_app/screens/event_detail_screen.dart';
 import 'package:first_android_app/theme.dart';
 import 'package:first_android_app/widgets/comments_section.dart';
+
+import 'support/fakes.dart';
 
 // The Comments section is private to event_detail_screen.dart, so it's exercised through
 // its public host, EventDetailScreen. Only the comments repo does anything here; the other
@@ -84,39 +81,6 @@ class _FakeCommentsRepo implements CommentsRepository {
   }
 }
 
-class _InertEventsRepo implements EventsRepository {
-  @override
-  Future<List<Event>> fetchAll() async => const [];
-  @override
-  Future<Event> create(Event draft) async => draft;
-  @override
-  Future<Event> update(Event event) async => event;
-  @override
-  Future<void> softDelete(String id) async {}
-}
-
-class _InertContactsRepo implements ContactsRepository {
-  @override
-  Future<List<Contact>> fetchAll() async => const [];
-  @override
-  Future<Contact> create(Contact draft) async => draft;
-  @override
-  Future<Contact> update(Contact contact) async => contact;
-  @override
-  Future<void> softDelete(String id) async {}
-}
-
-class _InertTypesRepo implements EventTypesRepository {
-  @override
-  Future<List<EventType>> fetchAll() async => const [];
-  @override
-  Future<EventType> create(EventType draft) async => draft;
-  @override
-  Future<EventType> update(EventType type) async => type;
-  @override
-  Future<void> softDelete(String id) async {}
-}
-
 final _event = Event(
   id: 'e1',
   title: 'Design review',
@@ -127,9 +91,9 @@ final _event = Event(
 Widget _detail(_FakeCommentsRepo comments) => MaterialApp(
   theme: AppTheme.light,
   home: EventDetailScreen(
-    eventsRepository: _InertEventsRepo(),
-    contactsRepository: _InertContactsRepo(),
-    eventTypesRepository: _InertTypesRepo(),
+    eventsRepository: FakeEventsRepo(),
+    contactsRepository: FakeContactsRepo(),
+    eventTypesRepository: FakeEventTypesRepo(),
     commentsRepository: comments,
     event: _event,
   ),

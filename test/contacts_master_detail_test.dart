@@ -1,25 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:first_android_app/data/contacts_repository.dart';
 import 'package:first_android_app/models/contact.dart';
 import 'package:first_android_app/screens/contact_detail_screen.dart';
 import 'package:first_android_app/screens/contacts_list_screen.dart';
 
-/// In-memory fake — hand-written private-fake convention (no mockito).
-class _FakeRepo implements ContactsRepository {
-  _FakeRepo(this.contacts);
-  final List<Contact> contacts;
-
-  @override
-  Future<List<Contact>> fetchAll() async => contacts;
-  @override
-  Future<Contact> create(Contact draft) async => draft;
-  @override
-  Future<Contact> update(Contact contact) async => contact;
-  @override
-  Future<void> softDelete(String id) async {}
-}
+import 'support/fakes.dart';
 
 final _people = [
   const Contact(
@@ -36,7 +22,7 @@ final _people = [
 ];
 
 Widget _app(List<Contact> people) =>
-    MaterialApp(home: ContactsListScreen(repository: _FakeRepo(people)));
+    MaterialApp(home: ContactsListScreen(repository: FakeContactsRepo(people)));
 
 void main() {
   testWidgets(
