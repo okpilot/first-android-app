@@ -18,11 +18,13 @@
 -- re-applies the same values — already idempotent).
 --
 -- Semantics of a CHANGED-payload replay (create committed, response dropped, user edits, re-Saves the
--- SAME id): `on conflict (id) do nothing` is first-write-wins on the scalar columns, and the junction
--- inserts (event_attendees / task_contacts / task_category_links) UNION rather than replace. This is
--- correct idempotent-create behaviour, not a lost update — `_fetchOne(v_id)` returns the actually-
--- persisted row, and the way to make an after-the-fact edit take effect is the Edit path (`update_*`,
--- last-write-wins + delete-then-reinsert on the junctions), not a re-Save. The trigger window is narrow.
+-- SAME id): a replay is a PURE no-op. `on conflict (id) do nothing` is first-write-wins on the scalar
+-- columns, and the junction inserts (event_attendees / task_contacts / task_category_links) are gated
+-- on `if found` — i.e. written ONLY on the attempt that actually created the parent — so a replay
+-- neither unions a changed membership set onto the row nor touches an already-archived parent (upholds
+-- the Decision 36 "archived = frozen" invariant). `_fetchOne(v_id)` returns the actually-persisted row;
+-- the way to make an after-the-fact edit take effect is the Edit path (`update_*`, last-write-wins +
+-- delete-then-reinsert on the junctions), not a re-Save. The trigger window is narrow regardless.
 --
 -- Why DROP + recreate (not `create or replace`): a function's identity is name + argument TYPES.
 -- Appending a param — even defaulted — is a NEW signature, so create-or-replace would leave the old
@@ -124,12 +126,15 @@ begin
   )
   on conflict (id) do nothing;
 
-  -- unnest(NULL) and unnest('{}') both yield zero rows, so this is a safe no-op when
-  -- there are no attendees. on conflict do nothing dedupes repeated ids (and re-inserting the
-  -- same set on an idempotent retry is harmless).
-  insert into public.event_attendees (event_id, contact_id)
-  select v_id, a from unnest(p_attendees) as a
-  on conflict do nothing;
+  -- Wire attendees ONLY on the attempt that actually created the event (found = true). A same-id
+  -- replay skips the parent insert (found = false) → the attendees already exist from the creating
+  -- attempt, so re-inserting a (possibly changed) set would UNION onto the row — and could touch an
+  -- ARCHIVED event. Gating on found keeps a replay a pure no-op. unnest(NULL/'{}') is a safe empty set.
+  if found then
+    insert into public.event_attendees (event_id, contact_id)
+    select v_id, a from unnest(p_attendees) as a
+    on conflict do nothing;
+  end if;
 
   return v_id;
 end;
@@ -185,17 +190,20 @@ begin
   values (v_id, trim(p_title), nullif(trim(p_notes), ''), p_importance)
   on conflict (id) do nothing;
 
-  -- unnest(NULL) and unnest('{}') both yield zero rows, so this is a safe no-op when there are
-  -- no People. on conflict do nothing dedupes repeated ids against the composite PK.
-  insert into public.task_contacts (task_id, contact_id)
-  select v_id, c from unnest(p_contacts) as c
-  on conflict do nothing;
+  -- Wire People + categories ONLY on the attempt that actually created the task (found = true). A
+  -- same-id replay skips the parent insert (found = false) → the memberships already exist from the
+  -- creating attempt, so re-inserting a (possibly changed) set would UNION onto the row — and could
+  -- mutate an ARCHIVED task. Gating on found keeps a replay a pure no-op. unnest(NULL/'{}') is a safe
+  -- empty set; a bad category id still raises a FK violation and rolls the call back.
+  if found then
+    insert into public.task_contacts (task_id, contact_id)
+    select v_id, c from unnest(p_contacts) as c
+    on conflict do nothing;
 
-  -- Categories — the identical unnest-insert against the link table (same safety: no-op on empty,
-  -- dedupe on the composite PK). A bad category id would raise a FK violation and roll the call back.
-  insert into public.task_category_links (task_id, category_id)
-  select v_id, c from unnest(p_categories) as c
-  on conflict do nothing;
+    insert into public.task_category_links (task_id, category_id)
+    select v_id, c from unnest(p_categories) as c
+    on conflict do nothing;
+  end if;
 
   return v_id;
 end;
