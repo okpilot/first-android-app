@@ -1,8 +1,8 @@
-> Cross-session work tracker. Update in place. Last updated: 2026-07-17 (UI consistency pass, Decisions 47 + 48 — **PUSHED, PR #55 OPEN & awaiting merge**; cloud-CR reviewed + answered). Prior: Soft-delete non-destructiveness curls, issue #19 / Decisions 45 + 46 — ✅ MERGED, PR #53 → squash `f582aba`; issue #19 CLOSED).
+> Cross-session work tracker. Update in place. Last updated: 2026-07-17 (UI consistency pass, Decisions 47 + 48 — **✅ MERGED, PR #55 → squash `154271b`; branch deleted; `main` clean & synced**). Prior: Soft-delete non-destructiveness curls, issue #19 / Decisions 45 + 46 — ✅ MERGED, PR #53 → squash `f582aba`; issue #19 CLOSED).
 
 # Handover
 
-**Status: UI consistency pass — Decisions 47 + 48 — 🔵 PUSHED, PR #55 OPEN (`feat/ui-consistency-a1` → `main`), cloud-CR answered, awaiting merge.** `main` is clean; nothing to deploy (no migration). **RESUME = merge PR #55** (squash), delete the branch, then pick the next slice (options at the bottom).
+**Status: UI consistency pass — Decisions 47 + 48 — ✅ SHIPPED & MERGED (PR #55 → squash `154271b`; branch deleted; `main` clean & synced).** No migration → nothing to deploy; UI-only so installed apps keep working (**`/updatephone` owed only if you want the fixes on the S23+** — optional). **RESUME = pick the next slice** — Slice A2 (Edit→AppBar, mockup ready) is the natural companion; other options at the bottom.
 
 **Slice A1 (findings #1/#3/#4/#6 — 4 High issues from the full UI/UX scan):** one date format (`ymd()` doc-commented WIRE-ONLY; new `displayDate`/`displayDateNoYear`/`longDate` in `util/calendar.dart`), one Save per form (AppBar Save dropped from contact/event/event_type/task_category editors — `task_form` was already the precedent), "People" one word everywhere incl. the a11y label + empty state (UI copy only; domain names `Event.attendees`/`event_attendees` kept — a *stated* skip), one chip (`chipTheme` added — Decision 13's own promise). **Decision 47.**
 
@@ -21,11 +21,9 @@
 - **Finding #5** (Delete → Archive). Rename honest only once contacts + events get an archived section + restore, like tasks have.
 - **The other 16 scan findings** (Groups B/C/D) — no phone search (the *picker* has search, the lists don't), always-open comment composer, the two near-duplicate taxonomies (Event types vs Task categories — already drifted: "Extra work" vs "Extra Work"), 3-day view time-truncation (`12:00 …`), `SafeArea` used exactly once. The scan lives in two artifacts (audit table + Group-A mockups).
 
-**Owed before/after merge:**
-- **`/replycoderabbit` on PR #55** — the 2 findings are triaged (fix commit `8211be6` + the skip reason); the reply comment is not yet posted.
-- Merge PR #55 (squash), delete branch local+remote.
+**Done at merge:** the 2 cloud-CR findings were answered inline on #55 (fix `8211be6` + skip reasons — entity-vs-role, cosmetic rename); PR squash-merged `154271b`, branch deleted local+remote. **Nothing owed** except an optional `/updatephone` to put the UI fixes on the S23+.
 
-**RESUME =** post the `/replycoderabbit` reply, merge PR #55, then pick the next slice — **Slice A2** (Edit→AppBar, mockup ready), **filter/group the task list BY category** (Group B/C follow-on), or **#46** (`_SwatchGrid` + `ChipSection` atom + `TypeSwatch`→`lib/widgets/` — now at N=3: People/Attendees/Categories, reinforced by code-reviewer this slice).
+**RESUME =** pick the next slice — **Slice A2** (Edit→AppBar, mockup ready — the natural companion to this slice), **filter/group the task list BY category** (Group B/C follow-on), or **#46** (`_SwatchGrid` + `ChipSection` atom + `TypeSwatch`→`lib/widgets/` — now at N=3: People/Attendees/Categories, reinforced by code-reviewer this slice).
 
 ---
 
