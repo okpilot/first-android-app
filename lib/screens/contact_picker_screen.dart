@@ -6,9 +6,11 @@ import '../widgets/empty_state.dart';
 import '../widgets/initials_avatar.dart';
 
 /// A searchable multi-select of contacts, used to link contacts to a parent record — an event's
-/// People or a task's People. [title] is the role noun for that context; it drives the AppBar copy
-/// only. Both callers pass `'people'` today (Decision 47 made it the one user-facing noun), but the
-/// param stays: the widget is generic and shouldn't hardcode its callers' vocabulary.
+/// People or a task's People. [title] is the role noun for that context; it drives **all**
+/// user-facing role copy — the AppBar (`Add <noun>` / `<Noun> · N`) and the empty-state message.
+/// (The "No contacts yet / Add contacts first" copy names the Contact *entity*, not the role, so it
+/// stays "contacts".) Both callers pass `'people'` today (Decision 47 made it the one user-facing
+/// noun), but the param stays: the widget is generic and shouldn't hardcode its callers' vocabulary.
 /// Pops the selected contacts (both the back arrow
 /// and Done commit the current selection; a system back is a cancel → null, so the caller keeps
 /// its previous selection).
@@ -23,7 +25,9 @@ class ContactPickerScreen extends StatefulWidget {
   final ContactsRepository repository;
   final List<Contact> initialSelected;
 
-  /// The role noun for this context (both callers pass `'people'`) — AppBar copy only.
+  /// The role noun for this context (both callers pass `'people'`) — drives the AppBar + the
+  /// empty-state role copy. (Kept named `title` to avoid churning two callers + tests for a
+  /// cosmetic rename; the doc above is the contract.)
   final String title;
 
   @override
