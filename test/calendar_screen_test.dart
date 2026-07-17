@@ -110,6 +110,87 @@ void main() {
     expect(find.text('No type'), findsOneWidget);
   });
 
+  testWidgets('an event with nobody invited shows the People empty state', (
+    tester,
+  ) async {
+    final event = Event(
+      id: 'e4',
+      title: 'Solo focus block',
+      date: DateTime(2026, 7, 8),
+      allDay: true,
+    );
+    await tester.pumpWidget(
+      _calendar(initialDate: DateTime(2026, 7, 8), events: [event]),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Solo focus block'));
+    await tester.pumpAndSettle();
+
+    // The roster's empty branch. "people" is the one user-facing noun (Decision 47) — the
+    // domain's `attendees` survives only in Event.attendees and the event_attendees table.
+    expect(find.text('PEOPLE · 0'), findsOneWidget);
+    expect(find.text('No people'), findsOneWidget);
+    expect(find.textContaining('attendee'), findsNothing);
+  });
+
+  testWidgets('a timed event tells a screen reader who is coming', (
+    tester,
+  ) async {
+    // Disposed explicitly at the end, not via addTearDown — the framework verifies no
+    // SemanticsHandle is live BEFORE tear-downs run, so a tear-down dispose fails the test.
+    final handle = tester.ensureSemantics();
+    final solo = Event(
+      id: 'e5',
+      title: 'Standup',
+      date: DateTime(2026, 7, 9),
+      allDay: false,
+      startMin: 9 * 60,
+      endMin: 9 * 60 + 15,
+      attendees: const [Contact(id: 'c1', name: 'Ada Lovelace')],
+    );
+    final crowd = Event(
+      id: 'e6',
+      title: 'Retro',
+      date: DateTime(2026, 7, 9),
+      allDay: false,
+      startMin: 14 * 60,
+      endMin: 14 * 60 + 30,
+      attendees: const [
+        Contact(id: 'c1', name: 'Ada Lovelace'),
+        Contact(id: 'c2', name: 'Bo Zhang'),
+      ],
+    );
+    await tester.pumpWidget(
+      _calendar(initialDate: DateTime(2026, 7, 8), events: [solo, crowd]),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('3-day'));
+    await tester.pumpAndSettle();
+
+    // RegExp, not an exact string: the block's Semantics carries an explicit `label` AND
+    // merges its children's, so the node's full label has the child Texts newline-appended
+    // after this prefix. The prefix is the part the screen reader leads with.
+    //
+    // A screen reader must hear the noun a sighted user reads — "person"/"people", never the
+    // domain's "attendee" (Decision 47) — and the count switches on 1 vs many. The type is
+    // spoken because the block carries it as a tint only (colour is never the sole signal).
+    expect(
+      find.bySemanticsLabel(
+        RegExp(r'^Standup, No type, 09:00 – 09:15, 1 person'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.bySemanticsLabel(
+        RegExp(r'^Retro, No type, 14:00 – 14:30, 2 people'),
+      ),
+      findsOneWidget,
+    );
+    handle.dispose();
+  });
+
   testWidgets('a typed event shows its dot and name in the month panel', (
     tester,
   ) async {

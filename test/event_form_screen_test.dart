@@ -1,21 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:first_android_app/models/contact.dart';
+import 'package:first_android_app/models/event.dart';
 import 'package:first_android_app/models/event_type.dart';
 import 'package:first_android_app/screens/event_form_screen.dart';
 import 'package:first_android_app/theme.dart';
 
 import 'support/fakes.dart';
 
-Widget _form({FakeEventsRepo? events, List<EventType> types = const []}) =>
-    MaterialApp(
-      theme: AppTheme.light,
-      home: EventFormScreen(
-        eventsRepository: events ?? FakeEventsRepo(),
-        contactsRepository: FakeContactsRepo(),
-        eventTypesRepository: FakeEventTypesRepo(types),
-      ),
-    );
+Widget _form({
+  FakeEventsRepo? events,
+  List<EventType> types = const [],
+  Event? existing,
+}) => MaterialApp(
+  theme: AppTheme.light,
+  home: EventFormScreen(
+    eventsRepository: events ?? FakeEventsRepo(),
+    contactsRepository: FakeContactsRepo(),
+    eventTypesRepository: FakeEventTypesRepo(types),
+    existing: existing,
+  ),
+);
 
 /// Pin a TALL surface before pumping. Decision 47 removed the AppBar's `Save` (one save per form),
 /// so these tests now drive the submit button at the BOTTOM of the form's ListView — which the
@@ -37,6 +43,38 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Title is required'), findsOneWidget);
+  });
+
+  testWidgets('a People chip renders its avatar initials at the chip size', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _form(
+        existing: Event(
+          id: 'e1',
+          title: 'Q3 kickoff',
+          date: DateTime(2026, 7, 9),
+          allDay: true,
+          attendees: const [Contact(id: 'c1', name: 'Ada Lovelace')],
+        ),
+      ),
+    );
+
+    final initials = find.descendant(
+      of: find.widgetWithText(InputChip, 'Ada Lovelace'),
+      matching: find.text('AL'),
+    );
+    await tester.ensureVisible(initials);
+
+    // `radius: 11` → fontSize 7.7. This asserts the SITE, not the widget contract
+    // (initials_avatar_test owns that): a Chip pins the avatar's BOX via
+    // tightFor(contentSize), so deleting `radius: 11` here leaves the disc byte-identical
+    // and only the initials jump 7.7 → 14 — no analyzer complaint, no layout error.
+    expect(
+      tester.widget<Text>(initials).style?.fontSize,
+      moreOrLessEquals(7.7, epsilon: 0.01),
+    );
   });
 
   testWidgets('the all-day toggle hides the time fields', (tester) async {

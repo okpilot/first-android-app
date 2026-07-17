@@ -3,19 +3,21 @@
 > Transition tracker, curated in place (never a dated session log). Records recurring Dart/Flutter
 > quality patterns and false positives for THIS project so future reviews focus where code actually
 > drifts. This agent ALWAYS keeps the tracker table below. Curated at `/wrapup`.
+> **This file is an INDEX** — one line per entry; evidence lives in `topics/*.md`.
 
 ## Tracker table (recurring findings — rows transition, never delete)
+Evidence + full history for every row: [duplication-tracker](topics/duplication-tracker.md).
 
 | Pattern | First Seen | Count | Last Seen | Status (→ rule loc) |
 |---|---|---|---|---|
-| Identical private detail-widget copied across screens (`_MetaLine` "Added X · Updated Y" muted date footer — same class in both detail screens, functionally byte-identical bar a `parts.isEmpty` guard). Unlike `_ErrorState` (per-screen variance = convention), this had zero variance → extractable atom. | 2026-07-14 (tasks view-first) | 2 | 2026-07-14 (acb0043) | PROMOTED → `lib/widgets/meta_line.dart` (`MetaLine`, extracted acb0043; the merged atom keeps task's `parts.isEmpty` guard, strictly safer for contacts whose call site already guarded). RESOLVED. |
-| Near-identical **chip-section / roster widget** duplicated per linked-collection (Slices: link contacts to tasks; link categories to tasks). `_PeopleSection` (task_form) vs `_AttendeesSection` (event_form) differ by only 2 string literals — byte-identical Wrap-of-InputChips. `_PeopleList` (task_detail) vs `_AttendeeList` (event_detail): per-item roster Row byte-identical. Slice B (d95f85b) added `_CategoriesSection` (task_form, "Mirrors `_PeopleSection`", differs only: label CATEGORIES/PEOPLE, avatar `TypeSwatch`/`InitialsAvatar`, button copy/icon) + `_CategoriesList` (task_detail, "Mirrors `_PeopleList`", differs: header noun, `TypeDot+Text` vs avatar). All landed as DOCUMENTED mirrors. Same shape as the `MetaLine` extraction (PROMOTED). | 2026-07-14 (link contacts to tasks) | 2 | 2026-07-15 (d95f85b) | RULE CANDIDATE (count→2, distinct mechanism: categories add a 2nd linked-collection reusing the same chip/roster shape). Reported SUGGESTION (non-blocking; deliberate documented mirrors). `learner` to weigh a parameterised `ChipSection`(label, avatarBuilder, chips) + roster-row atom, à la MetaLine — vs the author's stated per-collection-mirror preference. |
-| **`_Field` (labelled detail-field row: icon + label + value) duplicated & DIVERGED** across `contact_detail_screen` (nullable value + "Not added" placeholder) and `event_detail_screen` (value XOR `child` + `selectable`, no placeholder). Same MECHANISM as the PROMOTED `MetaLine` (private detail widget copied not shared), but here the two copies had DIVERGED — the extraction merged them into a superset atom whose extra branches (empty→"Not added") are unreachable for the stricter event caller. | 2026-07-16 (was latent since detail screens built) | 2 | 2026-07-16 (780c930) | PROMOTED → `lib/widgets/detail_field.dart` (`DetailField`, extracted 780c930, Decision 43). Superset merge verified pixel-identical, relaxed assert `child==null\|\|value==null` (both-null allowed) safe for both callers, grep 0 leftover `_Field`. Duplication RESOLVED at code level (extracted); #10 item 2 pending push/merge. RESOLVED. Meta-pattern "byte-identical/near-identical private detail widget copied not shared" now 3 instances repo-wide (MetaLine + DetailField PROMOTED; `_SwatchGrid` still WATCHING). |
-| Byte-identical **private UI atom** copied across sibling manager screens instead of shared (`_SwatchGrid` — the palette-picker `Wrap` — copied verbatim task_categories_screen ⟷ event_types_screen; `diff` = zero bytes, zero entity-specific variance). Same MECHANISM as the PROMOTED `MetaLine`: unlike `_EmptyState`/`_ErrorState` (per-screen TEXT variance = convention), this has NO variance → extractable. Author already reuses public `TypeSwatch` (imported cross-screen), so atom-sharing is understood here — `_SwatchGrid` is the one they copied. Won't be touched by the documented Slice-B divergence (delete semantics), so the "will diverge" rationale doesn't cover it. | 2026-07-15 (slice-a task categories) | 1 | 2026-07-15 (9377a61) | WATCHING — reported SUGGESTION (non-blocking). Meta-pattern "byte-identical zero-variance private widget copied not shared" now has 2 instances repo-wide (MetaLine PROMOTED + this). If a 3rd screen copies `_SwatchGrid`/`TypeSwatch` rather than sharing, count→2 → RULE CANDIDATE (extract a `SwatchGrid`/`TypeSwatch` picker into `lib/widgets/`, à la MetaLine). |
-| Whole **searchable multi-select picker screen** cloned (`CategoryPickerScreen`, Slice B d95f85b, "A near-verbatim mirror of `ContactPickerScreen`"). Shares the entire scaffold: `late Future _future` + `_selected` id-map + `_query` + `_toggle`/`_done`/`_filter` + FutureBuilder(waiting/error EmptyState/empty EmptyState/no-match EmptyState) + CheckboxListTile list. Differs only: model type, secondary widget (`InitialsAvatar` vs `TypeSwatch`), search fields (name+company vs name-only), subtitle, AppBar noun. Genericisable into `PickerScreen<T>`(fetch, avatarBuilder, searchOn, labels). | 2026-07-15 (link categories to tasks) | 1 | 2026-07-15 (d95f85b) | WATCHING — reported SUGGESTION (non-blocking); documented mirror at N=2 pickers (contact + category). If a 3rd picker lands, count→2 → RULE CANDIDATE (extract `PickerScreen<T>`). NOT flagged for missing `_lastData`: pickers load once in `initState` over an immutable list (like `ContactPickerScreen`), so the list-screen stale-guard doesn't apply. |
-| `TypeSwatch` (public UI atom) lives in `event_types_screen.dart` but is imported cross-screen via `show TypeSwatch`; Slice B added 2 MORE importers (`category_picker_screen.dart`, `task_form_screen.dart`) → now 4 files import a widget out of a *screen* file. Reuse (good, not a copy) but the home is wrong: a shared atom belongs in `lib/widgets/` beside `TypeDot`/`TypeLabel`. | 2026-07-15 (slice-a task categories) | 2 | 2026-07-15 (d95f85b) | WATCHING — reported SUGGESTION (non-blocking). Growing cross-screen coupling (2 importers → 4). `learner`/refactor candidate: promote `TypeSwatch` to `lib/widgets/type_label.dart` (or its own file) so no screen imports a widget from another screen. |
-| **`backend/README.md` `## Verify:` section intro names an RPC the block never exercises.** New `## Verify: event write RPCs + the attendee parent-gate (D18)` (46a2cdc:247) opens "`create_event` / `update_event` / `soft_delete_event` are the RPC write path" but calls only create + soft_delete. Grep-verified: `rpc/update_event` appears **nowhere** in the README — the ONLY intro-named RPC in all 11 Verify sections with zero curl coverage (update_task ×10, restore_task ×3, update_task_comment ×2, restore_task_comment ×2, update_contact, update_event_type, update_task_category all exercised). Also skips the "soft-delete then update_X → no_data_found" guard-check every sibling section proves, though `update_event` HAS that guard (20260710120300:101) and `$EID` is already soft-deleted 15 lines above → zero setup cost. | 2026-07-17 (issue #19 / D45) | 1 | 2026-07-17 (46a2cdc) | WATCHING — reported ISSUE (section's stated scope ≠ its contents). If a 2nd Verify section ships naming an unexercised RPC, count→2 → RULE CANDIDATE (`learner`: "a `## Verify:` intro may only name RPCs the block actually calls"). |
-| Near-identical `CommentsRepository` impl duplicated per parent entity (`SupabaseTaskCommentsRepository` is ~70 lines byte-identical to `SupabaseEventCommentsRepository` bar 6 strings: table, FK alias column, `.eq` column, 4 RPC names). Fully parameterizable into one class w/ table+fkColumn+rpcPrefix — BUT the interface docstring deliberately commits to "N parent-specific implementations" as the pattern. Defensible/documented skip at N=2; extraction pays off at N=3. | 2026-07-14 (Slice 2b) | 1 | 2026-07-14 (643bbeb) | WATCHING — reported as SUGGESTION only, not pushed (deliberate documented choice). If a 3rd parent-comments repo lands, count→2, RULE CANDIDATE. |
+| `_MetaLine` — "Added X · Updated Y" footer, zero-variance copy in both detail screens | 2026-07-14 | 2 | 2026-07-14 (acb0043) | PROMOTED → `lib/widgets/meta_line.dart`. RESOLVED. |
+| `_Field` — labelled detail-field row, copied AND diverged (contact vs event detail) | 2026-07-16 | 2 | 2026-07-16 (780c930) | PROMOTED → `lib/widgets/detail_field.dart` (D43). RESOLVED. |
+| **Chip-section / roster widget duplicated per linked-collection** — `_PeopleSection` ⟷ `_AttendeesSection`, `_PeopleList` ⟷ `_AttendeeList`, + Slice-B's `_Categories*` mirrors | 2026-07-14 | 2 | 2026-07-17 (72f33c1) | **RULE CANDIDATE.** 72f33c1 removed the LAST variance (copy pass unified both string literals; both gained `ring: true` + an 8-line verbatim-identical comment) → `diff` = 3 lines, all one identifier. Count held at 2 (same sections converging, not a new mechanism). `learner`: weigh a parameterised `ChipSection` + roster-row atom. |
+| `_SwatchGrid` — palette-picker `Wrap` copied verbatim (zero bytes differ) across the 2 manager screens | 2026-07-15 | 1 | 2026-07-15 (9377a61) | WATCHING — SUGGESTION. 3rd copy → count 2 → extract `SwatchGrid`. |
+| Whole picker screen cloned — `CategoryPickerScreen` = near-verbatim `ContactPickerScreen` | 2026-07-15 | 1 | 2026-07-15 (d95f85b) | WATCHING — SUGGESTION. 3rd picker → count 2 → extract `PickerScreen<T>`. |
+| `TypeSwatch` is a public atom living in `event_types_screen.dart`, imported cross-screen (2 → 4 importers) | 2026-07-15 | 2 | 2026-07-15 (d95f85b) | WATCHING — SUGGESTION. Promote to `lib/widgets/`; no screen should import a widget from another screen. |
+| Near-identical `CommentsRepository` impl per parent entity (~70 lines, 6 strings differ) | 2026-07-14 | 1 | 2026-07-14 (643bbeb) | WATCHING — SUGGESTION, not pushed (interface docstring commits to per-parent impls). 3rd → count 2. |
+| `backend/README.md` `## Verify:` intro names an RPC the block never exercises (`update_event`) | 2026-07-17 | 1 | 2026-07-17 (46a2cdc) | WATCHING — reported ISSUE. 2nd → count 2 → rule: an intro may only name RPCs the block calls. |
 
 ## Durable knowledge (this project's conventions to check against)
 - **No hard line caps.** Judge structure by responsibility/nesting, not length. A long
@@ -27,107 +29,46 @@
   `if (!mounted) return` after awaits (`calendar_screen.dart`, `contacts_list_screen.dart`,
   `event_types_screen.dart`). A new list screen should match it.
 - **Shared atoms to reuse, not re-implement:** `EmptyState`, `TypeLabel`/`TypeDot`,
-  `InitialsAvatar`. Colour-as-data (Decision 19): colour never rides alone.
+  `InitialsAvatar`, `MetaLine`, `DetailField`. Colour-as-data (D19): colour never rides alone.
 - **Naming:** files `snake_case`, classes/enums `PascalCase`.
+- **`ymd()` (`util/format.dart`) is the WIRE serializer + a day-grouping map key — NEVER a display
+  format** (D47, 72f33c1). User-facing dates come from `util/calendar.dart`: `displayDate`
+  ("13 Apr 1974") · `displayDateNoYear` ("9 Jul") · `longDate` ("Fri, 17 Jul 2026"). **Flag any NEW
+  `ymd()` at a UI site** (a `Text`, a label, a `DetailField.value`) — that leak is what D47 fixed.
+  Legit non-UI callers: `models/contact.dart` (`p_dob`), `models/event.dart` (`p_event_date`),
+  `calendar_screen.dart` map keys (:257/:263/:1243). Date-then-time order ("9 Jul · 14:32").
 - **`backend/README.md` `## Verify:` convention** (11 sections, checked 46a2cdc): heading
   `## Verify: <topic> (Decision N[, Slice X])` → prose intro naming the RPCs → fenced ```bash block
   that **re-declares its own `ANON=`/`REST=` preamble and mints its own ids** (never borrows a
   variable across blocks). Superuser reads are
-  `docker compose exec -T db psql -U postgres -d postgres -tAc "…"` (cwd = `backend/`, service `db`)
-  — the precedent is the task_categories block. Expected output rides in a trailing `# -> …` comment;
-  uuid placeholders are written **`<uuid>`**, not `<$VAR>`. Two fenced blocks per section is allowed
-  (precedent: the pre-auth lockdown section's curl + psql pair).
+  `docker compose exec -T db psql -U postgres -d postgres -tAc "…"` (cwd = `backend/`, service `db`).
+  Expected output rides in a trailing `# -> …` comment; uuid placeholders are **`<uuid>`**, not
+  `<$VAR>`. Two fenced blocks per section is allowed.
 - **New pure-Dart util/model → flag missing test only; `test-writer` writes it.**
 
-## Known false-positive traps (do not flag these)
-- **`EmptyState` is a full-screen panel** (64px icon, vertically centered, scrollable) meant for a
-  whole empty *screen*. A small inline "No comments yet." / inline-error inside a sub-section of a
-  populated screen (e.g. `_CommentsSection`) correctly hand-rolls a compact `Text` — do NOT flag it
-  as "re-implementing `EmptyState`". The atom would look wrong inline.
-- **Snapshot partition in `build()` is fine** — `list.where((c)=>!c.isArchived)` splitting a small
-  already-fetched list into live/archived is trivial derived view-state, NOT the "heavy transform"
-  item #2 targets. Don't flag light filtering of a snapshot.
-- **Not a hard line cap** — a long file that is one cohesive concern is correct; do not flag length.
-- **Generated / platform files** (`*.g.dart`, `*.freezed.dart`, `build/`, `android/…`, `web/…`) are
-  not hand-authored — never flag them.
-- **Legit `StatefulWidget`** — a screen that owns a `Future`/`_lastData`/`setState` is correct; only
-  flag a `State` with no mutable field and no lifecycle.
-- **Hand-rolled private `_ErrorState` per list screen is the CONVENTION, not a re-implemented atom.**
-  Every list screen (`contacts_list_screen`, `calendar_screen`, `event_types_screen`,
-  `tasks_list_screen`) declares its own private `_ErrorState` (64px `cloud_off_outlined`, "Couldn't
-  load X", Retry). There is NO shared error atom (only `EmptyState`/`TypeLabel`/`InitialsAvatar` in
-  `lib/widgets/`). The `error` field is passed-but-unused in ALL of them (contacts included) — a
-  codebase-wide convention, not new dead code. Do NOT flag a new list screen's `_ErrorState` as
-  "re-implementing a shared atom" or the unused `error` field as a task-slice finding.
-- **`task_detail_screen`'s inline Notes block is NOT a re-implemented `_Field` atom.** The detail
-  Notes block (`if (_task.notes!=null && isNotEmpty) [SizedBox(24), Text('Notes',labelMedium),
-  SizedBox(6), Text(value,bodyLarge)]`) says in a comment it "mirrors the ContactDetailView row
-  style" — but structurally it is DISTINCT from contact_detail's private `_Field` (which is an
-  icon + `Row` + "Not added" fallback + onSurfaceVariant colour, spacing 20/2). Notes has no icon,
-  no Row, no fallback (hides when empty), different spacing. Do NOT flag it as duplicating `_Field`
-  or as an extractable shared atom — it is a simpler one-off, unlike the byte-identical `MetaLine`.
-  **Still applies after `DetailField` was extracted (780c930):** the Notes block does NOT adopt
-  `DetailField` because that atom always renders a leading icon + Row; the Notes block has no icon
-  and different spacing (24/6 vs 20/16/2). It is a genuinely different, simpler shape — do NOT flag
-  it as "should now use `DetailField`".
-- **`lib/util/` import order `package:flutter/painting.dart` then `dart:ui show Brightness` is the
-  project convention, NOT out-of-order.** Both `event_type_palette.dart` and `importance.dart`
-  (Decision 38) lead with the flutter import then `dart:ui show Brightness`. `directives_ordering`
-  is NOT enabled in `analysis_options.yaml`, and importance.dart is explicitly modeled on
-  event_type_palette. Do NOT flag it as a dart-before-package idiom miss — it mirrors the sibling.
-- **The bare `psql -c "…"` in `backend/README.md`'s pre-auth-lockdown section is NOT an
-  inconsistency with the newer `docker compose exec -T db psql …` form.** It predates the diff and is
-  annotated "(as `postgres`, on homebase inside the db container)" — a different execution context
-  (homebase, already inside the container) vs the local `docker compose exec` form the Verify blocks
-  use. Do not flag either as drift from the other.
-- **Leftover live rows from a Verify block are the README's norm, not a cleanup miss.** The pre-auth
-  lockdown block leaves contact "Ada" live; the null-embed block leaves "Quarterly review"; the events
-  block leaves contact "Grace". The documented practice is a freshly re-inited stack
-  (`docker compose down -v`), not per-block teardown. Do NOT flag "the block doesn't clean up".
+## Known false-positive traps (do not flag — evidence in [false-positives](topics/false-positives.md))
+- `EmptyState` is a full-screen panel; a small inline empty/error inside a populated screen
+  correctly hand-rolls a compact `Text`.
+- Light snapshot filtering/partition in `build()` (`where((c) => !c.isArchived)`) is view-state,
+  not a heavy transform.
+- Length alone is never a finding; generated/platform files are never a finding.
+- A `StatefulWidget` owning a `Future`/`_lastData`/`setState` is correct.
+- A per-list-screen private `_ErrorState` (and its passed-but-unused `error` field) is the
+  CONVENTION — there is no shared error atom.
+- `task_detail_screen`'s inline Notes block is NOT a `_Field`/`DetailField` re-implementation.
+- `lib/util/`'s `package:flutter/painting.dart` → `dart:ui show Brightness` order is the convention.
+- `backend/README.md`: the bare `psql -c` (different context) and leftover live rows (the stack is
+  re-inited, not torn down per block) are both fine.
 - **Out of scope** — DB/RLS/SQL/secrets (`db-security-reviewer`), deep logic correctness
   (`semantic-reviewer`), lints `flutter analyze` already reports.
 
-## Positive signals — reference-quality slices to compare against
-Full detail in [positive-signals](topics/positive-signals.md). One-line index:
-- **`event_form_screen.dart`** — the form-screen reference (flat `ListView`, every concern a small
-  private `StatelessWidget`, repo/time-math out of `build()`, messenger/nav captured before await).
-- **RPC-write repository pattern** — `create`/`update` → `_client.rpc(...)` + `_fetchOne(id)`;
-  `toRpcParams()` `p_`-prefixed; per-entity divergences (comments' body-only `edit`, tasks' explicit
-  `update`, comment model dropping `toRpcParams` when parent-agnostic — Slice 2a) are EXPECTED,
-  verify-don't-flag. Task notes slice (`4d3d6b8`) = clean scalar-field-add.
-- **`tasks_list_screen.dart`** / **`contacts_list_screen` (Slices B/C)** — list-screen reference:
-  `_lastData` stale-guard, `mounted`-after-await, light snapshot `where` partition/search (NOT a
-  heavy transform), `EmptyState` + hand-rolled `_ErrorState`, master-detail `ValueKey` remount.
-- **`_Sidebar`/`_SidebarItem` (`home_shell.dart`)** — clean UI-chrome `StatelessWidget` extraction.
-- **`test/support/fakes.dart` (`a08c199`, #10)** — reference shared-test-fake consolidation: the 9
-  fakes duplicated verbatim across ≥2 test files (`Fake{Contacts,Events,EventTypes,TaskCategories,
-  Tasks}Repo`, `StatefulTasksRepo`, `ThrowingTasksRepo`, `Fake`/`SeededCommentsRepo`) hoisted to one
-  file, made public (private `_Fake…` → public), positional seeds, public capture fields. Single-file
-  specials (load-error / ordering / full-CRUD-gated / recording / flaky fakes) correctly stayed local.
-  Verified: every hoisted fake used in ≥2 files (no dead public class), all doc-claims accurate.
-  CLEAN. This is the test-side analog of the `MetaLine`/`_SwatchGrid` byte-identical-duplication
-  tracker rows — the fixture equivalent, resolved. If a NEW test re-hand-rolls a fake that already
-  lives in `fakes.dart`, flag it (SUGGESTION #7-analog: reuse the shared fake).
-- **Task importance slice (`3bf48ea`, Decision 38)** — reference scalar-field-add + fixed-scale
-  colour: `int importance` threaded through `Task` (draft/fromJson/toRpcParams/copyWith, defaults
-  0, `copyWith` preserves it so complete-toggle can't reset), repo `p_importance` + `.order` sort
-  (compute in the query, NOT build()), new pure-Dart `lib/util/importance.dart` (with test) +
-  `ImportanceMarks` widget + `_ImportanceSection`/`_ImportanceSegment` well-extracted
-  StatelessWidgets. Colour paired with `!` glyph + `Semantics` label = a FIXED semantic scale, not
-  Decision-19 user colour-as-data (correctly documented). CLEAN 0/0/0.
-- **`task_detail_screen.dart` / `ContactDetailView`** — view-first detail reference: thin
-  Scaffold host + shared body that NEVER pops, reuses `SubtleButton`/`MetaLine`, `_StatusPill` is
-  label-paired (not colour-as-data).
-- **Idempotent create_* slice (issue #9 / Decision 41)** — reference id-minting + `.draft` factory
-  conversion: new `lib/util/ids.dart` (single shared `const _uuid = Uuid()` + `newEntityId()`, private
-  instance, tested with a v4-regex + 1000-distinct check); 6 models' `.draft` const-ctor → id-minting
-  `factory` (`id: id ?? newEntityId()`, delegates to the main ctor); `toRpcParams()` gains `p_id` so the
-  4 spread-update repos (contacts/events/event_types/task_categories) drop `{p_id: …, ...spread}` and
-  pass `toRpcParams()` whole (tasks + comments keep explicit maps); forms hold
-  `late final String _pendingId = newEntityId()` (fresh State per open), while the long-lived
-  `CommentsSection` composer holds a MUTABLE `_pendingId` reset after each success (correct, documented).
-  Mint lives in util not build(); directive order + comments clean. CLEAN 0/0/0.
-- **`CommentsSection` (`lib/widgets/comments_section.dart`, Slice 2a `2717da9`)** — reference shared
-  stateful sub-section, extracted verbatim from `event_detail_screen.dart`, now parent-agnostic
-  (`CommentsRepository`+`parentId`); own `_lastData` + `identical(future,_future)` stale-guard;
-  inline empty/error hand-rolled (not `EmptyState`); grep-confirmed zero stale old-name refs.
+## Topic pointers
+- [duplication-tracker](topics/duplication-tracker.md) — evidence behind every tracker row; the
+  "byte-identical private widget copied, not shared" meta-pattern and its 4 instances.
+- [false-positives](topics/false-positives.md) — the full case for each do-not-flag entry above.
+- [positive-signals](topics/positive-signals.md) — reference-quality slices to compare new code
+  against: `event_form_screen` (form ref), the RPC-write repository pattern, `tasks_list_screen` /
+  `contacts_list_screen` (list ref), `_Sidebar` (chrome extraction), `test/support/fakes.dart`
+  (shared-fake consolidation), task importance `3bf48ea` (scalar-field-add), idempotent `create_*`
+  (#9/D41), `CommentsSection` `2717da9` (shared stateful sub-section), UI consistency pass `72f33c1`
+  (root-cause fix — fix the leak AND document the source).

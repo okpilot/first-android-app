@@ -115,3 +115,44 @@ Read on demand. These are the clean, exemplary implementations to compare new co
   `StatefulWidget` (controllers + `_future` + `setState`). Comments are mono — no colour-as-data.
   Model (`comment.dart`) + repo (`comments_repository.dart`) follow the pure-Dart-model /
   abstract-interface-repository split; tests shipped in the same commit.
+
+- **`test/support/fakes.dart` (`a08c199`, #10)** — reference shared-test-fake consolidation: the 9
+  fakes duplicated verbatim across ≥2 test files (`Fake{Contacts,Events,EventTypes,TaskCategories,
+  Tasks}Repo`, `StatefulTasksRepo`, `ThrowingTasksRepo`, `Fake`/`SeededCommentsRepo`) hoisted to one
+  file, made public (private `_Fake…` → public), positional seeds, public capture fields. Single-file
+  specials (load-error / ordering / full-CRUD-gated / recording / flaky fakes) correctly stayed local.
+  Verified: every hoisted fake used in ≥2 files (no dead public class), all doc-claims accurate.
+  CLEAN. The test-side analog of the `MetaLine`/`_SwatchGrid` byte-identical-duplication tracker
+  rows — the fixture equivalent, resolved. If a NEW test re-hand-rolls a fake that already lives in
+  `fakes.dart`, flag it (SUGGESTION #7-analog: reuse the shared fake).
+- **Task importance slice (`3bf48ea`, Decision 38)** — reference scalar-field-add + fixed-scale
+  colour: `int importance` threaded through `Task` (draft/fromJson/toRpcParams/copyWith, defaults
+  0, `copyWith` preserves it so complete-toggle can't reset), repo `p_importance` + `.order` sort
+  (compute in the query, NOT build()), new pure-Dart `lib/util/importance.dart` (with test) +
+  `ImportanceMarks` widget + `_ImportanceSection`/`_ImportanceSegment` well-extracted
+  StatelessWidgets. Colour paired with `!` glyph + `Semantics` label = a FIXED semantic scale, not
+  Decision-19 user colour-as-data (correctly documented). CLEAN 0/0/0.
+- **Idempotent create_* slice (issue #9 / Decision 41)** — reference id-minting + `.draft` factory
+  conversion: new `lib/util/ids.dart` (single shared `const _uuid = Uuid()` + `newEntityId()`, private
+  instance, tested with a v4-regex + 1000-distinct check); 6 models' `.draft` const-ctor → id-minting
+  `factory` (`id: id ?? newEntityId()`, delegates to the main ctor); `toRpcParams()` gains `p_id` so the
+  4 spread-update repos (contacts/events/event_types/task_categories) drop `{p_id: …, ...spread}` and
+  pass `toRpcParams()` whole (tasks + comments keep explicit maps); forms hold
+  `late final String _pendingId = newEntityId()` (fresh State per open), while the long-lived
+  `CommentsSection` composer holds a MUTABLE `_pendingId` reset after each success (correct, documented).
+  Mint lives in util not build(); directive order + comments clean. CLEAN 0/0/0.
+- **`CommentsSection` (`lib/widgets/comments_section.dart`, Slice 2a `2717da9`)** — reference shared
+  stateful sub-section, extracted verbatim from `event_detail_screen.dart`, now parent-agnostic
+  (`CommentsRepository`+`parentId`); own `_lastData` + `identical(future,_future)` stale-guard;
+  inline empty/error hand-rolled (not `EmptyState`); grep-confirmed zero stale old-name refs.
+- **UI consistency pass (`72f33c1`, Decision 47)** — reference *root-cause* fix: rather than only
+  patching the 3 screens that displayed `ymd()`, it added the missing display formatters beside
+  their siblings in `util/calendar.dart` (tested) AND put a doc-comment on `ymd()` naming its two
+  non-UI jobs — the comment is what stops the leak recurring. Also: deleted `_dateLabel` (a
+  byte-identical dupe across event_detail/event_form) in favour of `longDate`; dropped 4 duplicate
+  AppBar Saves by generalising `task_form_screen`'s actions-less AppBar (an in-tree precedent, not
+  an invention) — all 4 keep their body `FilledButton` Save, verified, no save path stripped; every
+  skip STATED not silent (domain `Event.attendees` / the `event_attendees` table / `_AttendeeList`
+  keep the domain noun; `_CategoryChip` is a plain Container `chipTheme` cannot reach → issue #46).
+  Long `chipTheme` block = one cohesive concern, NOT a finding. `flutter analyze` clean.
+  SUGGESTIONS-ONLY.

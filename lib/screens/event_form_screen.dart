@@ -468,15 +468,15 @@ class _AttendeesSection extends StatelessWidget {
             children: [
               for (final c in attendees)
                 InputChip(
-                  // ring: the avatar fills with secondaryContainer — the SAME token the
-                  // chip now fills with (the mono scheme aliases all three container roles
-                  // onto one colour), so without the ring the disc dissolves into the chip
-                  // and only bare initials survive.
-                  // radius: KEEP it. A Chip pins the avatar's BOX (tightFor(contentSize)),
-                  // so radius can't change the disc size here — but `initials_avatar` also
-                  // derives `fontSize: radius * 0.7`, and no box constraint reaches a
-                  // TextStyle. Drop it and the initials silently jump 7.7px → 14px.
-                  avatar: InitialsAvatar(name: c.name, radius: 11, ring: true),
+                  // onChipFill: the disc would otherwise paint in the SAME token the chip
+                  // fills with and dissolve into it. Colour, not a ring — measured: a ring
+                  // costs ~5px out of the Chip's pinned box, leaving an 11px disc; this
+                  // leaves 16px with the initials at natural size.
+                  avatar: InitialsAvatar(
+                    name: c.name,
+                    radius: 11,
+                    onChipFill: true,
+                  ),
                   label: Text(c.name),
                   onDeleted: () => onRemove(c),
                 ),
