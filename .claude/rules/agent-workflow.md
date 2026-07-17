@@ -70,8 +70,22 @@ positive is a validated **skip-with-reason** (recorded, doesn't reset the clean 
   suite green. **`red-team` inherits** (not pinned like `db-security-reviewer`) because it is
   post-commit + **advisory**, one step before the gate.
 
-## Pre-flag verification: the CREATE OR REPLACE chain (every SQL-touching reviewer)
-Before flagging a missing pattern on a Postgres function, grep `backend/migrations/**/*.sql` (sorted
-by the `YYYYMMDDHHMMSS_` prefix) and read the **latest** definition — this project uses
-`drop function if exists …; create or replace …` to change RPC signatures (correct, not a
-regression). Never flag from a single migration in isolation.
+## Pre-flag verification: read + probe, never reason (every reviewer)
+Ground every finding in source you actually read, and — for any claim you could **measure** —
+probe before asserting. Reasoning about framework behaviour is the failure mode this rule exists to
+stop: it is confidently wrong, and a wrong fix is worse than the finding.
+
+- **SQL — the CREATE OR REPLACE chain.** Before flagging a missing pattern on a Postgres function,
+  grep `backend/migrations/**/*.sql` (sorted by the `YYYYMMDDHHMMSS_` prefix) and read the
+  **latest** definition — this project uses `drop function if exists …; create or replace …` to
+  change RPC signatures (correct, not a regression). Never flag from a single migration in isolation.
+- **Flutter geometry / layout / hit-test / lazy-build — PROBE.** For any claim about what a widget
+  renders, builds, sizes, or hit-tests, pump it in a **throwaway widget test and measure**
+  (`tester.getSize`, `find … findsNothing`), or read the framework's `performLayout` / `_computeSizes`
+  in `~/flutter`. Never reason from a widget's public API, its param names, or "it should …".
+  Reading and probing **outrank** reasoning. Delete the probe after.
+  *(Decision 47, learner-promoted: this slice a lens reasoned "the retargeted tap fails the hit-test"
+  and prescribed the wrong fix, while a probe measured `found=0` — the button was never built past a
+  lazy `ListView`; and reasoning about a chip's avatar box was twice wrong where reading
+  `chip.dart` + a `getSize` probe were right. Generalises the SQL precedent above: verify against the
+  artifact, don't predict it.)*
