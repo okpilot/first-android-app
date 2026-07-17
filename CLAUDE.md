@@ -22,13 +22,24 @@ Emergent, slice by slice. For each change:
 
 Skips are allowed but **must be stated, never silent**.
 
-**A rule reversal isn't done until its contradictions are gone.** When a slice rewrites or reverses
-a convention mid-migration (e.g. Decision 26's "all writes via RPC"), grep every sibling repo
-doc-comment, migration header, and doc that still cites the OLD rule (`per docs/database.md`,
-`like contacts`, `single-table … goes direct`) and fix them in the **same** slice — and grep the
-WHOLE of each touched file + every subsection of each decisions-ledger entry (Context / Implementation
-/ Principle), not just the first citation (a file usually has >1 stale surface) — this recurred
-twice before it was made a rule (learner, count 2; the whole-file/every-subsection refinement, count 2).
+**A rule reversal — or a status flip — isn't done until its contradictions are gone.** Two triggers,
+not one: (a) a slice rewrites or reverses **a convention** mid-migration (e.g. Decision 26's "all
+writes via RPC"), or (b) it flips **a status word** — `owed → done`, `on-branch → merged`,
+`deferred → shipped`. Either way, grep every sibling repo doc-comment, migration header, and doc that
+still cites the OLD rule **or the OLD status** (`per docs/database.md`, `like contacts`,
+`single-table … goes direct`, ``/updatephone` owed``) and fix them in the **same** slice — and grep
+the WHOLE of each touched file + **every** subsection of each decisions-ledger entry, not just the
+first citation (a file usually has >1 stale surface). **Grep the ENTRY for the old status word —
+never a remembered list of headings, and never just the "shipping-looking" ones.** The subsection
+list is open (`Context`, `Decided`, `Principle`, `Deploy note`, `Deploy`, `Verification`, `Refines`,
+`Test coverage`, …) and a twin lands wherever the claim was written: #19 found stale twins in a bare
+`**Deploy:**` **and** in a `**Principle:**` — which records no shipping at all. Also check the entry's
+**title** against its body (a title can say "closes #10" while the body still says "PR pending").
+*(learner count 3: the original convention rule, count 2 → the whole-file/every-subsection
+refinement, count 2 → then #19 rotted twins straight **through** this rule, because a status flip
+doesn't read as "reversing a convention" and the old heading list — which named an `Implementation`
+heading that has never existed — read as closed. Each fix here replaced a **proxy** with the
+**intent**; the proxy "sweep the shipping headings" failed the same way within this very slice.)*
 
 **Adding a field to a model isn't done until every hand-fake reflects it.** When a slice adds a
 field to a model (e.g. `Task.notes`, `Task.contacts`, `Task.importance`), thread it through **every**

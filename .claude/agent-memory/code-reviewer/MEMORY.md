@@ -14,6 +14,7 @@
 | Byte-identical **private UI atom** copied across sibling manager screens instead of shared (`_SwatchGrid` — the palette-picker `Wrap` — copied verbatim task_categories_screen ⟷ event_types_screen; `diff` = zero bytes, zero entity-specific variance). Same MECHANISM as the PROMOTED `MetaLine`: unlike `_EmptyState`/`_ErrorState` (per-screen TEXT variance = convention), this has NO variance → extractable. Author already reuses public `TypeSwatch` (imported cross-screen), so atom-sharing is understood here — `_SwatchGrid` is the one they copied. Won't be touched by the documented Slice-B divergence (delete semantics), so the "will diverge" rationale doesn't cover it. | 2026-07-15 (slice-a task categories) | 1 | 2026-07-15 (9377a61) | WATCHING — reported SUGGESTION (non-blocking). Meta-pattern "byte-identical zero-variance private widget copied not shared" now has 2 instances repo-wide (MetaLine PROMOTED + this). If a 3rd screen copies `_SwatchGrid`/`TypeSwatch` rather than sharing, count→2 → RULE CANDIDATE (extract a `SwatchGrid`/`TypeSwatch` picker into `lib/widgets/`, à la MetaLine). |
 | Whole **searchable multi-select picker screen** cloned (`CategoryPickerScreen`, Slice B d95f85b, "A near-verbatim mirror of `ContactPickerScreen`"). Shares the entire scaffold: `late Future _future` + `_selected` id-map + `_query` + `_toggle`/`_done`/`_filter` + FutureBuilder(waiting/error EmptyState/empty EmptyState/no-match EmptyState) + CheckboxListTile list. Differs only: model type, secondary widget (`InitialsAvatar` vs `TypeSwatch`), search fields (name+company vs name-only), subtitle, AppBar noun. Genericisable into `PickerScreen<T>`(fetch, avatarBuilder, searchOn, labels). | 2026-07-15 (link categories to tasks) | 1 | 2026-07-15 (d95f85b) | WATCHING — reported SUGGESTION (non-blocking); documented mirror at N=2 pickers (contact + category). If a 3rd picker lands, count→2 → RULE CANDIDATE (extract `PickerScreen<T>`). NOT flagged for missing `_lastData`: pickers load once in `initState` over an immutable list (like `ContactPickerScreen`), so the list-screen stale-guard doesn't apply. |
 | `TypeSwatch` (public UI atom) lives in `event_types_screen.dart` but is imported cross-screen via `show TypeSwatch`; Slice B added 2 MORE importers (`category_picker_screen.dart`, `task_form_screen.dart`) → now 4 files import a widget out of a *screen* file. Reuse (good, not a copy) but the home is wrong: a shared atom belongs in `lib/widgets/` beside `TypeDot`/`TypeLabel`. | 2026-07-15 (slice-a task categories) | 2 | 2026-07-15 (d95f85b) | WATCHING — reported SUGGESTION (non-blocking). Growing cross-screen coupling (2 importers → 4). `learner`/refactor candidate: promote `TypeSwatch` to `lib/widgets/type_label.dart` (or its own file) so no screen imports a widget from another screen. |
+| **`backend/README.md` `## Verify:` section intro names an RPC the block never exercises.** New `## Verify: event write RPCs + the attendee parent-gate (D18)` (46a2cdc:247) opens "`create_event` / `update_event` / `soft_delete_event` are the RPC write path" but calls only create + soft_delete. Grep-verified: `rpc/update_event` appears **nowhere** in the README — the ONLY intro-named RPC in all 11 Verify sections with zero curl coverage (update_task ×10, restore_task ×3, update_task_comment ×2, restore_task_comment ×2, update_contact, update_event_type, update_task_category all exercised). Also skips the "soft-delete then update_X → no_data_found" guard-check every sibling section proves, though `update_event` HAS that guard (20260710120300:101) and `$EID` is already soft-deleted 15 lines above → zero setup cost. | 2026-07-17 (issue #19 / D45) | 1 | 2026-07-17 (46a2cdc) | WATCHING — reported ISSUE (section's stated scope ≠ its contents). If a 2nd Verify section ships naming an unexercised RPC, count→2 → RULE CANDIDATE (`learner`: "a `## Verify:` intro may only name RPCs the block actually calls"). |
 | Near-identical `CommentsRepository` impl duplicated per parent entity (`SupabaseTaskCommentsRepository` is ~70 lines byte-identical to `SupabaseEventCommentsRepository` bar 6 strings: table, FK alias column, `.eq` column, 4 RPC names). Fully parameterizable into one class w/ table+fkColumn+rpcPrefix — BUT the interface docstring deliberately commits to "N parent-specific implementations" as the pattern. Defensible/documented skip at N=2; extraction pays off at N=3. | 2026-07-14 (Slice 2b) | 1 | 2026-07-14 (643bbeb) | WATCHING — reported as SUGGESTION only, not pushed (deliberate documented choice). If a 3rd parent-comments repo lands, count→2, RULE CANDIDATE. |
 
 ## Durable knowledge (this project's conventions to check against)
@@ -28,6 +29,14 @@
 - **Shared atoms to reuse, not re-implement:** `EmptyState`, `TypeLabel`/`TypeDot`,
   `InitialsAvatar`. Colour-as-data (Decision 19): colour never rides alone.
 - **Naming:** files `snake_case`, classes/enums `PascalCase`.
+- **`backend/README.md` `## Verify:` convention** (11 sections, checked 46a2cdc): heading
+  `## Verify: <topic> (Decision N[, Slice X])` → prose intro naming the RPCs → fenced ```bash block
+  that **re-declares its own `ANON=`/`REST=` preamble and mints its own ids** (never borrows a
+  variable across blocks). Superuser reads are
+  `docker compose exec -T db psql -U postgres -d postgres -tAc "…"` (cwd = `backend/`, service `db`)
+  — the precedent is the task_categories block. Expected output rides in a trailing `# -> …` comment;
+  uuid placeholders are written **`<uuid>`**, not `<$VAR>`. Two fenced blocks per section is allowed
+  (precedent: the pre-auth lockdown section's curl + psql pair).
 - **New pure-Dart util/model → flag missing test only; `test-writer` writes it.**
 
 ## Known false-positive traps (do not flag these)
@@ -66,6 +75,15 @@
   (Decision 38) lead with the flutter import then `dart:ui show Brightness`. `directives_ordering`
   is NOT enabled in `analysis_options.yaml`, and importance.dart is explicitly modeled on
   event_type_palette. Do NOT flag it as a dart-before-package idiom miss — it mirrors the sibling.
+- **The bare `psql -c "…"` in `backend/README.md`'s pre-auth-lockdown section is NOT an
+  inconsistency with the newer `docker compose exec -T db psql …` form.** It predates the diff and is
+  annotated "(as `postgres`, on homebase inside the db container)" — a different execution context
+  (homebase, already inside the container) vs the local `docker compose exec` form the Verify blocks
+  use. Do not flag either as drift from the other.
+- **Leftover live rows from a Verify block are the README's norm, not a cleanup miss.** The pre-auth
+  lockdown block leaves contact "Ada" live; the null-embed block leaves "Quarterly review"; the events
+  block leaves contact "Grace". The documented practice is a freshly re-inited stack
+  (`docker compose down -v`), not per-block teardown. Do NOT flag "the block doesn't clean up".
 - **Out of scope** — DB/RLS/SQL/secrets (`db-security-reviewer`), deep logic correctness
   (`semantic-reviewer`), lints `flutter analyze` already reports.
 

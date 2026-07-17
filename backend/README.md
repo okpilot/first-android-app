@@ -25,6 +25,23 @@ docker compose down -v        # stop + wipe (re-inits from migrations/ + seed.sq
 
 Gateway: <http://localhost:8000> · data path `/rest/v1/…` · Postgres on `127.0.0.1:5433`.
 
+> **⚠️ Local schema drift — re-init before trusting any `## Verify:` block below.**
+> `init/init.sh` runs **only on a fresh volume** (`docker-entrypoint-initdb.d`), and there is **no
+> migration ledger locally** — so a long-lived local volume silently rots as migrations land: they
+> get hand-applied, or not at all. Found 2026-07-17 (issue #19) on a volume from 2026-07-11:
+> `create_contact` missing outright, `create_event` still the pre-D41 9-arg signature,
+> `task_category_links` absent — every local curl-run since 2026-07-12 had been hitting a stale
+> schema. Nothing warns you; the RPC just 404s (PGRST202) or, worse, passes for the wrong reason.
+> **Homebase is unaffected** (`deploy-homebase.sh` keeps a real ledger). Before verifying:
+> ```bash
+> cd backend
+> docker compose down -v && docker compose up -d   # wipes local data; re-applies the full chain
+> # up -d returns when the CONTAINERS start, not when the chain is applied — init.sh runs async
+> # inside db, and the healthcheck's pg_isready is answered by the temp init server, so PostgREST
+> # can serve curls MID-chain. Wait for the marker before trusting anything below:
+> until docker compose logs db 2>&1 | grep -q '\[init\] done'; do sleep 1; done
+> ```
+
 ## Smoke test
 ```bash
 ANON=$(grep SUPABASE_ANON_KEY .env | cut -d= -f2)
@@ -129,9 +146,13 @@ curl -s -o /dev/null -w '%{http_code}\n' -X DELETE -H "apikey: $ANON" -H "Author
 ```
 
 ## Verify: contact write RPCs (Decision 26, Slice 1)
-`create_contact` / `update_contact` are the RPC write path for contacts. These curls prove the
-server-side normalization, and — the one genuinely new guard — that `update_contact` refuses a
-soft-deleted / absent row (`no_data_found`) rather than silently mutating a hidden row:
+`create_contact` / `update_contact` are the RPC write path for contacts. All six of `create_contact`'s
+value params are required — only its **trailing** `p_id` defaults (Decision 41); `update_contact`
+defaults nothing, and its `p_id` leads. These curls prove the server-side normalization, that
+`update_contact` refuses a soft-deleted / absent row (`no_data_found`) rather than silently mutating
+a hidden row, and that **soft-delete is non-destructive** — provable only as a superuser, since
+`contacts_select` is `using (deleted_at is null)` and `soft_delete_contact` returns `void`, so
+*nothing anon can observe* tells a soft-delete apart from a hard one (issue #19):
 ```bash
 ANON=$(grep SUPABASE_ANON_KEY .env | cut -d= -f2)
 REST=http://localhost:8000/rest/v1
@@ -153,6 +174,13 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "apikey: $ANON" -H "Authoriz
 # the new guard: soft-delete the row, then update_contact on it -> no_data_found (row not resurrected)
 curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/rpc/soft_delete_contact" -d "{\"p_id\":\"$NID\"}"
+# NON-DESTRUCTIVE (issue #19), in two halves. To anon the row simply VANISHES — byte-for-byte what a
+# hard DELETE would look like, because contacts_select is `using (deleted_at is null)`:
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/contacts?id=eq.$NID&select=name"                         # -> [] (invisible — proves nothing on its own)
+# ...so prove SURVIVAL as superuser. This read is the whole point: the row is still there, just flagged.
+docker compose exec -T db psql -U postgres -d postgres -tAc \
+  "select id, deleted_at is not null from public.contacts where id = '$NID';"  # -> row present, deleted_at set (t)
 curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/rpc/update_contact" \
   -d "{\"p_id\":\"$NID\",\"p_name\":\"X\",\"p_dob\":null,\"p_email\":null,\"p_phone\":null,\"p_company\":null,\"p_remarks\":null}"
@@ -161,8 +189,10 @@ curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
 
 ## Verify: event type write RPCs (Decision 26, Slice 2)
 `create_event_type` / `update_event_type` are the RPC write path for event types. Same shape as
-the contact RPCs — server-side name trim, and `update_event_type` refuses a soft-deleted / absent
-row (`no_data_found`):
+the contact RPCs — server-side name trim, `update_event_type` refuses a soft-deleted / absent
+row (`no_data_found`), and soft-delete is non-destructive (superuser read, same reasoning as the
+contacts block). The second block below proves the **null-embed contract** that `Event.fromJson`
+depends on (issue #19):
 ```bash
 ANON=$(grep SUPABASE_ANON_KEY .env | cut -d= -f2)
 REST=http://localhost:8000/rest/v1
@@ -187,10 +217,109 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "apikey: $ANON" -H "Authoriz
 # the new guard: soft-delete the row, then update_event_type on it -> no_data_found
 curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/rpc/soft_delete_event_type" -d "{\"p_id\":\"$TID\"}"
+# NON-DESTRUCTIVE (issue #19): hidden from anon (`using (deleted_at is null)`), still on disk.
+docker compose exec -T db psql -U postgres -d postgres -tAc \
+  "select id, deleted_at is not null from public.event_types where id = '$TID';"  # -> row present, deleted_at set (t)
 curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/rpc/update_event_type" \
   -d "{\"p_id\":\"$TID\",\"p_name\":\"X\",\"p_color\":\"#4E7BC9\"}"
   # -> {"code":"P0002", ... "event type <uuid> not found or already deleted"} — the guard rolled back
+```
+
+**Soft-deleted type → the event's embed reads back `null`** (issue #19). `lib/models/event.dart`
+treats a null `event_types` embed as "No type", and `events_repository.dart` uses a **plain** embed
+(never `!inner`, which would drop the whole event). These curls pin that contract at the DB layer.
+Needs a **fresh** type + event — `$TID` above is already soft-deleted. Note `create_event`'s first **eight**
+params are all required (only `p_type_id` / `p_id` default) — hence the explicit nulls: an omitted
+param is a **PGRST202**, not a default. (`create_event` *normalizes* an all-day event's times to
+null itself, so `events_time_valid` never bites this direction — it only fires on `all_day:false`
+with null/inverted times.):
+```bash
+ANON=$(grep SUPABASE_ANON_KEY .env | cut -d= -f2)
+REST=http://localhost:8000/rest/v1
+ETID=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_event_type" \
+  -d '{"p_name":"Review","p_color":"#22A06B"}' | tr -d '"')
+EID=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_event" \
+  -d "{\"p_title\":\"Quarterly review\",\"p_event_date\":\"2026-08-01\",\"p_all_day\":true,\"p_start_time\":null,\"p_end_time\":null,\"p_location\":null,\"p_notes\":null,\"p_attendees\":[],\"p_type_id\":\"$ETID\"}" | tr -d '"')
+# sanity: both must be uuids — a bad payload returns an error BODY here, and every check below
+# would then silently query a garbage id while still "passing"
+echo "$ETID / $EID"
+# before: the embed carries the type
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/events?id=eq.$EID&select=title,type_id,event_types(id,name)"
+  # -> [{"title":"Quarterly review","type_id":"<uuid>","event_types":{"id":"<uuid>","name":"Review"}}]
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/soft_delete_event_type" -d "{\"p_id\":\"$ETID\"}"
+# after: embed is null — but the EVENT SURVIVES (plain embed, not !inner) and type_id STILL holds
+# the id. That pair is the proof: the link was never cut, the type row is merely hidden by RLS.
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/events?id=eq.$EID&select=title,type_id,event_types(id,name)"
+  # -> [{"title":"Quarterly review","type_id":"<uuid, same as above>","event_types":null}]
+# and the type row itself is on disk, flagged not erased
+docker compose exec -T db psql -U postgres -d postgres -tAc \
+  "select id, deleted_at is not null from public.event_types where id = '$ETID';"  # -> row present, deleted_at set (t)
+```
+
+## Verify: event write RPCs + the attendee parent-gate (Decision 18)
+`create_event` / `update_event` / `soft_delete_event` are the RPC write path for events. Beyond the
+usual non-destructiveness proof, this block covers the one place in the schema where a **child**
+table is hidden by its **parent's** soft-delete: `event_attendees_select` gates on
+`exists(… events.deleted_at is null)`, so archiving an event also hides its attendee rows from anon
+— while both survive on disk. (every other child table —
+`task_contacts`, `task_category_links`, `event_comments`, `task_comments` — is `using (true)`, so
+events/attendees are genuinely the only such pair.) `p_attendees` are NOT NULL FKs into `contacts`,
+so this block mints its own contact rather than borrowing one:
+```bash
+ANON=$(grep SUPABASE_ANON_KEY .env | cut -d= -f2)
+REST=http://localhost:8000/rest/v1
+C1=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_contact" \
+  -d '{"p_name":"Grace","p_dob":null,"p_email":null,"p_phone":null,"p_company":null,"p_remarks":null}' | tr -d '"')
+# all-day event with one attendee. All 8 leading params are required — omit one and it's a PGRST202,
+# so $EID silently becomes an error body (the echo below is what catches that). The explicit null
+# times mirror what the RPC stores: it normalizes an all-day event's times to null itself, so
+# events_time_valid only bites the all_day:false direction, never this one.
+EID=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/create_event" \
+  -d "{\"p_title\":\"Standup\",\"p_event_date\":\"2026-08-02\",\"p_all_day\":true,\"p_start_time\":null,\"p_end_time\":null,\"p_location\":null,\"p_notes\":null,\"p_attendees\":[\"$C1\"]}" | tr -d '"')
+echo "$C1 / $EID"                                                 # -> both must be uuids, not error bodies
+# before: event + its attendee roster are visible to anon
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/events?id=eq.$EID&select=title,event_attendees(contact_id,contacts(name))"
+  # -> event_attendees[0].contacts.name "Grace"
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/event_attendees?event_id=eq.$EID&select=contact_id"      # -> 1 row
+# archive the event
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/soft_delete_event" -d "{\"p_id\":\"$EID\"}"
+# after: BOTH vanish for anon — the event by its own `deleted_at is null` policy, the attendee rows
+# by the parent-live gate. Neither read distinguishes this from a cascading hard DELETE:
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/events?id=eq.$EID&select=title"                          # -> []
+curl -s -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/event_attendees?event_id=eq.$EID&select=contact_id"      # -> [] (parent-gated, NOT deleted)
+# ...so prove BOTH survive as superuser — this is the only read that can:
+docker compose exec -T db psql -U postgres -d postgres -tAc \
+  "select 'event' as what, e.id::text, (e.deleted_at is not null)::text from public.events e where e.id='$EID'
+   union all
+   select 'attendees', count(*)::text, '' from public.event_attendees where event_id='$EID'
+   order by what desc;"
+  # -> event|<uuid>|true
+  # -> attendees|1|          — the join row was never cascaded away
+# update_event refuses the archived event -> no_data_found (P0002). This is the guard that makes the
+# line above hold: the call below passes p_attendees:[] , so WITHOUT the guard it would silently wipe
+# the roster of a hidden event and return success (see the rationale in 20260710120300:101-104).
+curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  -H "Content-Type: application/json" "$REST/rpc/update_event" \
+  -d "{\"p_id\":\"$EID\",\"p_title\":\"Hijacked\",\"p_event_date\":\"2026-08-02\",\"p_all_day\":true,\"p_start_time\":null,\"p_end_time\":null,\"p_location\":null,\"p_notes\":null,\"p_attendees\":[],\"p_type_id\":null}"
+  # -> {"code":"P0002", ... "event <uuid> not found or already deleted"} — the guard rolled back
+docker compose exec -T db psql -U postgres -d postgres -tAc \
+  "select count(*) from public.event_attendees where event_id = '$EID';"  # -> 1 (roster survived the refused update)
+# no hard-delete grant
+curl -s -o /dev/null -w '%{http_code}\n' -X DELETE -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+  "$REST/events?id=eq.$EID"                                       # -> 401 (no delete grant)
 ```
 
 ## Verify: task category write RPCs (Decision 39, Slice A)
@@ -300,9 +429,11 @@ curl -s -o /dev/null -w '%{http_code}\n' -X DELETE -H "apikey: $ANON" -H "Author
 set, written atomically into the `task_contacts` join (membership is set ONLY by these RPCs;
 `task_contacts` grants anon SELECT only). These curls prove: `p_contacts` links contacts,
 `on conflict do nothing` dedupes a repeated id, `update` replaces the whole set (delete +
-reinsert), and the embed reads them back. Needs two existing contact ids — reuse `$CID` from the
-contact block or create two (all six `create_contact` params are required — no defaults):
+reinsert), and the embed reads them back. It mints its own two contacts (all six `create_contact`
+value params are required — only the trailing `p_id` defaults):
 ```bash
+ANON=$(grep SUPABASE_ANON_KEY .env | cut -d= -f2)
+REST=http://localhost:8000/rest/v1
 C1=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/rpc/create_contact" \
   -d '{"p_name":"Nadia","p_dob":null,"p_email":null,"p_phone":null,"p_company":"Acme","p_remarks":null}' | tr -d '"')
@@ -338,9 +469,10 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "apikey: $ANON" -H "Authoriz
 atomically into the `task_category_links` join (membership is set ONLY by these RPCs;
 `task_category_links` grants anon SELECT only, no write). Mirrors `p_contacts` exactly. These curls
 prove: `p_categories` links categories, `update` replaces the whole set, the embed reads them back,
-and a direct anon write to the join is refused. Needs two existing category ids — reuse `$K1`/`$K2`
-from the task-category block, or create two:
+and a direct anon write to the join is refused. It mints its own two categories:
 ```bash
+ANON=$(grep SUPABASE_ANON_KEY .env | cut -d= -f2)
+REST=http://localhost:8000/rest/v1
 K1=$(curl -s -X POST -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
   -H "Content-Type: application/json" "$REST/rpc/create_task_category" \
   -d '{"p_name":"Work","p_color":"#4E7BC9"}' | tr -d '"')
@@ -368,8 +500,8 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "apikey: $ANON" -H "Authoriz
 ## Verify: task comment write RPCs (Decision 33, Slice 2b)
 `create_task_comment` / `update_task_comment` / `soft_delete_task_comment` / `restore_task_comment`
 are the RPC write path for `task_comments` — the task-side twin of `event_comments`. Same
-`using (true)` archived-readable SELECT policy. Needs an existing task id (`$TID` from the block
-above, or create one). These curls prove the four RPCs, archived-readable, and the guards:
+`using (true)` archived-readable SELECT policy. It mints its own task. These curls prove the four
+RPCs, archived-readable, and the guards:
 ```bash
 ANON=$(grep SUPABASE_ANON_KEY .env | cut -d= -f2)
 REST=http://localhost:8000/rest/v1
@@ -479,5 +611,6 @@ caddy/Caddyfile      /rest/v1 -> PostgREST, + permissive CORS for the Flutter we
 
 ## To homebase (later)
 Move this stack into `okpilot/selfhost/stacks/`, drop the local Caddy gateway (the
-existing homebase Caddy adds the route + TLS), add GoTrue when the auth slice needs it,
-and regenerate real secrets — never reuse these dev values.
+existing homebase Caddy adds the route + TLS), and regenerate real secrets — never reuse
+these dev values. **No GoTrue** — single-user + tailnet-only is the security boundary and
+login is WON'T-DO (Decision 37), not deferred.

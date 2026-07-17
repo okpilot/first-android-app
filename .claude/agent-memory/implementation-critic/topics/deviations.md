@@ -12,14 +12,33 @@ stale in the SAME file. At Decision 38 the sweep was proactive (plan-critic fold
 in the same diff, AND the repo's update() comment. Minor (SUGGESTION) when missed — grep the
 model+repo for a comment quoting the pre-change param literal whenever the create/update shape grows.
 
-## Docs-sync "same file, >1 stale surface" — the backlog/owed-list twin (WATCHING, count 1)
-Issue #40 review-bar rebalance, 2026-07-14. A rules/docs slice that updates a status line (plan.md
-current-status: "`/updatephone` done"; Decision 35 codifying #40) but leaves the SAME file's "Owed
-first / to-do" list still citing the very item the commit completed — plan.md:14 "phone done" vs
-plan.md:51 "phone owed", and #40 still listed as owed at :54 while THIS commit does it. Numbers were
-correct; the staleness was STATUS framing. RULE: on any doc-sync slice, after editing a
-status/shipped line, grep the SAME file's "Owed"/"Next"/"backlog"/"TODO" lists for the same task
-keyword — a file has >1 surface (rule-reversal-sync discipline applied to plan.md, not just repos).
+## Docs-sync "same file, >1 stale surface" (RULE CANDIDATE, count 2 → propose promotion)
+**Mechanism 1 — the backlog/owed-list twin.** Issue #40 review-bar rebalance, 2026-07-14. A
+rules/docs slice that updates a status line (plan.md current-status: "`/updatephone` done"; Decision
+35 codifying #40) but leaves the SAME file's "Owed first / to-do" list still citing the very item the
+commit completed — plan.md:14 "phone done" vs plan.md:51 "phone owed", and #40 still listed as owed
+at :54 while THIS commit does it. Numbers were correct; the staleness was STATUS framing.
+
+**Mechanism 2 — the back-reference clause + the twin-file copy.** Issue #19 / Decision 45
+soft-delete-proof curls, 2026-07-17 (both findings were the whole REVISE verdict; every curl, SQL
+annotation and the decision text itself were clean). Two NEW shapes, neither a list entry:
+- **(a) A pointer whose descriptive clause rots.** The slice correctly demoted the stale Slice-B lead
+  in plan.md's `## Next slice`, but three back-references elsewhere in the same file still read "the
+  authoritative next pick lives in `## Next slice` above, **now led by Slice B**" (plan.md:85, :99,
+  :104). The pointer stays valid forever; the clause naming *what it points at* is what goes stale.
+  A grep for the completed item's keyword ("Slice B") finds these; a grep for "owed/next/TODO" does not.
+- **(b) The twin-file copy.** plan.md:19's D40 `/updatephone` marker was flipped to "done 2026-07-17"
+  while HANDOVER.md:18's near-verbatim twin sentence kept "`/updatephone` OWED (S23+ not connected
+  this session)" — directly contradicting HANDOVER's own header (:1) and RESUME (:14), both of which
+  the same slice had updated. plan.md and HANDOVER.md carry sentence-level duplicates of every
+  status claim, so a flip in one is a flip owed in the other.
+
+**RULE (both mechanisms):** on any status flip, (1) grep the SAME file's "Owed"/"Next"/"backlog"/
+"TODO" lists for the task keyword; (2) grep BOTH plan.md and HANDOVER.md for the OLD claim's keywords
+(they carry near-verbatim twins); (3) grep for `see .* above` / `authoritative` / `led by` clauses
+naming the thing that moved. This is rule-reversal-sync discipline applied to status prose, not just
+repos. At count 2 the promotion threshold is met — the `learner` should propose folding "status flips
+get the same whole-file + twin-file sweep as a rule reversal" into CLAUDE.md's rule-reversal-sync rule.
 
 ## Consolidating a duplicated fake orphans its doc-comment (WATCHING, count 1)
 Issue #10 shared test/support/fakes.dart, 2026-07-16. When a per-file happy-path fake that carried a
