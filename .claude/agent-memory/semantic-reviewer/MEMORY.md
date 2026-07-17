@@ -54,6 +54,13 @@ Full evidence + the per-pattern "Check:" for each row → [topics/recurring-bugs
   - Pre-auth DB lockdown (D36, `d549d45`) — `create or replace` preserves the ACL so revoke survives.
   - Tasks view-first (D29, `cfbfe7f`) — state-lift trap RESOLVED; `id:isArchived:isDone` key.
   - Tasks in-pane create wide-only (D29 amend, `acb0043`) — draft survives background `_load()`.
+  - Edit → top-right, AppBar(phone)/PaneHeader(desktop) via GlobalKey + public `edit()` (D49, `e5e1b29`) —
+    `edit()` guards `_busy`/`_isArchived`/`_deleting` off the view's OWN live `_task`/`_contact`, so both
+    surfaces no-op identically; GlobalKey `currentState` reliably non-null (body built same-build as the AppBar,
+    never re-keyed); phone AppBar drops the archived Edit AND `edit()` re-guards it (belt+braces); PaneHeader
+    inside `AbsorbPointer(_busy)` + `onEdit:null` + handler-guard = triple-guarded, consistent w/ the unabsorbed
+    phone AppBar. `Column`+`Expanded(body)` gets bounded height from `Expanded(pane)` in a Row. Double-tap→two
+    forms is PRE-EXISTING + narrow (route covers both surfaces; only one surface per screen) — do NOT flag as new.
   - `DetailField` superset-merge extraction (D43, `780c930`) — `copyWith(color:null)` is a no-op;
     relaxed assert allows both-null, forbids both-non-null.
   - CommentsSection extraction (Slice 2a, `2717da9`) — verbatim transplant; select-only alias deliberate.

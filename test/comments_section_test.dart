@@ -274,8 +274,8 @@ void main() {
     await tester.pumpWidget(_detail(repo));
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Edit'));
-    await tester.tap(find.text('Edit'));
+    await tester.ensureVisible(find.widgetWithText(TextButton, 'Edit'));
+    await tester.tap(find.widgetWithText(TextButton, 'Edit'));
     await tester.pumpAndSettle();
 
     // Two TextFields now exist (composer + inline editor); the editor is built last.
@@ -393,8 +393,8 @@ void main() {
     await tester.pumpWidget(_detail(repo));
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Edit'));
-    await tester.tap(find.text('Edit'));
+    await tester.ensureVisible(find.widgetWithText(TextButton, 'Edit'));
+    await tester.tap(find.widgetWithText(TextButton, 'Edit'));
     await tester.pumpAndSettle();
 
     FilledButton saveButton() =>
@@ -470,8 +470,8 @@ void main() {
     await tester.pumpWidget(_detail(repo));
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Edit'));
-    await tester.tap(find.text('Edit'));
+    await tester.ensureVisible(find.widgetWithText(TextButton, 'Edit'));
+    await tester.tap(find.widgetWithText(TextButton, 'Edit'));
     await tester.pumpAndSettle();
 
     // Type a change into the inline editor but abandon it with Cancel.
@@ -485,7 +485,10 @@ void main() {
     expect(find.widgetWithText(FilledButton, 'Save'), findsNothing);
     expect(find.text('Discarded change'), findsNothing);
     expect(find.text('Original body'), findsOneWidget);
-    expect(find.text('Edit'), findsOneWidget); // action row back in view mode
+    expect(
+      find.widgetWithText(TextButton, 'Edit'),
+      findsOneWidget,
+    ); // action row back in view mode
   });
 
   // The whole point of the extraction (Slice 2a): the widget is a standalone, public,
@@ -612,8 +615,8 @@ void main() {
         await tester.pumpAndSettle();
 
         // Open the inline editor on the live comment → an editing TextField + a Save button.
-        await tester.ensureVisible(find.text('Edit'));
-        await tester.tap(find.text('Edit'));
+        await tester.ensureVisible(find.widgetWithText(TextButton, 'Edit'));
+        await tester.tap(find.widgetWithText(TextButton, 'Edit'));
         await tester.pumpAndSettle();
         expect(find.widgetWithText(FilledButton, 'Save'), findsOneWidget);
         expect(

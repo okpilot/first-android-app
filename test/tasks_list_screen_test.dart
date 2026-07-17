@@ -469,6 +469,68 @@ void main() {
     },
   );
 
+  // ---- wide pane Edit (Decision 49): the AppBar-less pane carries Edit in its own header
+  // strip, top-right, and drops it for an archived (read-only) task.
+
+  testWidgets('wide: the selected pane shows a top-right Edit in its strip', (
+    tester,
+  ) async {
+    final repo = StatefulTasksRepo(const [Task(id: 't1', title: 'Call Nadia')]);
+    await _pumpWide(tester, repo);
+
+    // No AppBar on wide — the Edit lives in the pane's own header strip.
+    expect(find.byType(AppBar), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byType(TaskDetailView),
+        matching: find.widgetWithText(FilledButton, 'Edit'),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('wide: tapping the pane strip Edit opens the title form', (
+    tester,
+  ) async {
+    final repo = StatefulTasksRepo(const [Task(id: 't1', title: 'Call Nadia')]);
+    await _pumpWide(tester, repo);
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(TaskDetailView),
+        matching: find.widgetWithText(FilledButton, 'Edit'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // EDIT pushes the full-screen [TaskFormScreen] on desktop too — this is intended
+    // (Decision 29: "Edit pushes TaskFormScreen in both layouts"). Only NEW is in-pane on
+    // wide (a lone Title field shouldn't float in an empty window); the edit form is full
+    // (title + notes + People + categories). Decision 49 moved the button, not this behaviour.
+    expect(find.byType(TaskFormScreen), findsOneWidget);
+    expect(find.widgetWithText(AppBar, 'Edit task'), findsOneWidget);
+  });
+
+  testWidgets('wide: an archived selected task shows NO Edit in the strip', (
+    tester,
+  ) async {
+    final repo = StatefulTasksRepo([
+      Task(id: 't9', title: 'Old checklist', deletedAt: DateTime(2026, 7, 11)),
+    ]);
+    await _pumpWide(tester, repo);
+
+    // Expand the collapsed Archived section, then select the archived row.
+    await tester.tap(find.text('ARCHIVED'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Old checklist'));
+    await tester.pumpAndSettle();
+
+    // Read-only history: the strip keeps its title but offers no Edit; Restore is the action.
+    expect(find.byType(TaskDetailView), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Edit'), findsNothing);
+    expect(find.widgetWithText(FilledButton, 'Restore'), findsOneWidget);
+  });
+
   testWidgets(
     'wide: the detail pane embeds the Comments section — live gets the composer, archived is read-only',
     (tester) async {

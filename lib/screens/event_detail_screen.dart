@@ -12,6 +12,7 @@ import '../util/format.dart';
 import '../widgets/comments_section.dart';
 import '../widgets/detail_field.dart';
 import '../widgets/initials_avatar.dart';
+import '../widgets/subtle_button.dart';
 import '../widgets/type_label.dart';
 import 'event_form_screen.dart';
 
@@ -127,11 +128,17 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Event'),
+          // Edit top-right is the app's shared SubtleButton ('Edit' tonal chip), same as
+          // everywhere else, NOT a bare pencil (Decisions 29 + 49).
           actions: [
-            IconButton(
-              tooltip: 'Edit',
-              icon: const Icon(Icons.edit_outlined),
-              onPressed: _deleting ? null : _edit,
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: Center(
+                child: SubtleButton(
+                  label: 'Edit',
+                  onPressed: _deleting ? null : _edit,
+                ),
+              ),
             ),
           ],
         ),

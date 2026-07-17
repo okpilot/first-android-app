@@ -65,6 +65,21 @@
   so an exact-string `bySemanticsLabel` fails — match a **`RegExp(r'^…prefix')`**. And dispose the
   `ensureSemantics()` handle **explicitly at test end**, NOT via `addTearDown` (the framework verifies
   no live handle BEFORE tear-downs run → a tear-down dispose fails the test).
+- **`PaneHeader`** (`widgets/pane_header.dart`, Decision 49) — the AppBar-less desktop-pane Edit
+  strip (title + top-right `IconButton` tooltip 'Edit'). Direct test `pane_header_test.dart`:
+  `showEdit:false` drops the button (archived task), `onEdit:null` keeps it but DISABLED
+  (mid-mutation busy state), title `overflow == TextOverflow.ellipsis`. GOTCHA: `find.byTooltip('Edit')`
+  matches the **Tooltip** widget, NOT the IconButton — to read `.onPressed`, find the button via
+  `find.descendant(of: PaneHeader, matching: find.byType(IconButton))`.
+- **Detail-view `edit()` busy-guard** (contact `_deleting` / task `_busy||_isArchived`) is
+  load-bearing ONLY on the **phone AppBar** path: the AppBar action is never disabled (it sits above
+  the body's AbsorbPointer / disabled OutlinedButton), so edit()'s early-return is the sole guard.
+  Desktop-strip path disables the button (`onEdit: busy ? null : edit`) so its guard is redundant —
+  don't bother testing the strip-during-busy. To test the phone guard, pin the view busy with a
+  **hanging-write fake** (`softDelete`/`archive` returns a never-completed `Completer` future), tap
+  AppBar Edit, assert the form `findsNothing`. Use **`pump()` not `pumpAndSettle()`** — the delete
+  spinner (CircularProgressIndicator) animates forever and settle times out. Covered in
+  `contact_detail_screen_test` + `task_detail_screen_test`.
 - **M3 `InputChip` delete icon is `Icons.clear`** (U+0E168), NOT `Icons.cancel` — tap via
   `find.descendant(of: widgetWithText(InputChip, name), matching: byIcon(Icons.clear))`;
   `ensureVisible` it first (People/Categories sections sit low on the form).
