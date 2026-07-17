@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:first_android_app/theme.dart';
+import 'package:first_android_app/util/calendar.dart';
 import 'package:first_android_app/widgets/meta_line.dart';
 
 // MetaLine takes plain DateTimes — no repository, so no fakes and no screen host.
@@ -56,6 +57,21 @@ void main() {
 
     expect(find.text('Updated 9 Jul 2026'), findsOneWidget);
     expect(find.textContaining('Added'), findsNothing);
+  });
+
+  testWidgets('a UTC timestamptz renders on the LOCAL day, not the raw UTC day', (
+    tester,
+  ) async {
+    // created_at/updated_at come from timestamptz columns → parsed UTC. An instant late in
+    // the UTC day lands on a *different local day* east of UTC — so a date-only render must
+    // convert first (this widget's whole bug class; cloud-CR caught it). Adversarial input
+    // per docs/design-principles: near-midnight UTC, not a convenient local noon.
+    final utc = DateTime.utc(2026, 7, 9, 23, 30);
+    await tester.pumpWidget(_wrap(MetaLine(created: utc, updated: null)));
+
+    // Asserts the contract (renders the local day); on a non-UTC host it also discriminates
+    // the raw-UTC regression, since displayDate(utc) and displayDate(utc.toLocal()) diverge.
+    expect(find.text('Added ${displayDate(utc.toLocal())}'), findsOneWidget);
   });
 
   testWidgets('renders nothing at all when both dates are null', (
