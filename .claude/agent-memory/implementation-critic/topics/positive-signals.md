@@ -140,3 +140,108 @@ know where to look. Referenced one-line from MEMORY.md.
   `contacts:` in create/archive/restore (both list + detail `_StatefulTasksRepo`); the exact-map
   toRpcParams assertion amended with `p_contacts:[]`; per-file private `_FakeContactsRepo` (no shared
   fake, per plan-critic).
+- **Scalar-field-add, 2nd occurrence** (Task importance = Decision 38, Jul 15; the Task-notes entry
+  above is occurrence 1 — the trap list held). Additions distinct to this one: the **lockdown
+  invariant** — a `create or replace` of an RPC hands back default PUBLIC execute, so an arity change
+  must RE-ISSUE Decision 36's `revoke execute … from public` + `grant … to anon, authenticated` on
+  the NEW signatures, not just the drop+recreate; `p_importance` REQUIRED (no default) on the 6-arg
+  update = fail-loud PGRST202 on a stale caller, DEFAULTED on create; `.order('importance', desc)`
+  correctly sits BETWEEN `is_done` and `created_at`; the new colour is a FIXED semantic scale =
+  **chrome, NOT Decision 19 colour-as-data** (the slice framed it correctly, which is the finding
+  that would otherwise fire); `ImportanceMarks` carries a Semantics label so neither colour nor the
+  `!` glyph rides alone. Test fakes threaded the field through create + archive + restore, not only
+  update. Full dartdoc sweep clean.
+- **Full-stack new-entity mirror of an existing entity** (task_categories Slice A = Decision 39,
+  Jul 15; clean, 0 blocking). The win condition for a NEW table created POST-lockdown: it ships
+  RPC-only from day one — SELECT-only policy `using (deleted_at is null)` + `grant select`, and
+  **no** insert/update policy or grant at all (not "add then revoke"); 3 SECURITY DEFINER RPCs each
+  `set search_path = public` with `revoke execute … from public` + `grant … to anon, authenticated`
+  on the exact typed signatures. RPC arity matched `toRpcParams` 1:1 (create 2 `p_name`/`p_color`,
+  update 3 adds `p_id` via the repo spread, soft_delete 1). Model mirrors EventType: `_validHex` →
+  `#888888` fallback, draft ctor empty id, pure-Dart (no `dart:ui`). Screen IMPORTS `TypeSwatch` via
+  `show` rather than redefining it, reuses `kEventTypePalette`/`colorFromHex`/`hexFromColor`; the new
+  colour IS user-data swatches (Decision 19 applies, correctly) + a Semantics label so colour never
+  rides alone; `_lastData` stale-guard AND `identical(future, _future)` both present; mounted-after-
+  await on every path; messenger/navigator captured pre-await. All 4 hand-fakes (calendar, home_shell,
+  widget ×2) threaded, both ContactsApp sites updated. NO Slice-B leak (no Task/create_task/tasks-repo
+  /join touched) — a scope check worth repeating on any A-then-B split.
+- **Join-table 2nd occurrence — m2m link + copy-not-generalize picker** (task↔task_categories =
+  Slice B / Decision 40, Jul 15; clean, 0 blocking). Near-verbatim mirror of `task_contacts` (entry
+  above). Migration: join table composite-PK (no id/timestamps/`deleted_at`), both FKs
+  `on delete cascade`, reverse index, RLS `using (true)` SELECT + `grant select` only (no write
+  policy/grant — RPC-only). Both task-write RPCs drop+CR on the arity change, and **the drop targets
+  matched the CURRENT (latest-in-chain) signatures** — `create_task(text,text,uuid[],smallint)` /
+  `update_task(uuid,text,boolean,text,uuid[],smallint)` from add_importance, not the original
+  create. `p_categories` DEFAULTED on create / REQUIRED on update = fail-loud on a stale caller;
+  `security definer` + `set search_path = public` verbatim; Decision-36 lockdown re-issued on the NEW
+  5-/7-arg sigs. Model: `copyWith` categories defaults to `this.categories` (toggle-preservation),
+  `fromJson` skips a null embed (soft-deleted category → null → skip), `toRpcParams` sends the
+  `p_categories` id-list, doc-comment swept. Screen: the new picker was CLONED not generalized —
+  consistent with Slice A's copy-not-refactor call, so not a finding; mounted-guard after await;
+  colour never rides alone (row chip + detail row + picker tile + InputChip all carry `Text(name)`).
+  Threaded through all 4 tasks_list sites + detail (screen + view + forward-to-form) + home_shell.
+  Tests: the exact `toRpcParams` map got `p_categories:[]`; reconstructing fakes threaded categories
+  through create/archive/restore in BOTH stateful-fake files — the **4th recurrence** of the
+  field-vanishes-in-a-fake pattern (notes → contacts → importance → categories); the new picker test
+  covers load/search/select/return/empty/error.
+- **Cross-cutting RPC-arity retrofit** (idempotent `create_*` = Decision 41 / issue #9, Jul 16;
+  clean, 0 blocking). All 7 `create_*` gain a trailing `p_id uuid default null` in ONE drop+recreate
+  migration. Win conditions verified: every DROP matched the CURRENT (latest-in-chain) old signature;
+  every revoke+grant listed the NEW signature (the D38 lockdown invariant, re-issued on the
+  recreate); the two-trailing-defaulted-uuid `create_event (…, uuid, uuid)` = `p_type_id` then
+  `p_id`, both correct and in order. `create_task_comment`'s replay-vs-archived-parent split is
+  sound: `insert … select … where exists (live parent) … on conflict do nothing` plus a post-insert
+  `if not exists (id = v_id) then raise no_data_found` — which correctly covers all three cases
+  (idempotent replay, archived-first, and created-live-then-parent-archived-then-retried). Client:
+  a single mint point `lib/util/ids.dart`; `.draft` const-ctor → id-minting factory (drops the
+  `id=''` sentinel); `p_id` rides in `toRpcParams`, so the 4 SPREAD-update repos correctly DROP their
+  now-redundant explicit `p_id` while task update (an explicit map) is rightly untouched; 5
+  pop-on-success forms use `late final _pendingId`, and `CommentsSection`'s mutable `_pendingId` is
+  reset AFTER success inside the op — throw-before-reset means a retry reuses the id, which is the
+  actual dedupe payoff. Zero empty-id sentinels left in `lib/`; full doc-comment + database.md rule
+  #2 + Decision 41 sweep clean (no stale "server owns id" / "DB assigns" prose).
+- **Superset-merge widget extraction** (`DetailField` from two `_Field`s = issue #10 item 2 /
+  Decision 43, Jul 16; clean, 0 blocking). Merging two variant private widgets into one shared
+  superset — the trap is a PIXEL or BEHAVIOUR diff between the two originals surviving the merge.
+  Verified: both `_Field` trees were byte-identical (pad-bottom 20, icon 20 `onSurfaceVariant`,
+  SizedBox 16/2, `labelMedium` label, `bodyLarge` value), and contact's non-empty
+  `copyWith(color:null)` == event's plain `bodyLarge` (no flatten diff). The RELAXED assert
+  `child == null || value == null` (both-null ALLOWED, both-non-null forbidden) is both required and
+  safe: contact's dob passes value=null/no-child (both-null — the OLD event assert would have tripped
+  it), and no call site passes both. Behavioural-drift check: the merged widget adds an
+  empty→"Not added" branch the event original lacked, but every event caller guards non-empty
+  (`if location!.isNotEmpty` / `if notes!.isNotEmpty`), `_whenLabel` always returns non-empty, and
+  Type uses `child` → the empty branch is unreachable for events, so no blank→"Not added" drift.
+  New `super.key` idiomatic; no identity-dependent call site. 5 contact + 4 event sites are all
+  keyword args → mechanical rename; grep confirmed 0 leftover `_Field`; the new file imports only
+  `material.dart` (child/TypeLabel passed by caller); no orphaned imports in either screen.
+- **Rules/config CR-scoping slice** (`.coderabbit.yaml` `path_filters` + doc-updater lifecycle rule =
+  Decision 44, Jul 16; clean, 0 blocking). No app code. Win conditions: `path_filters` sits under
+  `reviews:` at 2-space indent alongside its siblings; negation-ONLY globs (`!**/*.md` +
+  `!.claude/**`) mean exclude-those-keep-everything-else — the CR idiom, which does NOT collapse to
+  exclude-all (the finding that would otherwise fire); `path_instructions` untouched. doc-updater's
+  DO-NOT renumbered #9→#10 with a #5-vs-#10 cross-link (whether-to-doc vs which-word); the lifecycle
+  verify-command table is accurate for a squash-merge repo (`git ls-remote --heads`, `gh pr view
+  --json state` = MERGED, `git log origin/main --grep '(#N)'`). Decision 44's gap-over-43 carries an
+  HTML comment naming the concurrent branch (PR #51) — sane, transient, outside the diff's control.
+  Stale-surface sweep: the "authoritative gate" / "reviews the PR" lines are about WHICH-PR not
+  WHICH-FILES, so they aren't contradicted; only CLAUDE.md:53 needed the scoping clause.
+- **Docs-only verify-curl backfill** (soft-delete non-destructiveness = issue #19 / Decision 45,
+  Jul 17; REVISE — 2 ISSUEs, both doc-sync stale surfaces, zero findings in the curls/SQL/decision
+  text). The SQL-and-shell half is the reusable win condition. Annotations must match real output
+  **including the cast**: `-tA` psql of `select id, deleted_at is not null` prints `t`, but a
+  `(deleted_at is not null)::text` in a union prints `true` — the slice got both right, which is
+  exactly where an annotation copied from the `task_categories` precedent would have been wrong.
+  Payload arity checked against the LATEST signature in the chain: `create_event`'s first 8 params
+  are required (only `p_type_id`/`p_id` default), and `events_time_valid` forces
+  `p_all_day:true` ⇒ both times null — the plan flagged both as "silently break every check" traps
+  because the `EID=$(curl … | tr -d '"')` idiom swallows a 400 error body into the variable, so a
+  mis-built payload yields a block that runs green and proves nothing; the fix is an `echo "$ETID /
+  $EID"` uuid sanity assertion, which was present. Standalone-ness: each new block re-declares its
+  `ANON=`/`REST=` preamble and mints its own ids rather than borrowing a var from an earlier block
+  (the events block mints its own contact instead of reusing a `$NID` that an earlier block
+  soft-deletes — which would have quietly gutted the "anon sees the attendee rows" annotation).
+  Decision 45 itself: append-only, correctly numbered after D44, and reinforces rather than
+  contradicts D36/D37. The general lesson: **a verification check must be able to fail** — an anon
+  read against a policy that hides the row can't tell survival from erasure, so a privileged psql
+  read is the only honest witness.
