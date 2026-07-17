@@ -89,7 +89,7 @@ Future<void> _addTypeViaEditor(WidgetTester tester, String name) async {
   await tester.tap(find.widgetWithText(FloatingActionButton, 'New type'));
   await tester.pumpAndSettle();
   await tester.enterText(find.byType(TextFormField), name);
-  await tester.tap(find.widgetWithText(TextButton, 'Save'));
+  await tester.tap(find.widgetWithText(FilledButton, 'Add type'));
   await tester.pumpAndSettle();
 }
 
@@ -125,7 +125,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextFormField), 'Interview');
-    await tester.tap(find.widgetWithText(TextButton, 'Save'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Add type'));
     await tester.pumpAndSettle();
 
     // Back on the manager, the new type is listed.

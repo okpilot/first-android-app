@@ -6,8 +6,12 @@ import '../widgets/empty_state.dart';
 import '../widgets/initials_avatar.dart';
 
 /// A searchable multi-select of contacts, used to link contacts to a parent record — an event's
-/// attendees or a task's People. [title] is the role noun for that context (e.g. `'attendees'`,
-/// `'people'`); it drives the AppBar copy only. Pops the selected contacts (both the back arrow
+/// People or a task's People. [title] is the role noun for that context; it drives **all**
+/// user-facing role copy — the AppBar (`Add <noun>` / `<Noun> · N`) and the empty-state message.
+/// (The "No contacts yet / Add contacts first" copy names the Contact *entity*, not the role, so it
+/// stays "contacts".) Both callers pass `'people'` today (Decision 47 made it the one user-facing
+/// noun), but the param stays: the widget is generic and shouldn't hardcode its callers' vocabulary.
+/// Pops the selected contacts (both the back arrow
 /// and Done commit the current selection; a system back is a cancel → null, so the caller keeps
 /// its previous selection).
 class ContactPickerScreen extends StatefulWidget {
@@ -21,7 +25,9 @@ class ContactPickerScreen extends StatefulWidget {
   final ContactsRepository repository;
   final List<Contact> initialSelected;
 
-  /// The role noun for this context (`'attendees'` / `'people'`) — AppBar copy only.
+  /// The role noun for this context (both callers pass `'people'`) — drives the AppBar + the
+  /// empty-state role copy. (Kept named `title` to avoid churning two callers + tests for a
+  /// cosmetic rename; the doc above is the contract.)
   final String title;
 
   @override
@@ -118,8 +124,8 @@ class _ContactPickerScreenState extends State<ContactPickerScreen> {
                   return EmptyState(
                     icon: Icons.contacts_outlined,
                     title: 'No contacts yet',
-                    // Role-aware via the noun so the event path keeps its own wording
-                    // ("…link them as attendees.") and tasks read "…as people."
+                    // Built from the noun so this copy follows whatever the caller passes
+                    // (both pass 'people' today → "…link them as people.").
                     message: 'Add contacts first, then link them as $noun.',
                   );
                 }

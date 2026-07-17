@@ -107,6 +107,20 @@ editor `(editing && !readOnly)`, and (b) clear the transient edit-state on the r
 reachable runtime write path, caught only by review + a regression test. (learner-promoted, count 2:
 archived `TaskFormScreen` title+Save `58b2b5d`; `CommentsSection` inline-edit branch `adab034`.)
 
+## Visual QA asserts against the SPECIFIED value, on ADVERSARIAL data (Decision 47)
+A screenshot that "looks fine" is not a passing QA — it's confirmation bias if there's no number to
+check it against. Two disciplines, both learner-promoted after a chip regression shipped green:
+- **Assert against the plan's specified values.** When the plan says a disc is 20px and its initials
+  7.7px, QA measures them — not "does this look reasonable". A build rendering 32px discs with 14px
+  initials *looks* like an avatar; it's still the wrong build. If a number was specified, verify it
+  (a `getSize` probe, or read the pixels), don't eyeball it.
+- **Exercise adversarial data, not the convenient sample.** The live data's initials were narrow
+  ("AT", "DR") and hid an overflow that the widest pair ("WW", "MM") exposes. Always QA the extremes
+  the layout has to survive — the longest label, the widest glyphs, the empty state, the many-items
+  case — not whatever happens to be on screen. The narrow sample is where overflow hides.
+  *(This is the visual twin of the reviewer rule "read + probe, never reason" in
+  `.claude/rules/agent-workflow.md` — both replace "it looks right" with a measured value.)*
+
 ## Not now (YAGNI)
 - A dedicated `/designreview` command — earn it once there are several real screens to review.
 - A full token system / `ThemeExtension` — build it at the theming slice, not before.

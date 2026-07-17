@@ -9,7 +9,17 @@ String initialsOf(String name) {
   return parts.take(2).map((p) => p[0].toUpperCase()).join();
 }
 
-/// A date as `yyyy-MM-dd`.
+/// A date as `yyyy-MM-dd` — the **WIRE** format, and a day-grouping **map key**. Never display.
+///
+/// Two jobs, neither of them user-facing:
+/// 1. **Wire** — the `p_dob` / `p_event_date` RPC params (`models/contact.dart`, `models/event.dart`).
+///    Postgres `date` literals; changing this breaks writes.
+/// 2. **Map keys** — day-grouping in `calendar_screen.dart`. Changing this silently breaks the
+///    grouping with NO compiler error and NO test coverage (`grep ymd test/` → 0 hits).
+///
+/// For anything a user reads, use `util/calendar.dart`'s [displayDate] / [displayDateNoYear] /
+/// [longDate]. This function leaking into the UI is exactly what put three different date formats
+/// on screen (Decision 47) — an ISO date is a serializer talking, not a date.
 String ymd(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-'
     '${d.month.toString().padLeft(2, '0')}-'

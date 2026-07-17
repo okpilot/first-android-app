@@ -12,7 +12,7 @@ disposable vehicle for learning app development end to end.
 - **Calendar** — see your schedule across month, multi-day, day, and agenda views.
   The week starts on Monday.
 - **Events** — put events on a day, either all-day or with a start and end time
-  (24-hour), and optionally add a location, notes, and attendees drawn from your
+  (24-hour), and optionally add a location, notes, and people drawn from your
   contacts.
 - **Event types** — define your own colour-coded categories. The colour is used as
   data throughout the calendar, so you can tell events apart at a glance.

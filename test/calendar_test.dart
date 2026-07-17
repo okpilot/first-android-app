@@ -3,6 +3,40 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:first_android_app/util/calendar.dart';
 
 void main() {
+  // The display date formatters (Decision 47). These replaced `ymd()`, which had leaked out of
+  // the wire layer onto three screens — so these tests are the guard that an ISO date never
+  // reaches the UI again.
+  group('display date formats', () {
+    test('displayDate is "13 Apr 1974" — d MMM yyyy, no leading zero', () {
+      expect(displayDate(DateTime(1974, 4, 13)), '13 Apr 1974');
+      // Single-digit day stays unpadded (a padded "09" reads as machine output).
+      expect(displayDate(DateTime(2026, 7, 9)), '9 Jul 2026');
+    });
+
+    test('displayDateNoYear drops the year, keeps the shape', () {
+      expect(displayDateNoYear(DateTime(2026, 7, 9)), '9 Jul');
+      expect(displayDateNoYear(DateTime(2026, 12, 31)), '31 Dec');
+    });
+
+    test('longDate prefixes the weekday: "Fri, 17 Jul 2026"', () {
+      expect(longDate(DateTime(2026, 7, 17)), 'Fri, 17 Jul 2026'); // a Friday
+      expect(longDate(DateTime(2026, 1, 1)), 'Thu, 1 Jan 2026');
+    });
+
+    test('year and month boundaries do not roll over', () {
+      expect(displayDate(DateTime(2025, 12, 31)), '31 Dec 2025');
+      expect(displayDate(DateTime(2026, 1, 1)), '1 Jan 2026');
+      // Monday is index 0 in weekdayShort — check the wrap-around end (Sunday).
+      expect(longDate(DateTime(2026, 7, 19)), 'Sun, 19 Jul 2026');
+      expect(longDate(DateTime(2026, 7, 20)), 'Mon, 20 Jul 2026');
+    });
+
+    test('longDate is displayDate plus a weekday — the two agree', () {
+      final d = DateTime(2026, 7, 17);
+      expect(longDate(d), endsWith(displayDate(d)));
+    });
+  });
+
   group('monthGrid', () {
     test('is always 42 days, Monday-first, Sunday-last', () {
       for (final m in [

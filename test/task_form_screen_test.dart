@@ -281,6 +281,36 @@ void main() {
     expect(repo.lastUpdated!.isDone, isTrue);
   });
 
+  testWidgets('a People chip renders its avatar initials at the chip size', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _form(
+        _RecordingTasksRepo(),
+        existing: const Task(
+          id: 't1',
+          title: 'Prep the pitch',
+          contacts: [Contact(id: 'c1', name: 'Ada Lovelace')],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final initials = find.descendant(
+      of: find.widgetWithText(InputChip, 'Ada Lovelace'),
+      matching: find.text('AL'),
+    );
+    await tester.ensureVisible(initials);
+
+    // The twin of event_form's chip site: `radius: 11` → fontSize 7.7. A Chip pins the
+    // avatar's BOX, so dropping the radius here changes only the text size — silently.
+    expect(
+      tester.widget<Text>(initials).style?.fontSize,
+      moreOrLessEquals(7.7, epsilon: 0.01),
+    );
+  });
+
   testWidgets('editing seeds existing People as chips and saves them through', (
     tester,
   ) async {

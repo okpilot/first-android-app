@@ -49,34 +49,36 @@ void main() {
     expect(find.widgetWithText(AppBar, 'Add people'), findsOneWidget);
   });
 
-  testWidgets(
-    'a pre-selected roster shows the Capitalized noun with a live count',
-    (tester) async {
-      await tester.pumpWidget(
-        _picker(
-          title: 'attendees',
-          initialSelected: const [Contact(id: 'c1', name: 'Nadia')],
-        ),
-      );
-      await tester.pumpAndSettle();
+  testWidgets('a pre-selected roster shows the Capitalized noun with a live count', (
+    tester,
+  ) async {
+    // Uses 'people' — the noun both real callers pass (Decision 47) — so this asserts the
+    // production AppBar copy. The retired 'attendees' vocabulary is gone from the file; the
+    // sibling 'guests' test still proves the copy is interpolated, not hardcoded.
+    await tester.pumpWidget(
+      _picker(
+        title: 'people',
+        initialSelected: const [Contact(id: 'c1', name: 'Nadia')],
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      // n > 0 branch: the noun is capitalized and the count is appended.
-      expect(find.widgetWithText(AppBar, 'Attendees · 1'), findsOneWidget);
+    // n > 0 branch: the noun is capitalized and the count is appended.
+    expect(find.widgetWithText(AppBar, 'People · 1'), findsOneWidget);
 
-      // Selecting the second contact updates the count live (1 → 2).
-      await tester.tap(find.widgetWithText(CheckboxListTile, 'Bo'));
-      await tester.pumpAndSettle();
-      expect(find.widgetWithText(AppBar, 'Attendees · 2'), findsOneWidget);
+    // Selecting the second contact updates the count live (1 → 2).
+    await tester.tap(find.widgetWithText(CheckboxListTile, 'Bo'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(AppBar, 'People · 2'), findsOneWidget);
 
-      // Un-selecting the seeded contact drops back through the count to the "Add" copy.
-      await tester.tap(find.widgetWithText(CheckboxListTile, 'Nadia'));
-      await tester.pumpAndSettle();
-      expect(find.widgetWithText(AppBar, 'Attendees · 1'), findsOneWidget);
-      await tester.tap(find.widgetWithText(CheckboxListTile, 'Bo'));
-      await tester.pumpAndSettle();
-      expect(find.widgetWithText(AppBar, 'Add attendees'), findsOneWidget);
-    },
-  );
+    // Un-selecting the seeded contact drops back through the count to the "Add" copy.
+    await tester.tap(find.widgetWithText(CheckboxListTile, 'Nadia'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(AppBar, 'People · 1'), findsOneWidget);
+    await tester.tap(find.widgetWithText(CheckboxListTile, 'Bo'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(AppBar, 'Add people'), findsOneWidget);
+  });
 
   testWidgets('a pre-selected contact renders as a checked box', (
     tester,
@@ -141,30 +143,28 @@ void main() {
     expect(popped!.map((c) => c.id), ['c2']);
   });
 
-  testWidgets(
-    'an empty roster shows the role-aware "link them as <noun>" empty state',
-    (tester) async {
-      // Attendees (event path) and people (task path) each get their own noun.
-      await tester.pumpWidget(
-        _picker(title: 'attendees', repo: FakeContactsRepo()),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('No contacts yet'), findsOneWidget);
-      expect(
-        find.text('Add contacts first, then link them as attendees.'),
-        findsOneWidget,
-      );
+  testWidgets('the empty state is built from whatever noun the caller passes', (
+    tester,
+  ) async {
+    // Both real callers pass 'people' since Decision 47 made it the one user-facing noun —
+    // so this asserts the widget's CONTRACT (it renders the noun it is given), not a
+    // distinction between the event and task paths. The synthetic noun keeps it honest: it
+    // would still fail if the copy were hardcoded.
+    await tester.pumpWidget(_picker(title: 'people', repo: FakeContactsRepo()));
+    await tester.pumpAndSettle();
+    expect(find.text('No contacts yet'), findsOneWidget);
+    expect(
+      find.text('Add contacts first, then link them as people.'),
+      findsOneWidget,
+    );
 
-      await tester.pumpWidget(
-        _picker(title: 'people', repo: FakeContactsRepo()),
-      );
-      await tester.pumpAndSettle();
-      expect(
-        find.text('Add contacts first, then link them as people.'),
-        findsOneWidget,
-      );
-    },
-  );
+    await tester.pumpWidget(_picker(title: 'guests', repo: FakeContactsRepo()));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Add contacts first, then link them as guests.'),
+      findsOneWidget,
+    );
+  });
 
   testWidgets('a failed roster load shows the contacts error state', (
     tester,

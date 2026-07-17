@@ -167,6 +167,27 @@ Widget _standalone(
 );
 
 void main() {
+  testWidgets('a comment stamps the date before the time', (tester) async {
+    // Constructed as a LOCAL DateTime on purpose: `_timestamp` calls `.toLocal()`, so a
+    // local literal is a no-op there and this asserts the same string in any timezone the
+    // suite runs in. (A UTC/offset literal would render differently per machine.)
+    final repo = _GatedCommentsRepo([
+      Comment(
+        id: 'c0',
+        parentId: 'e1',
+        body: 'Ship it',
+        createdAt: DateTime(2026, 7, 9, 14, 32),
+      ),
+    ]);
+    await tester.pumpWidget(_detail(repo));
+    await tester.pumpAndSettle();
+
+    // Date THEN time (Decision 47) — the flip from the old "14:32 · 9 Jul". Year-less via
+    // displayDateNoYear, and 24h with no AM/PM.
+    expect(find.text('9 Jul · 14:32'), findsOneWidget);
+    expect(find.text('14:32 · 9 Jul'), findsNothing);
+  });
+
   testWidgets('empty state when there are no comments', (tester) async {
     await tester.pumpWidget(_detail(_GatedCommentsRepo()));
     await tester.pumpAndSettle();

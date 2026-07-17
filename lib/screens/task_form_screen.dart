@@ -243,7 +243,7 @@ class _TaskEditViewState extends State<TaskEditView> {
                   onChanged: (v) => setState(() => _importance = v),
                 ),
                 const SizedBox(height: 28),
-                // People — linked contacts, like an event's attendees. Chips + picker.
+                // People — linked contacts, like an event's People. Chips + picker.
                 _PeopleSection(
                   contacts: _contacts,
                   onAdd: _openPeople,
@@ -405,7 +405,15 @@ class _PeopleSection extends StatelessWidget {
             children: [
               for (final c in contacts)
                 InputChip(
-                  avatar: InitialsAvatar(name: c.name, radius: 11),
+                  // onChipFill: the disc would otherwise paint in the SAME token the chip
+                  // fills with and dissolve into it. Colour, not a ring — measured: a ring
+                  // costs ~5px out of the Chip's pinned box, leaving an 11px disc; this
+                  // leaves 16px with the initials at natural size.
+                  avatar: InitialsAvatar(
+                    name: c.name,
+                    radius: 11,
+                    onChipFill: true,
+                  ),
                   label: Text(c.name),
                   onDeleted: () => onRemove(c),
                 ),

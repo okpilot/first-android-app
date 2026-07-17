@@ -165,3 +165,25 @@ compiler wouldn't catch a swap — values verified correct by hand.
 ops clear controllers/`_editingId` AFTER the await so a failed write preserves text + keeps edit mode
 open; `_run` = capture messenger + `mounted` re-check + `busy` in `finally`. Reinforce this shape for
 new list/mutation sections.
+
+## D47 UI consistency pass (`72f33c1`)
+Verified behaviourally, not by reading the hunks:
+- **`ymd()` split holds.** `grep -rn "ymd(" lib/` → only `models/contact.dart:73` (`p_dob`),
+  `models/event.dart:116` (`p_event_date`), and `calendar_screen.dart:257/263/1243` (day-grouping map
+  keys). Zero display sites. Grouping is symmetric (writer 257/1243 + reader 263 all key through
+  `ymd`), so no round-trip or grouping change is possible.
+- **`longDate` is byte-identical** to both inlines it replaced (`event_detail._whenLabel`,
+  `event_form._dateLabel`) — same template char-for-char. No spacing/comma/year drift.
+- **Comment timestamp order flip** is display-only — `_timestamp` has no parser/sort/test consumer,
+  and the `hhmm(t.hour * 60 + t.minute)` minutes-from-midnight trap is still avoided.
+- **`chipTheme` blast radius contained** — only 3 Material chips exist (`event_form:470`,
+  `task_form:407`, `task_form:461`). `tasks_list._CategoryChip` and `comments._archivedChip` are
+  hand-rolled `Container` pills, untouched. Uses the neutral `secondaryContainer` token, so no type
+  colour leaks into chrome (D19 holds).
+- **TypeSwatch chip correctly gets NO ring** — it's a saturated user colour against
+  `secondaryContainer` (doesn't dissolve) and always rides with its name label (D19). Bonus: its
+  declared `size: 16` now renders nominally (contentSize 20 → 16 had been stretching it to 20).
+- **AppBar `Save` removal loses no guard** — all four forms already had a bottom
+  `FilledButton(onPressed: _saving ? null : _save)` INSIDE `AbsorbPointer(absorbing: _saving)`. The
+  AppBar copy needed its own `_saving` guard only because it sat outside that AbsorbPointer.
+- No new await paths, no `_lastData` rework ⇒ no `mounted`/stale-guard exposure.

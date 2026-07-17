@@ -35,6 +35,36 @@
   load task categories"`**.
 - Refresh-failure banner (list screens): **`"Couldn't refresh — showing saved data"`**.
 - Empty contact-detail field placeholder: **`"Not added"`** (rendered per empty field, both layouts).
+- **Display-date formatters (Decision 47, `util/calendar.dart`)** — the ONE user-facing set; NEVER
+  render `ymd()` (wire format). `displayDate` → **`"13 Apr 1974"`** (d-MMM-yyyy, no zero-pad),
+  `displayDateNoYear` → **`"9 Jul"`**, `longDate` → **`"Fri, 17 Jul 2026"`**. String-level covered in
+  `calendar_test.dart`; the only RENDERED `displayDate` site is **`MetaLine`** (`Added … · Updated …`)
+  — `meta_line_test.dart` asserts the widget string + the 3 branches (created-only / updated-only /
+  both-null → `find.byType(Text)` findsNothing).
+- **Comment timestamp** (`comments_section.dart` `_timestamp`): date-then-time **`"9 Jul · 14:32"`**
+  (Decision 47 flip; was time-first). Build the seed `Comment.createdAt` as a **local** `DateTime`
+  (the code `.toLocal()`s it → local literal is TZ-stable across CI). Asserted in `comments_section_test`.
+- **chipTheme** (theme.dart): assert via the RENDERED chip's `Ink` `ShapeDecoration`, never by reading
+  `AppTheme.light.chipTheme` back. `find.descendant(of: InputChip, matching: byType(Ink))` →
+  `.decoration as ShapeDecoration`: `.shape` isA `StadiumBorder`, `(shape).side == BorderSide.none`
+  (LOAD-BEARING — deleting it lets M3's outlineVariant hairline back; mutation-proven), `.color ==
+  secondaryContainer`. Covered light+dark in `theme_test.dart`.
+- **`InitialsAvatar` `fontSize == radius * 0.7`** — `radius` is NOT inert. Default radius 20 → 14px,
+  size 40×40; chip sites (`event_form:479`, `task_form:416`) pass **`radius: 11` → fontSize 7.7**
+  (`moreOrLessEquals(7.7, 0.01)`). A Chip pins the avatar BOX (`tightFor(contentSize)`), so dropping
+  `radius: 11` at a site leaves the disc identical and only the initials jump 7.7→14 — invisible to
+  analyze/eye. Widget contract in `initials_avatar_test.dart`; per-SITE guards in both form tests
+  (find `Text('AL')` inside `widgetWithText(InputChip, name)`, assert fontSize). `ring: true` wraps a
+  2nd `Container` (surface fill + hairline); default = 1 Container only.
+- **People roster empty state** (`event_detail` `_AttendeeList`): header **`"PEOPLE · N"`**, empty
+  branch **`"No people"`** (Decision 47 — user-facing noun is "people"; `Event.attendees`/table keep
+  `attendee`). `calendar_screen_test` asserts both + `find.textContaining('attendee') findsNothing`.
+- **Calendar block a11y label** (`calendar_screen:975`): `"<title>, <type|No type>, HH:MM – HH:MM,
+  N person|people"` — "person" singular at 1, "people" at ≥2 (NEVER "attendee"). GOTCHA: the block's
+  `Semantics` carries an explicit `label` AND merges its children's Texts newline-appended after it,
+  so an exact-string `bySemanticsLabel` fails — match a **`RegExp(r'^…prefix')`**. And dispose the
+  `ensureSemantics()` handle **explicitly at test end**, NOT via `addTearDown` (the framework verifies
+  no live handle BEFORE tear-downs run → a tear-down dispose fails the test).
 - **M3 `InputChip` delete icon is `Icons.clear`** (U+0E168), NOT `Icons.cancel` — tap via
   `find.descendant(of: widgetWithText(InputChip, name), matching: byIcon(Icons.clear))`;
   `ensureVisible` it first (People/Categories sections sit low on the form).

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../data/contacts_repository.dart';
 import '../models/contact.dart';
-import '../util/format.dart';
+import '../util/calendar.dart';
 import '../widgets/detail_field.dart';
 import '../widgets/initials_avatar.dart';
 import '../widgets/meta_line.dart';
@@ -196,7 +196,7 @@ class _ContactDetailViewState extends State<ContactDetailView> {
         DetailField(
           icon: Icons.cake_outlined,
           label: 'Date of birth',
-          value: c.dob == null ? null : ymd(c.dob!),
+          value: c.dob == null ? null : displayDate(c.dob!),
         ),
         DetailField(icon: Icons.email_outlined, label: 'Email', value: c.email),
         DetailField(icon: Icons.phone_outlined, label: 'Phone', value: c.phone),

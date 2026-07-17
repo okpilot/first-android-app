@@ -264,7 +264,7 @@ class _TaskDetailViewState extends State<TaskDetailView> {
                 const SizedBox(height: 24),
                 _CategoriesList(categories: _task.categories),
               ],
-              // People — the linked contacts, read-only (edited via the form, like attendees).
+              // People — the linked contacts, read-only (edited via the form, like an event's).
               // Shown only when the task has any; hidden entirely otherwise.
               if (_task.contacts.isNotEmpty) ...[
                 const SizedBox(height: 24),

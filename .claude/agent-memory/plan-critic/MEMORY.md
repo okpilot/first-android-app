@@ -1,93 +1,56 @@
 # plan-critic — memory
 
-> Transition tracker, curated in place (never a dated session log). Records recurring plan
-> failure modes for THIS project so future reviews focus where plans actually go wrong.
-> Curated at `/wrapup`.
+> Transition tracker, curated in place (never a dated session log). Records recurring plan failure
+> modes for THIS project so future reviews focus where plans actually go wrong. Detail lives in
+> `topics/` — read on demand. Curated at `/wrapup`.
 
 ## Recurring plan failure modes
 
 | Pattern | First Seen | Count | Last Seen | Status (→ rule loc) |
 |---|---|---|---|---|
-| Plan reuses `format.dart` `hhmm(int minutes)` to render a timestamp/`DateTime` — but `hhmm` takes minutes-from-midnight, not a DateTime, and PostgREST `timestamptz` comes back UTC/offset (needs `.toLocal()`). | 2026-07-11 (event-comments) | 1 | 2026-07-11 | WATCHING — flag if a UI slice reuses `hhmm` on a `created_at`/`updated_at` |
-| Plan proposes a new RPC's `set search_path` value/pattern that diverges from the 5 existing RPCs AND from `docs/database.md` rule #6 (`always SET search_path = public`) while claiming to "mirror create_event". Also mis-attributes search_path to issue #3 (which tracks auth.uid(), not search_path — search_path is already compliant everywhere). | 2026-07-12 (writes→RPC) | 1 | 2026-07-12 | WATCHING — when a plan sets a `SET search_path` value, diff it against rule #6 + existing RPCs |
-| Plan says "document the new convention in database.md" but the change actually REVERSES an emphatically-worded existing rule (rule #2 "the *corrected* rule — NOT everything is RPC"; rule #4 event_comments exception; Decision 23) plus contradicts live repo doc-comments/migration headers — under-scoping the doc amendments and leaving contradictory prose. | 2026-07-12 (writes→RPC) | 3 | 2026-07-15 (Decision 36 preauth lockdown, d549d45) | PROMOTED → CLAUDE.md "How we work" (rule-reversal-sync). **Recurred AGAIN 2026-07-15 (d549d45):** plan's reversal sweep initially missed 2nd/3rd stale LEDGER surfaces — decisions.md D33 (L390-391) + plan.md L41/L67-68 — AND proposed SKIPPING stale migration headers that Slices 2/3 had already corrected in-slice; caught this pass (REVISE). Same SECONDARY-surface-within-a-touched-file mechanism as the refinement learner tracked at count 2 (3296258→d549d45). **NOW PROMOTED (d549d45):** the "grep the WHOLE of each touched file + every decisions-ledger subsection, not just the first citation" refinement was folded into the binding CLAUDE.md "How we work" rule-reversal paragraph — the plan author now reads it there, not just in doc-updater's post-commit memory. Recurred AGAIN Slice 3: plan listed database.md #2/#4 + comment.dart + comments_repo + create_event_comments.sql header + .coderabbit.yaml + README *Verify* block — but MISSED (a) README.md 2nd surface, the "Conventions in play" summary block (~146-149) still "plain direct UPDATEs — no soft_delete_* RPC", and (b) **docs/decisions.md Decision 23** (line ~203 "No soft-delete RPC needed") needs a dated in-place amendment (append-only ledger — NOT a rewrite). RULE: on a reversal sweep, grep the WHOLE of each touched file (a file has >1 stale surface) AND the decisions ledger. **Same family, ADD variant (Slice 2b):** the plan had NO docs step at all — adding a third `using(true)` table (`task_comments`) leaves database.md #4's exception list ("`event_comments` and `tasks`", line 18) stale, and skips the backend/README per-entity Verify block + decisions.md append. RULE EXTENSION: a new soft-delete-viewable table is also a #4-exception-list edit (not just reversals); on ANY new `*_comments`/viewable-soft-delete table, check database.md #4 list + README Verify parity even when nothing is being reversed. **Same family, OPERATIVE-NUMBER variant (2026-07-14, issue #40 review-bar rebalance):** plan changed the fleet round floor/ceiling (2/3→3/4, ceiling 4→6) + CR-local M across agent-workflow.md + 3 agent defs + Decision 7 — but MISSED `.claude/commands/wrapup.md:47` which restates the number ("ceiling (4 for plan/semantic/code)"). RULE EXTENSION: a change to an operative RULE-NUMBER (round floor/ceiling, M) is also a cross-reference sweep — `grep -rn 'ceiling\|floor\|N=\|M='` the WHOLE of `.claude/commands/` + `.claude/agents/` for files that RESTATE the number, not just the rule's home file. (wrapup.md and coderabbit.md both restate ceilings.) |
-| Plan removes a model write-method (`toWrite`) but its Tests section lists only the NEW tests — misses that `test/*_test.dart` has tests FOR the removed method AND that its only private helper (`_emptyToNull`) is orphaned (→ analyze `unused_element`) + a dangling `[toWrite]` dartdoc ref. | 2026-07-12 (contacts→RPC Slice 1) | 1 | 2026-07-12 | WATCHING — when a plan says "remove method X if unreferenced", grep test/ AND check for now-dead private helpers + dartdoc `[X]` links |
-| Plan renames a repo method + a model factory-param (`fetchForEvent`→`fetchFor`, `Comment.draft(eventId:)`→`(parentId:)`) but the Tests step under-enumerates the widget-test fakes: it named a NON-EXISTENT file (`event_detail_screen_test.dart`) and only 1 of 3 `_FakeCommentsRepo`s — MISSED `widget_test.dart` + `calendar_screen_test.dart` fakes (both implement the renamed method + call the renamed factory → won't compile). Also: `fromJson` unit tests feed raw `'event_id'` JSON keys that must become `'parent_id'` (separate from the Dart-identifier rename), and the renamed prod class (`SupabaseCommentsRepository`→`...Event...`) has a caller in `main.dart` the step list omitted. | 2026-07-14 (CommentsSection extract) | 1 | 2026-07-14 | WATCHING — on ANY repo-method/factory-param rename, `grep -rn <method>\|<factory>( test/` for EVERY fake (don't trust the plan's file list; verify the named test files exist), and check `main.dart` for the prod instantiation |
-| Plan adds a model field but its Tests step is generic and misses that (a) fake repos which RECONSTRUCT the entity from scratch — `_StatefulTasksRepo.create/archive/restore` rebuild `Task(id,title,isDone[,notes,deletedAt])` — silently DROP the new field (so a test asserting the field survives archive/render fails), and (b) an exact-map assertion on `toRpcParams()` (`expect(p, {'p_title': ...})`) breaks the moment a param is added. Also: a CREATE OR REPLACE that recreates an RPC to add a param must re-carry the WHOLE prior body (SECURITY DEFINER, SET search_path=public, guards, `if not found raise`, `trim`). | 2026-07-14 (task notes Slice 1) | 3 | 2026-07-15 (importance, 3bf48ea) | **PROMOTED → CLAUDE.md "How we work"** (field-add sweep clause, written 3bf48ea follow-up) — THIRD distinct-commit occurrence (notes→contacts→importance, 3bf48ea Decision 38). When a plan adds a model field, grep test/ for fakes that CONSTRUCT the entity (not just pass through) + exact-map assertions on toRpcParams; when it recreates an RPC, demand the full prior body preserved. |
-| Plan says "reuse the shared fake ContactsRepository from event tests" — but the fleet's fakes are PRIVATE per-file (`_FakeContactsRepo` in calendar_screen_test.dart / event_form_screen_test.dart; `_FakeRepo` in widget_test/home_shell_test) and NOT importable. A screen gaining a new required repo param needs a NEW fake added to EACH test file that builds it (here: task_detail/form/list tests had none) + the param threaded into every screen-instantiation helper. | 2026-07-14 (task↔contacts) | 1 | 2026-07-14 | WATCHING — when a plan says "reuse the existing/shared fake", verify the fake is a public/importable class, not a private `_Fake*` per-file |
-| Plan swaps a screen's pane widget type / removes a UI affordance (e.g. wide pane `TaskEditView`→`TaskDetailView`, drops the "Mark complete" Switch) and its Tests section enumerates only SOME of the tests that assert the old affordance — misses SIBLING tests that use that same affordance (`find.text('Mark complete')`, `find.byType(Switch)`) as an incidental proxy for "the editable pane is here". Those tests break `flutter test` even though the plan never named them. | 2026-07-14 (tasks view-first) | 1 | 2026-07-14 | WATCHING — when a plan removes a widget/affordance, grep the WHOLE test file for that text/type, not just the tests the plan renamed |
-| Plan that starts sending a previously-omitted field via `toRpcParams()` (here `'p_id': id` for idempotent creates) assumed ALL create forms build the model via `Model.draft(...)` — but `contact_form_screen`/`event_form_screen` build via the MAIN constructor with the `id: widget.existing?.id ?? ''` **empty-string sentinel** (they never call `.draft`). Plan's "pass id into the `.draft(...)` call" instruction misses those 2 sites, so create sends `p_id: ''` → invalid-uuid → create BREAKS. The `?? ''` sentinel was inert only while `toRpcParams` omitted id; the moment it carries id, `''` becomes live data. Also: converting `Model.draft` const-ctor → `factory` breaks `const Model.draft(...)` call sites in `event_type_test`/`task_category_test` (line ~32) the test list didn't name; and `late final _pendingId` can't be "reset after success" (final can't reassign) — the CommentsSection composer needs a mutable field. | 2026-07-16 (idempotent creates #9) | 1 | 2026-07-16 | WATCHING — when a plan adds a key to `toRpcParams()`, grep EVERY create call site for the model's MAIN-constructor build with `?? ''` (not just `.draft`); verify `.draft`→factory doesn't break a `const .draft(...)`; a "reset after success" id field must be non-final. **2nd pass (same slice): residual gap** — making `.draft` mint an id breaks model UNIT tests that assert the OLD invariant by literal (`test/comment_test.dart:78` + `task_test.dart:251` `expect(.draft().id, '')`, with test TITLES "…empty id…"). Distinct from the reconstructing-fake/toRpcParams sweep: it's an invariant-assertion unit test whose title+expectation must be rewritten (assert isNotEmpty), not deleted. A catch-all grep framed as "draft-echo FAKES" risks scoping past model unit tests; comment_test wasn't even enumerated though Comment.draft is converted. RULE EXTENSION: on a factory/default change, `grep -rn "\.id, ''" test/` over ALL of test/ (models, not just fakes) and rewrite the assertion + its test title. |
+| **F1** `hhmm(int minutes)` reused to render a `DateTime`/timestamp (it takes minutes-from-midnight; `timestamptz` needs `.toLocal()`) | 2026-07-11 event-comments | 1 | 2026-07-11 | WATCHING — flag if a UI slice reuses `hhmm` on `created_at`/`updated_at` |
+| **F2** New RPC's `SET search_path` diverges from database.md #6 + the 5 existing RPCs while claiming to "mirror create_event" | 2026-07-12 writes→RPC | 1 | 2026-07-12 | WATCHING — diff any proposed `SET search_path` against rule #6 |
+| **F3** Rule-reversal / status-flip doc sweep under-scoped — plan says "document it" but the change *reverses* an emphatic rule, leaving stale twins across sibling docs, ledger subsections, migration headers | 2026-07-12 writes→RPC | 3 | 2026-07-15 d549d45 | **PROMOTED → CLAUDE.md** "How we work" (rule-reversal-sync) |
+| **F4** Removing a model method: plan lists only NEW tests — misses tests *for* the removed method, now-orphaned private helpers (`unused_element`), dangling dartdoc `[X]` | 2026-07-12 contacts→RPC S1 | 1 | 2026-07-12 | WATCHING — grep `test/` + check dead helpers/dartdoc |
+| **F5** Rename under-enumerates fakes — named a non-existent test file, missed 2 of 3 fakes, raw JSON keys, `main.dart` prod instantiation | 2026-07-14 CommentsSection | 1 | 2026-07-14 | WATCHING — grep every fake; verify named test files EXIST |
+| **F6** Field-add sweep — reconstructing fakes silently drop the field; exact-map `toRpcParams()` assertions break; CREATE OR REPLACE must re-carry the whole prior body; inline `p_*` param comments rot | 2026-07-14 task notes | 3+ | 2026-07-15 3bf48ea | **PROMOTED → CLAUDE.md** "How we work" (field-add sweep clause) |
+| **F7** "Reuse the shared fake" — but fakes are private per-file `_Fake*`, not importable | 2026-07-14 task↔contacts | 1 | 2026-07-14 | WATCHING — verify the fake is genuinely public (partly mitigated by `test/support/fakes.dart`, D42) |
+| **F8** Removing a UI affordance under-enumerates test fallout — sibling tests use it as an incidental proxy; a removed affordance may be the *driver tap*, not an assertion, with a mode-dependent replacement label; **and the replacement target may be un-hit-testable at the default 800×600 viewport** (an AppBar action is always visible; a bottom-of-ListView submit button is not — cf. the `Size(800,1400)` pin at `test/task_form_screen_test.dart:94–101`) | 2026-07-14 tasks view-first | **3** | 2026-07-17 slice A1 v2 | **RULE CANDIDATE** — grep the WHOLE test file; classify ASSERTION vs DRIVER; read both `_isEditing` branches; **check the new target's viewport reachability + whether the test file pins a surface size** |
+| **F9** `toRpcParams()` gains a key → the inert `id: existing?.id ?? ''` sentinel goes live → create breaks; `.draft`→factory breaks `const .draft()`; model unit tests assert the old invariant by literal | 2026-07-16 idempotent creates #9 | 1 | 2026-07-16 | WATCHING — grep EVERY create call site for `?? ''`; `grep -rn "\.id, ''" test/` over ALL of test/ |
+| **F10** Fake-name → shared-class map is not 1:1 — the same `_FakeCommentsRepo` name is seeded in one file, inert in three | 2026-07-16 fakes consolidation #10 | 1 | 2026-07-16 | WATCHING — build an explicit per-file name→class map |
+| **F11** Dedupe/extract moves the LAST use of a symbol out of a file → orphaned import → `unused_import` → analyze fails → **pre-commit hook blocks** | 2026-07-17 slice A1 | 1 | 2026-07-17 | WATCHING — `grep -c` the moved-from file for EVERY public symbol of the import |
+| **F12** Theme-token collision — a new `*ThemeData` sets a container to a token an **inner atom already fills with** (chipTheme `backgroundColor: secondaryContainer` vs `InitialsAvatar`'s own `secondaryContainer` fill → the avatar disc goes invisible). The mono palette aliases `primaryContainer`/`secondaryContainer`/`tertiaryContainer` all onto ONE `chip` token, so scheme roles that *read* as distinct are the same colour | 2026-07-17 slice A1 #6 | 1 | 2026-07-17 | WATCHING — for any new component theme, grep the atoms it wraps (`avatar:`/`child:`) for the same scheme token; resolve through `theme.dart`'s `_build` aliases, never the role name. **Follow-on:** the *fix* (`ring: true`) does NOT re-size the atom — the chip tight-constrains it (see F13); an earlier note here guessed "+4px" and was wrong |
+| **F13** Plan reasons about a **framework** widget's layout from its API surface (param names, the child atom's own `radius`/padding) instead of its `performLayout` — e.g. D-h's "its 22px avatar sets a height floor ≈ 34–38px" when `chip.dart` tight-constrains the avatar TO the chip. The *conclusion* survived; the mechanism, the numbers, and the stated QA risk were all false | 2026-07-17 slice A1 v3 D-g/D-h | 1 | 2026-07-17 | WATCHING — when a plan asserts a *framework* widget's sizing, read `_Render*.performLayout` / `_computeSizes` in `~/flutter`, never the public params |
 
-| A test-fake-consolidation plan asserted "only the class NAME changes at call sites — drop the leading `_`" — but the SAME private fake name denotes DIFFERENT behaviors across files: `_FakeCommentsRepo` is the SEEDED tier-2 fake in task_detail_screen_test (filters by parentId, rebuilds `Comment(id:'c$seq')`) yet the INERT tier-1 fake (fetchFor→`const []`) in calendar/widget_test/home_shell. A mechanical drop-underscore maps task_detail's to `FakeCommentsRepo` (inert) → its 3 seeded-comment tests break (`find.text('Left a voicemail.')` fails). The name→shared-class map is NOT 1:1. | 2026-07-16 (fakes consolidation #10) | 1 | 2026-07-16 | WATCHING — on any "rename the fake to the public class" plan, build an explicit per-file name→class map; never assume a private fake name means one behavior across files |
+## Durable knowledge
+- **Skip threshold:** don't run for a single-file change under ~10 lines.
+- **Rounds:** consecutive-clean floor N=3 (N=4 if the plan touches `backend/migrations/**/*.sql`),
+  reset on any APPLY finding (not on a validated skip), ceiling 6 → escalate with residuals.
+- **Pre-auth is permanent, not pending.** No login is planned (single-user + tailnet-only,
+  Decision 37); issue #3 is CLOSED. Never demand `auth.uid()` — it is not a plan defect.
+- **`drop function if exists …; create or replace …`** to change an RPC signature is the **correct**
+  pattern here (avoids PGRST203), not a breaking change. Judge from the LATEST definition across
+  `backend/migrations/**/*.sql` sorted by timestamp prefix — never a single migration in isolation.
+- **`util/calendar.dart` has zero imports** (no Flutter) — it's the safe dependency for `format.dart`,
+  which models import. Anything dragging Flutter into `format.dart` would poison the models.
+- **Shared reconstructing fakes live in `test/support/fakes.dart`** (Decision 42) — but single-file
+  private specials still exist; grep both.
+- **M3 chip facts (verified against `~/flutter`):** an unselected+enabled `InputChip` has **no fill**
+  (`_InputChipDefaultsM3.color` returns null) and an `outlineVariant` hairline `side` — so a themed
+  `backgroundColor` is a *new* fill, not a recolour. `ChipThemeData.side: BorderSide.none` IS honoured
+  and IS required (`chip.dart` `_getShape` re-applies the defaults' side only when side is null).
+  `deleteIconColor: onSurfaceVariant` + `showCheckmark: false` are **no-ops** on these chips (already
+  the default; the chips are never `selected`). **The `avatar` is NOT unconstrained** (an earlier
+  note here claimed it was — wrong): with `avatarBoxConstraints` null, `_layoutAvatar` gives it
+  `BoxConstraints.tightFor(contentSize, contentSize)` (`chip.dart:1884`), where `contentSize =
+  max(_kChipHeight(32) - padding.vertical + labelPadding.vertical, labelHeight +
+  labelPadding.vertical)` (`:1953`). So an avatar **never** sets a chip's height — the chip sizes
+  the avatar, and `radius:` on an `InitialsAvatar` passed as a chip `avatar:` is inert. Chip height
+  = `padding.vertical + contentSize` + `VisualDensity` adj, **floored at 32** (compact → ~28);
+  lowering `padding.vertical` does NOT shrink a chip, it inflates the avatar and the ✕.
+- **`docs/decisions.md` hits are historical and append-only** (CLAUDE.md NEVER DO) — never list them
+  in a plan's docs sweep. Only `README.md`, `docs/plan.md`, and `lib/**` doc-comments are sweepable.
 
-_Seed watch-items carried from the project's conventions (no recurrence yet):_
-- Changing a model field or repository method → does the plan list the **test fake** in `test/`?
-  (Injectable-repo hermetic tests mean a signature change usually needs a fake updated.)
-  Plans get the fake-repo tests right (event-comments named both `widget_test.dart` +
-  `calendar_screen_test.dart`), but the contacts→RPC Slice 1 plan MISSED the model-method unit
-  tests (`test/contact_test.dart` tests `toWrite` directly) — see tracker row above.
-- Touching `backend/migrations/` / an RPC / RLS → does the plan reference `docs/database.md`?
-- Adding colour/labels → is it colour-**as-data** (Decision 19), not chrome?
-- New table's FK: siblings (`event_attendees`) use `on delete cascade`; watch for FK on-delete parity
-  (moot while parents are soft-delete-only, but a consistency smell).
-
-## Positive signals
-- **DetailField extraction plan (2026-07-16, #10 item 2):** pure-UI widget extraction, ACCURATE and complete.
-  Correctly identified the superset merge (contact `value:String?`+"Not added" placeholder vs event
-  `value XOR child`+`selectable`+TypeLabel child), and that the relaxed assert `child==null||value==null`
-  (both-null allowed) is safe for BOTH callers — contact needs both-null (email may be null, no child) and
-  event never reaches the empty branch (every field caller-guarded non-empty). Verified pixel-identity: both
-  originals share the exact same tree (padding bottom 20, icon size 20 onSurfaceVariant, SizedBox 16/2,
-  labelMedium label, bodyLarge value); contact's non-empty `copyWith(color:null)` is a no-op vs event's plain
-  bodyLarge, so no flattening diff. Call-site counts exact (5 contact @195-207, 4 event @142-163), all keyword
-  args (`icon:/label:/value:|child:|selectable:`) → mechanical `_Field(`→`DetailField(` rename is safe; no
-  positional/renamed param. Imports: no orphan after removing local `_Field` (both screens still use material;
-  SelectableText/TypeLabel stay where used); DetailField needs NO TypeLabel import (child passed in). Tests:
-  correctly named `contacts_master_detail_test` (line 66-74 exercises `find.text('Not added')`) +
-  `comments_section_test` (mounts EventDetailScreen → renders event fields incl Type child); no test refs
-  `_Field` by type so none break. Naming/location right (`lib/widgets/detail_field.dart`/`DetailField` matches
-  InitialsAvatar/TypeLabel convention, no collision). Decision 43 is the correct next number (latest is 42).
-  Only nit: doc-comment merge left unspecified (SUGGESTION, non-blocking).
-- **task-people plan (2026-07-14, DB lens):** signature-change chain EXACTLY right — dropped the CURRENT
-  binding sigs `create_task(text,text)` / `update_task(uuid,text,boolean,text)` (from the add_notes
-  migration, not the original create_tasks), re-granted the new `(text,text,uuid[])` /
-  `(uuid,text,boolean,text,uuid[])`, drop-before-recreate dodges PGRST203, timestamp 20260714160000 > latest
-  (20260714140000_create_task_comments). unnest/on-conflict/delete-then-reinsert atomic (single plpgsql txn),
-  mirrors update_event; delete placed AFTER the not-found raise (won't wipe People for a missing/archived task).
-  Load-bearing insight it got RIGHT: `task_contacts` SELECT must be `using(true)` (NOT event_attendees'
-  parent-live EXISTS) precisely so an ARCHIVED task's embed still returns its People — the archived-detail
-  roster depends on it. Arity clean: create spreads {p_title,p_notes,p_contacts}; update builds explicit
-  {p_id,p_title,p_is_done,p_notes,p_contacts}. Only doc nit: `task_contacts` is a NEW `using(true)` table but
-  NOT a database.md #4 "viewable-soft-delete" exception (no deleted_at; its using(true) is parent-gate
-  divergence, not view-archived) — header annotation is the right home, don't force it into #4's list.
-- **task-comments Slice 2b plan (2026-07-14):** code/DB reasoning clean — cloned event_comments+comment_write_rpcs correctly (table+4 RPCs in ONE migration, matching the create_tasks.sql precedent, not the split event_comments used); FK `on delete restrict` to soft-delete-only `tasks(id)` right; parallel `taskCommentsRepository` threaded ContactsApp→HomeShell→TasksListScreen without disturbing the event `commentsRepository`; explicit RPC param maps (no toRpcParams spread — correct per database.md #2); `readOnly` default-false keeps event callers compiling; correctly saw CommentsSection.build is a Column (safe in TaskDetailView's ListView) and that readOnly needs only widget-gating, no controller suppression. Named the right test FILES (no missed file). Only gap: NO docs step (database.md #4 exception list + README Verify + decisions.md) — see tracker.
-- **tasks view-first plan (2026-07-14):** accurate on the hard parts — verified `Task.copyWith(title:)`
-  preserves `isDone`+`deletedAt` (title-only edit safe); correctly kept the compound pane key
-  `id:isDone:isArchived` (still needed so a LIST-circle toggle of the selected task remounts the
-  read-only detail); correctly reasoned the read-only detail's own `setState(_task=result)` removes the
-  need for `_onEditorChanged`'s optimistic `_lastData` patch (no control-set flash on archive/restore
-  because a stale `_lastData` keeps the key unchanged → no remount during the reload). Correctly chose
-  body-Edit over prototype's AppBar-Edit (both layouts share one control set; desktop pane has no
-  AppBar). Correctly confirmed no fallout in widget_test/home_shell/contacts_master_detail (repo
-  interface unchanged; no test asserts the contact-detail pencil). Only gap: Step 5 wide-test coverage
-  (see tracker).
-- **comments→RPC Slice 3 plan (2026-07-12):** nailed the tricky per-entity DIVERGENCES from the
-  contacts/event_types template: (1) `update_comment` is body-only and the repo builds `{p_id,p_body}`
-  explicitly rather than spreading `toRpcParams()` (spreading would send `p_event_id` to a fn that lacks
-  it → PGRST202) — verified the UI never edits an archived comment (Edit action is only on live tiles,
-  `_archivedTile` offers only Unarchive), so the `deleted_at is null` guard is safe; (2) `soft_delete_comment`
-  /`restore_comment` `returns uuid`+`_fetchOne` (not `void` like contacts `softDelete`) — correct, because
-  `using(true)` keeps the archived row selectable and the interface returns `Comment`; (3) FK/body CHECK fire
-  naturally through the RPC. Correctness was clean; only the doc-sweep completeness slipped (see tracker).
-- **event-comments plan (2026-07-11):** verified the trickiest DB reasoning correctly — that
-  archive/unarchive/edit can be plain direct PostgREST UPDATEs *because* the SELECT policy is
-  `using (true)`, so the mutated row survives PostgREST's RETURNING re-check (the 42501 that forced
-  `soft_delete_event_type` into a SECURITY DEFINER RPC does NOT recur here). Also correctly set the
-  UPDATE policy `using (true)` (not `deleted_at is null`) so an archived row can be targeted to
-  unarchive, and correctly claimed no existing model reads `deleted_at`. Named every breaking
-  construction site. Accurate, well-validated plan.
-
-## Known false-positive traps (do not flag these)
-- `drop function if exists …; create or replace …` to change an RPC signature is the **correct**
-  pattern here (avoids PGRST203), not a breaking change.
-- Missing `auth.uid()` is expected pre-auth (issue #3) — not a plan defect.
+## Topics
+- [Failure modes — full detail](topics/failure-modes.md) — F1–F11 with evidence, variants, and the exact rule each promoted to.
+- [Positive signals](topics/positive-signals.md) — plans that were accurate, and what specifically they got right (keeps reviews from re-litigating settled ground).

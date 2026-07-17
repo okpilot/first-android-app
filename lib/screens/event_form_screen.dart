@@ -166,7 +166,9 @@ class _EventFormScreenState extends State<EventFormScreen> {
         builder: (_) => ContactPickerScreen(
           repository: widget.contactsRepository,
           initialSelected: _attendees,
-          title: 'attendees',
+          // UI copy is "people" everywhere (Decision 47); the domain/DB name stays
+          // `attendees` (Event.attendees, the event_attendees table).
+          title: 'people',
         ),
       ),
     );
@@ -235,15 +237,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEditing ? 'Edit event' : 'New event'),
-        actions: [
-          TextButton(
-            onPressed: _saving ? null : _save,
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: Text(_isEditing ? 'Edit event' : 'New event')),
       body: AbsorbPointer(
         absorbing: _saving,
         child: Form(
@@ -277,7 +271,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
               _ValueField(
                 icon: Icons.calendar_today_outlined,
                 label: 'Date',
-                value: _dateLabel(_date),
+                value: longDate(_date),
                 onTap: _pickDate,
               ),
               // Time fields collapse when the event is all-day.
@@ -381,9 +375,6 @@ class _EventFormScreenState extends State<EventFormScreen> {
       ),
     );
   }
-
-  String _dateLabel(DateTime d) =>
-      '${weekdayShort[d.weekday - 1]}, ${d.day} ${monthShort[d.month - 1]} ${d.year}';
 }
 
 /// The all-day toggle row (label + mono Switch), styled to line up with the fields.
@@ -447,8 +438,10 @@ class _ValueField extends StatelessWidget {
   }
 }
 
-/// The attendees block: a label, the selected contacts as removable chips, and an
-/// "Add contacts" button that opens the picker.
+/// The People block: a label, the selected contacts as removable chips, and an
+/// "Add people" button that opens the picker. (Class/field names keep the `attendees`
+/// domain noun — it matches `Event.attendees` + the `event_attendees` table; only the
+/// user-facing copy is "people", per Decision 47.)
 class _AttendeesSection extends StatelessWidget {
   const _AttendeesSection({
     required this.attendees,
@@ -466,7 +459,7 @@ class _AttendeesSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('ATTENDEES', style: theme.textTheme.labelMedium),
+        Text('PEOPLE', style: theme.textTheme.labelMedium),
         const SizedBox(height: 10),
         if (attendees.isNotEmpty)
           Wrap(
@@ -475,7 +468,15 @@ class _AttendeesSection extends StatelessWidget {
             children: [
               for (final c in attendees)
                 InputChip(
-                  avatar: InitialsAvatar(name: c.name, radius: 11),
+                  // onChipFill: the disc would otherwise paint in the SAME token the chip
+                  // fills with and dissolve into it. Colour, not a ring — measured: a ring
+                  // costs ~5px out of the Chip's pinned box, leaving an 11px disc; this
+                  // leaves 16px with the initials at natural size.
+                  avatar: InitialsAvatar(
+                    name: c.name,
+                    radius: 11,
+                    onChipFill: true,
+                  ),
                   label: Text(c.name),
                   onDeleted: () => onRemove(c),
                 ),
@@ -485,7 +486,7 @@ class _AttendeesSection extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: onAdd,
           icon: const Icon(Icons.person_add_alt_outlined),
-          label: const Text('Add contacts'),
+          label: const Text('Add people'),
         ),
       ],
     );

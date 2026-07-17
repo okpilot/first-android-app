@@ -965,16 +965,18 @@ class _EventBlock extends StatelessWidget {
         ? theme.colorScheme.onSurfaceVariant
         : theme.colorScheme.onSurface;
     final timeLabel = '${hhmm(event.startMin!)} – ${hhmm(event.endMin!)}';
-    final attendeeLabel = event.attendees.isEmpty
+    // "people" matches the visible copy everywhere else (Decision 47) — a screen reader must
+    // hear the same noun a sighted user reads, not the domain's `attendees`.
+    final peopleLabel = event.attendees.isEmpty
         ? ''
-        : ', ${event.attendees.length} attendee${event.attendees.length == 1 ? '' : 's'}';
+        : ', ${event.attendees.length} ${event.attendees.length == 1 ? 'person' : 'people'}';
 
     return Semantics(
       button: true,
       // Type isn't shown as text in the block (no room) — it's carried by the tint — so the
       // name goes in the a11y label; colour is never the sole signal (Decision 19).
       label:
-          '${event.title}, ${type?.name ?? 'No type'}, $timeLabel$attendeeLabel',
+          '${event.title}, ${type?.name ?? 'No type'}, $timeLabel$peopleLabel',
       child: LayoutBuilder(
         builder: (context, c) {
           final tall = c.maxHeight >= 44;

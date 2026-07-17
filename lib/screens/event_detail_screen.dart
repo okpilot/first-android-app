@@ -199,8 +199,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
   String _whenLabel(Event e) {
     final d = e.date;
-    final date =
-        '${weekdayShort[d.weekday - 1]}, ${d.day} ${monthShort[d.month - 1]} ${d.year}';
+    final date = longDate(d);
     // Times are null iff all-day (DB CHECK enforces it) — guard anyway so a malformed
     // event never crashes the whole screen.
     if (e.allDay || e.startMin == null || e.endMin == null) {
@@ -210,7 +209,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   }
 }
 
-/// The attendee roster (avatar + name + company). Empty state when nobody is invited.
+/// The People roster (avatar + name + company). Empty state when nobody is invited.
+/// (Class/field names keep the `attendee` domain noun — `Event.attendees` + the
+/// `event_attendees` table; only the user-facing copy is "people", per Decision 47.)
 class _AttendeeList extends StatelessWidget {
   const _AttendeeList({required this.event});
 
@@ -223,7 +224,7 @@ class _AttendeeList extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'ATTENDEES · ${event.attendees.length}',
+          'PEOPLE · ${event.attendees.length}',
           style: theme.textTheme.labelMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -231,7 +232,7 @@ class _AttendeeList extends StatelessWidget {
         const SizedBox(height: 8),
         if (event.attendees.isEmpty)
           Text(
-            'No attendees',
+            'No people',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),

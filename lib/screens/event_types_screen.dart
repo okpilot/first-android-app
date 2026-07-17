@@ -255,15 +255,7 @@ class _EventTypeEditorScreenState extends State<EventTypeEditorScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEditing ? 'Edit type' : 'New type'),
-        actions: [
-          TextButton(
-            onPressed: _saving ? null : _save,
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: Text(_isEditing ? 'Edit type' : 'New type')),
       body: AbsorbPointer(
         absorbing: _saving,
         child: Form(
