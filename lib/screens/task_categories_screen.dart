@@ -240,12 +240,6 @@ class _TaskCategoryEditorScreenState extends State<TaskCategoryEditorScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit category' : 'New category'),
-        actions: [
-          TextButton(
-            onPressed: _saving ? null : _save,
-            child: const Text('Save'),
-          ),
-        ],
       ),
       body: AbsorbPointer(
         absorbing: _saving,

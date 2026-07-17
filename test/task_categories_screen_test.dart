@@ -129,7 +129,7 @@ Future<void> _addCategoryViaEditor(WidgetTester tester, String name) async {
   await tester.tap(find.widgetWithText(FloatingActionButton, 'New category'));
   await tester.pumpAndSettle();
   await tester.enterText(find.byType(TextFormField), name);
-  await tester.tap(find.widgetWithText(TextButton, 'Save'));
+  await tester.tap(find.widgetWithText(FilledButton, 'Add category'));
   await tester.pumpAndSettle();
 }
 
@@ -167,7 +167,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextFormField), 'Waiting-on');
-    await tester.tap(find.widgetWithText(TextButton, 'Save'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Add category'));
     await tester.pumpAndSettle();
 
     // Back on the manager, the new category is listed.

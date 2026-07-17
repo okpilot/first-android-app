@@ -301,6 +301,32 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         shape: shape,
       ),
+      // Chips: the mono treatment Decision 13 promises but never delivered — without this,
+      // InputChip ships stock M3 (outlined, 8px radius, `labelLarge` = our BUTTON style)
+      // beside the tight pill on the task rows, so one category rendered two ways
+      // (Decision 47).
+      chipTheme: ChipThemeData(
+        // A true pill — matches `_CategoryChip`'s circular(999) on the task rows.
+        shape: const StadiumBorder(),
+        backgroundColor: scheme.secondaryContainer,
+        // LOAD-BEARING, not belt-and-braces: StadiumBorder's own default side IS
+        // BorderSide.none, so without this `Chip._getShape` falls through to
+        // `resolvedShape.copyWith(side: chipDefaults.side)` and the outlineVariant
+        // hairline comes back. Deleting this "redundant" line un-does the flat look.
+        side: BorderSide.none,
+        // The M3 default is `labelLarge` — which THIS theme defines as the button style
+        // (w600/14). labelMedium (w500/12.5) sits beside the row pill's labelSmall.
+        // copyWith(onSurface) because labelMedium carries `inkSoft`, and Chip merges the
+        // theme style — so the bare role would mute contact names, while the row pill
+        // (`_CategoryChip`) paints its name at full onSurface. Same token, both places.
+        labelStyle: textTheme.labelMedium?.copyWith(color: scheme.onSurface),
+        // Compact the HORIZONTAL axis only; KEEP M3's vertical 8. Shrinking the vertical
+        // does NOT shrink the chip: `contentSize = max(_kChipHeight - padding.vertical, …)`,
+        // so height stays pinned at the 32px floor while the avatar and ✕ — which are laid
+        // out in a tightFor(contentSize) box — inflate to fill it. `symmetric(horizontal: 4)`
+        // alone would zero the vertical and blow contentSize 20 → 32.
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+      ),
       // Every new M3 component we introduce gets mono treatment so nothing ships
       // with a default tonal fill against the flat theme (Decision 13).
       navigationBarTheme: NavigationBarThemeData(

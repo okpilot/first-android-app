@@ -474,12 +474,13 @@ class _CommentsSectionState extends State<CommentsSection> {
     );
   }
 
-  /// Compact absolute 24h timestamp, e.g. "14:32 · 9 Jul". `createdAt` is UTC/offset, so
+  /// Compact absolute 24h timestamp, e.g. "9 Jul · 14:32" — date first, so it reads in the same
+  /// direction as every other date in the app (Decision 47). `createdAt` is UTC/offset, so
   /// convert to local first; `hhmm` takes minutes-from-midnight, not a DateTime.
   String _timestamp(Comment c) {
     final dt = c.createdAt;
     if (dt == null) return '';
     final t = dt.toLocal();
-    return '${hhmm(t.hour * 60 + t.minute)} · ${t.day} ${monthShort[t.month - 1]}';
+    return '${displayDateNoYear(t)} · ${hhmm(t.hour * 60 + t.minute)}';
   }
 }

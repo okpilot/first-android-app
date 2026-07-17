@@ -243,7 +243,7 @@ class _TaskEditViewState extends State<TaskEditView> {
                   onChanged: (v) => setState(() => _importance = v),
                 ),
                 const SizedBox(height: 28),
-                // People — linked contacts, like an event's attendees. Chips + picker.
+                // People — linked contacts, like an event's People. Chips + picker.
                 _PeopleSection(
                   contacts: _contacts,
                   onAdd: _openPeople,
@@ -405,7 +405,15 @@ class _PeopleSection extends StatelessWidget {
             children: [
               for (final c in contacts)
                 InputChip(
-                  avatar: InitialsAvatar(name: c.name, radius: 11),
+                  // ring: the avatar fills with secondaryContainer — the SAME token the
+                  // chip now fills with (the mono scheme aliases all three container roles
+                  // onto one colour), so without the ring the disc dissolves into the chip
+                  // and only bare initials survive.
+                  // radius: KEEP it. A Chip pins the avatar's BOX (tightFor(contentSize)),
+                  // so radius can't change the disc size here — but `initials_avatar` also
+                  // derives `fontSize: radius * 0.7`, and no box constraint reaches a
+                  // TextStyle. Drop it and the initials silently jump 7.7px → 14px.
+                  avatar: InitialsAvatar(name: c.name, radius: 11, ring: true),
                   label: Text(c.name),
                   onDeleted: () => onRemove(c),
                 ),

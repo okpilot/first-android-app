@@ -72,6 +72,34 @@ List<DateTime> daySpan(DateTime start, int count) => List.generate(
 String dayLabel(DateTime d) =>
     '${weekdayShort[d.weekday - 1]} ${d.day} ${monthShort[d.month - 1]}';
 
+// ---------------------------------------------------------------------------
+// Display date formats — the ONE set of user-facing date renderers (Decision 47).
+//
+// These live here, beside [dayLabel]/[periodLabel], because this file already owns the
+// month/weekday name arrays AND the date-label formatters — so every date label the user
+// can read is in one place. (Putting them in `format.dart` would orphan calendar imports
+// and force a format→calendar edge that every model would inherit.)
+//
+// NEVER render `ymd()` to the user: it is the WIRE serializer + a day-grouping map key
+// (see its doc-comment in `format.dart`). That leak is what these replace.
+// ---------------------------------------------------------------------------
+
+/// e.g. "13 Apr 1974" — the default user-facing date (detail rows, Added/Updated meta).
+/// Day-month-year with a short month name: unambiguous for any reader, unlike 04/13.
+String displayDate(DateTime d) =>
+    '${d.day} ${monthShort[d.month - 1]} ${d.year}';
+
+/// e.g. "9 Jul" — [displayDate] without the year, for compact rows where the year is
+/// implied (comment timestamps). Deliberately year-less: matches the prior behaviour and
+/// [dayLabel]'s precedent.
+String displayDateNoYear(DateTime d) => '${d.day} ${monthShort[d.month - 1]}';
+
+/// e.g. "Fri, 17 Jul 2026" — [displayDate] with the weekday, for a single prominent date
+/// (an event's When). The comma separates the weekday from the date proper; [dayLabel] is
+/// the tighter, year-less twin used in space-constrained calendar chrome.
+String longDate(DateTime d) =>
+    '${weekdayShort[d.weekday - 1]}, ${d.day} ${monthShort[d.month - 1]} ${d.year}';
+
 /// The AppBar period label for each view tab:
 /// 0 Month → "July 2026" · 1 3-day → "8–10 Jul" (or "30 Jun – 2 Jul" across months)
 /// · 2 Day → "Wed 8 Jul" · 3 Agenda → "Upcoming".

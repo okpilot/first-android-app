@@ -141,30 +141,28 @@ void main() {
     expect(popped!.map((c) => c.id), ['c2']);
   });
 
-  testWidgets(
-    'an empty roster shows the role-aware "link them as <noun>" empty state',
-    (tester) async {
-      // Attendees (event path) and people (task path) each get their own noun.
-      await tester.pumpWidget(
-        _picker(title: 'attendees', repo: FakeContactsRepo()),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('No contacts yet'), findsOneWidget);
-      expect(
-        find.text('Add contacts first, then link them as attendees.'),
-        findsOneWidget,
-      );
+  testWidgets('the empty state is built from whatever noun the caller passes', (
+    tester,
+  ) async {
+    // Both real callers pass 'people' since Decision 47 made it the one user-facing noun —
+    // so this asserts the widget's CONTRACT (it renders the noun it is given), not a
+    // distinction between the event and task paths. The synthetic noun keeps it honest: it
+    // would still fail if the copy were hardcoded.
+    await tester.pumpWidget(_picker(title: 'people', repo: FakeContactsRepo()));
+    await tester.pumpAndSettle();
+    expect(find.text('No contacts yet'), findsOneWidget);
+    expect(
+      find.text('Add contacts first, then link them as people.'),
+      findsOneWidget,
+    );
 
-      await tester.pumpWidget(
-        _picker(title: 'people', repo: FakeContactsRepo()),
-      );
-      await tester.pumpAndSettle();
-      expect(
-        find.text('Add contacts first, then link them as people.'),
-        findsOneWidget,
-      );
-    },
-  );
+    await tester.pumpWidget(_picker(title: 'guests', repo: FakeContactsRepo()));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Add contacts first, then link them as guests.'),
+      findsOneWidget,
+    );
+  });
 
   testWidgets('a failed roster load shows the contacts error state', (
     tester,

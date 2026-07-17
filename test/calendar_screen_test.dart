@@ -106,7 +106,7 @@ void main() {
 
     // Now on the detail screen — the Type row shows "No type" for an untyped event.
     expect(find.text('Delete event'), findsOneWidget);
-    expect(find.text('ATTENDEES · 1'), findsOneWidget);
+    expect(find.text('PEOPLE · 1'), findsOneWidget);
     expect(find.text('No type'), findsOneWidget);
   });
 

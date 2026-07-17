@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/contacts_repository.dart';
 import '../models/contact.dart';
-import '../util/format.dart';
+import '../util/calendar.dart';
 import '../util/ids.dart';
 
 /// Add (when [existing] is null) or edit a contact. Pops the saved [Contact] on
@@ -102,15 +102,7 @@ class _ContactFormScreenState extends State<ContactFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEditing ? 'Edit contact' : 'New contact'),
-        actions: [
-          TextButton(
-            onPressed: _saving ? null : _save,
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: Text(_isEditing ? 'Edit contact' : 'New contact')),
       body: AbsorbPointer(
         absorbing: _saving,
         child: Form(
@@ -217,7 +209,7 @@ class _DobField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final text = value == null ? null : ymd(value!);
+    final text = value == null ? null : displayDate(value!);
     return InkWell(
       onTap: onPick,
       child: InputDecorator(
