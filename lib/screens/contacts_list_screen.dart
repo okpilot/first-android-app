@@ -157,6 +157,9 @@ class _ContactsListScreenState extends State<ContactsListScreen> {
           // (its _contact is seeded once in initState).
           child: ContactDetailView(
             key: ValueKey(selected.id),
+            // The wide pane has no AppBar — render the in-pane header strip so Edit reads
+            // top-right here too (Decision 49).
+            showPaneHeader: true,
             repository: widget.repository,
             contact: selected,
             onChanged: (_) => _load(),

@@ -8,6 +8,7 @@ import '../util/calendar.dart';
 import '../widgets/detail_field.dart';
 import '../widgets/initials_avatar.dart';
 import '../widgets/meta_line.dart';
+import '../widgets/pane_header.dart';
 import '../widgets/subtle_button.dart';
 import 'contact_form_screen.dart';
 
@@ -33,6 +34,10 @@ class ContactDetailScreen extends StatefulWidget {
 class _ContactDetailScreenState extends State<ContactDetailScreen> {
   bool _dirty = false; // did anything change while we were here?
 
+  // Reaches the body view's public edit() from the AppBar action (Decision 49). Safe as a
+  // GlobalKey: this narrow body view is never re-keyed (the wide pane keys by id instead).
+  final _viewKey = GlobalKey<ContactDetailViewState>();
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -46,8 +51,25 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
         unawaited(Future.microtask(() => navigator.pop(_dirty)));
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('Contact')),
+        appBar: AppBar(
+          title: const Text('Contact'),
+          // Edit lives top-right (Decision 49) — the app's shared SubtleButton ('Edit' tonal
+          // chip), same as the body actions, NOT a bare pencil (Decision 29 settled that). A
+          // contact is never archived, so it's always offered; edit() itself no-ops mid-delete.
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: Center(
+                child: SubtleButton(
+                  label: 'Edit',
+                  onPressed: () => _viewKey.currentState?.edit(),
+                ),
+              ),
+            ),
+          ],
+        ),
         body: ContactDetailView(
+          key: _viewKey,
           repository: widget.repository,
           contact: widget.contact,
           onChanged: (_) => _dirty = true,
@@ -63,8 +85,9 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
 /// The shared detail *body* for one contact. Rendered full-screen on phones (inside
 /// [ContactDetailScreen]) and embedded in the desktop master-detail pane. It has no
 /// `Scaffold`/`AppBar` and NEVER pops — it reports up via [onChanged] / [onDeleted]
-/// and lets the host decide navigation. Edit and Delete live in the body (the header
-/// Edit button, the bottom Delete button) so both layouts share one control set.
+/// and lets the host decide navigation. **Edit lives top-right** (Decision 49) — in the
+/// phone AppBar (via the host's [edit] call) or, on the AppBar-less desktop pane, in this
+/// view's own [showPaneHeader] strip; only Delete remains in the body.
 ///
 /// **Key it by contact id** when the host swaps the selected contact in place
 /// (`ContactDetailView(key: ValueKey(contact.id), …)`): `_contact` is seeded once in
@@ -76,6 +99,7 @@ class ContactDetailView extends StatefulWidget {
     required this.contact,
     this.onChanged,
     this.onDeleted,
+    this.showPaneHeader = false,
   });
 
   final ContactsRepository repository;
@@ -88,11 +112,16 @@ class ContactDetailView extends StatefulWidget {
   /// been shown on the root messenger; the host handles navigation/refresh.
   final ValueChanged<Contact>? onDeleted;
 
+  /// True only in the AppBar-less desktop pane: render a slim in-pane header strip
+  /// ("Contact" + a top-right Edit) so Edit reads top-right in both layouts (Decision 49).
+  /// The phone wrapper leaves this false and puts Edit in its real AppBar.
+  final bool showPaneHeader;
+
   @override
-  State<ContactDetailView> createState() => _ContactDetailViewState();
+  State<ContactDetailView> createState() => ContactDetailViewState();
 }
 
-class _ContactDetailViewState extends State<ContactDetailView> {
+class ContactDetailViewState extends State<ContactDetailView> {
   late Contact _contact;
   bool _deleting = false;
 
@@ -100,6 +129,14 @@ class _ContactDetailViewState extends State<ContactDetailView> {
   void initState() {
     super.initState();
     _contact = widget.contact;
+  }
+
+  /// Open the editor. Public so the phone wrapper's AppBar action can trigger it via a
+  /// [GlobalKey]; the desktop pane's own header strip calls it directly. No-ops mid-delete
+  /// (the AppBar sits above the body, so it can't rely on the body's disabled state).
+  void edit() {
+    if (_deleting) return;
+    unawaited(_edit());
   }
 
   Future<void> _edit() async {
@@ -168,11 +205,22 @@ class _ContactDetailViewState extends State<ContactDetailView> {
     // the wide desktop pane, and LEFT-align it so it hugs the list divider instead of
     // floating in the middle (the empty space belongs on the far right). Harmless on a
     // phone (its width is already < 720).
+    // On the AppBar-less desktop pane, prepend a fixed header strip carrying the top-right
+    // Edit; the phone leaves it out and uses its real AppBar (Decision 49). The ListView is
+    // Expanded so it scrolls beneath the fixed strip.
+    final content = widget.showPaneHeader
+        ? Column(
+            children: [
+              PaneHeader(title: 'Contact', onEdit: _deleting ? null : edit),
+              Expanded(child: _body(context, theme, c)),
+            ],
+          )
+        : _body(context, theme, c);
     return Align(
       alignment: Alignment.topLeft,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 720),
-        child: _body(context, theme, c),
+        child: content,
       ),
     );
   }
@@ -186,10 +234,6 @@ class _ContactDetailViewState extends State<ContactDetailView> {
             InitialsAvatar(name: c.name, radius: 28),
             const SizedBox(width: 16),
             Expanded(child: Text(c.name, style: theme.textTheme.headlineSmall)),
-            const SizedBox(width: 12),
-            // A labeled subtle button, not a bare pencil icon — clearer intent and a real
-            // tap target. Quiet (neutral chip) next to the filled-ink primaries.
-            SubtleButton(onPressed: _deleting ? null : _edit, label: 'Edit'),
           ],
         ),
         const SizedBox(height: 24),

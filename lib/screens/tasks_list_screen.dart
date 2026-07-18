@@ -280,6 +280,9 @@ class _TasksListScreenState extends State<TasksListScreen> {
         key: ValueKey(
           '${selected.id}:${selected.isArchived}:${selected.isDone}',
         ),
+        // The wide pane has no AppBar — render the in-pane header strip so Edit reads
+        // top-right here too (Decision 49).
+        showPaneHeader: true,
         repository: widget.repository,
         commentsRepository: widget.commentsRepository,
         contactsRepository: widget.contactsRepository,

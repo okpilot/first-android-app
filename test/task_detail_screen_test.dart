@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -13,8 +15,28 @@ import 'package:first_android_app/screens/task_form_screen.dart';
 import 'package:first_android_app/theme.dart';
 import 'package:first_android_app/widgets/comments_section.dart';
 import 'package:first_android_app/widgets/importance_marks.dart';
+import 'package:first_android_app/widgets/pane_header.dart';
 
 import 'support/fakes.dart';
+
+/// A tasks repo whose archive never resolves — pins the view in its _busy state so a test can
+/// prove Edit no-ops mid-mutation. The phone AppBar action isn't disabled by the body's _busy
+/// state (the AbsorbPointer wraps only the body), so the guard on that path is edit()'s
+/// `if (_busy || _isArchived) return`.
+class _HangingArchiveRepo implements TasksRepository {
+  final _never = Completer<Task>();
+
+  @override
+  Future<List<Task>> fetchAll() async => const [];
+  @override
+  Future<Task> create(Task draft) async => draft;
+  @override
+  Future<Task> update(Task task) async => task;
+  @override
+  Future<Task> archive(String id) => _never.future;
+  @override
+  Future<Task> restore(String id) => _never.future;
+}
 
 Widget _detail(
   TasksRepository repo,
@@ -33,27 +55,28 @@ Widget _detail(
 );
 
 void main() {
-  testWidgets(
-    'a live task reads: title, Active pill, Edit + Complete + Archive',
-    (tester) async {
-      final repo = StatefulTasksRepo(const [
-        Task(id: 't1', title: 'Call Nadia'),
-      ]);
-      await tester.pumpWidget(
-        _detail(repo, const Task(id: 't1', title: 'Call Nadia')),
-      );
-      await tester.pumpAndSettle();
+  testWidgets('a live task reads: title, Active pill, Edit + Complete + Archive', (
+    tester,
+  ) async {
+    final repo = StatefulTasksRepo(const [Task(id: 't1', title: 'Call Nadia')]);
+    await tester.pumpWidget(
+      _detail(repo, const Task(id: 't1', title: 'Call Nadia')),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.widgetWithText(AppBar, 'Task'), findsOneWidget);
-      expect(find.text('Call Nadia'), findsOneWidget);
-      expect(find.text('Active'), findsOneWidget);
-      // Read-first: no editable field on the detail; Edit is a button.
-      expect(find.byType(TextFormField), findsNothing);
-      expect(find.widgetWithText(FilledButton, 'Edit'), findsOneWidget);
-      expect(find.widgetWithText(FilledButton, 'Complete'), findsOneWidget);
-      expect(find.widgetWithText(FilledButton, 'Archive'), findsOneWidget);
-    },
-  );
+    expect(find.widgetWithText(AppBar, 'Task'), findsOneWidget);
+    expect(find.text('Call Nadia'), findsOneWidget);
+    expect(find.text('Active'), findsOneWidget);
+    // Read-first: no editable field on the detail; Edit is the top-right AppBar action
+    // (Decision 49) — the same 'Edit' chip, relocated from the body.
+    expect(find.byType(TextFormField), findsNothing);
+    expect(find.widgetWithText(FilledButton, 'Edit'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Complete'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Archive'), findsOneWidget);
+    // Phone layout: Edit is in the real AppBar, so the view renders NO in-pane header
+    // strip (that's the desktop pane's stand-in only) — showPaneHeader defaults false.
+    expect(find.byType(PaneHeader), findsNothing);
+  });
 
   testWidgets('Complete marks it done and flips the button to Reopen', (
     tester,
@@ -196,6 +219,28 @@ void main() {
     expect(find.byType(TaskFormScreen), findsOneWidget);
     expect(find.widgetWithText(AppBar, 'Edit task'), findsOneWidget);
     expect(find.byType(TextFormField), findsNWidgets(2)); // title + notes
+  });
+
+  testWidgets('the AppBar Edit no-ops while a mutation is in flight', (
+    tester,
+  ) async {
+    // The phone AppBar Edit stays tappable during a mutation (the body's AbsorbPointer doesn't
+    // cover the AppBar), so edit()'s own `if (_busy || _isArchived) return` is the guard. With
+    // archive hung, _busy stays true; tapping Edit must push no form.
+    final repo = _HangingArchiveRepo();
+    await tester.pumpWidget(
+      _detail(repo, const Task(id: 't1', title: 'Call Nadia')),
+    );
+    await tester.pumpAndSettle();
+
+    // Kick off an archive — it never resolves, so the view is pinned _busy.
+    await tester.tap(find.widgetWithText(FilledButton, 'Archive'));
+    await tester.pump();
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Edit'));
+    await tester.pump();
+
+    expect(find.byType(TaskFormScreen), findsNothing);
   });
 
   testWidgets('notes render (read-only) under the pill when present', (

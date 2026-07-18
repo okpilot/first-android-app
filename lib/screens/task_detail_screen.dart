@@ -13,6 +13,7 @@ import '../widgets/comments_section.dart';
 import '../widgets/importance_marks.dart';
 import '../widgets/initials_avatar.dart';
 import '../widgets/meta_line.dart';
+import '../widgets/pane_header.dart';
 import '../widgets/subtle_button.dart';
 import '../widgets/type_label.dart';
 import 'task_form_screen.dart';
@@ -44,9 +45,13 @@ class TaskDetailScreen extends StatefulWidget {
 
 class _TaskDetailScreenState extends State<TaskDetailScreen> {
   bool _dirty = false; // did anything change while we were here?
-  // The live task, lifted so an in-place archive/restore retitles the AppBar (the body's
-  // own copy flips its controls; the bar tracks the same state here).
+  // The live task, lifted so an in-place archive/restore retitles the AppBar AND flips the
+  // Edit action's presence (the body's own copy flips its controls; the bar tracks it here).
   late Task _task = widget.task;
+
+  // Reaches the body view's public edit() from the AppBar action (Decision 49). Safe as a
+  // GlobalKey: this narrow body view is never re-keyed (the wide pane keys by task instead).
+  final _viewKey = GlobalKey<TaskDetailViewState>();
 
   @override
   Widget build(BuildContext context) {
@@ -63,8 +68,25 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: Text(_task.isArchived ? 'Archived task' : 'Task'),
+          // Edit lives top-right (Decision 49) — the app's shared SubtleButton ('Edit' tonal
+          // chip), same as the body actions, NOT a bare pencil (Decision 29 settled that).
+          // Dropped for an archived task (read-only history); edit() also no-ops mid-mutation.
+          actions: _task.isArchived
+              ? null
+              : [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: Center(
+                      child: SubtleButton(
+                        label: 'Edit',
+                        onPressed: () => _viewKey.currentState?.edit(),
+                      ),
+                    ),
+                  ),
+                ],
         ),
         body: TaskDetailView(
+          key: _viewKey,
           repository: widget.repository,
           commentsRepository: widget.commentsRepository,
           contactsRepository: widget.contactsRepository,
@@ -85,8 +107,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 /// `Scaffold`/`AppBar` and NEVER pops — it reports up via [onChanged] and lets the host
 /// decide navigation. Read-first: the title, a status pill, the notes (when present), the
 /// dates, and — as **subtle tonal buttons** distinct from the filled-ink primary
-/// (New task / Save) — **Edit**
-/// (top-right), **Complete**/**Reopen**, and **Archive**. An **archived** task is
+/// (New task / Save) — **Complete**/**Reopen** and **Archive**. **Edit** lives top-right
+/// (Decision 49): in the phone AppBar (via the host's [edit] call) or, on the AppBar-less
+/// desktop pane, in this view's own [showPaneHeader] strip. An **archived** task is
 /// read-only history: it drops Edit + completion and offers only **Restore**.
 ///
 /// Completion is a **button** here (not the list's check circle — the circle stays on the
@@ -105,6 +128,7 @@ class TaskDetailView extends StatefulWidget {
     required this.taskCategoriesRepository,
     required this.task,
     this.onChanged,
+    this.showPaneHeader = false,
   });
 
   final TasksRepository repository;
@@ -117,11 +141,16 @@ class TaskDetailView extends StatefulWidget {
   /// archive / restore. The host reloads its list and (on desktop) keeps the selection.
   final ValueChanged<Task>? onChanged;
 
+  /// True only in the AppBar-less desktop pane: render a slim in-pane header strip
+  /// ("Task"/"Archived task" + a top-right Edit) so Edit reads top-right in both layouts
+  /// (Decision 49). The phone wrapper leaves this false and puts Edit in its real AppBar.
+  final bool showPaneHeader;
+
   @override
-  State<TaskDetailView> createState() => _TaskDetailViewState();
+  State<TaskDetailView> createState() => TaskDetailViewState();
 }
 
-class _TaskDetailViewState extends State<TaskDetailView> {
+class TaskDetailViewState extends State<TaskDetailView> {
   late Task _task;
   bool _busy = false; // an in-flight mutation — disables the actions
 
@@ -131,6 +160,14 @@ class _TaskDetailViewState extends State<TaskDetailView> {
   void initState() {
     super.initState();
     _task = widget.task;
+  }
+
+  /// Open the editor. Public so the phone wrapper's AppBar action can trigger it via a
+  /// [GlobalKey]; the desktop pane's own header strip calls it directly. No-ops for an
+  /// archived task or mid-mutation (the AppBar sits above the body's disabled state).
+  void edit() {
+    if (_busy || _isArchived) return;
+    unawaited(_edit());
   }
 
   /// Open the title-only editor (a pushed route in both layouts, like Contacts). Applies
@@ -193,6 +230,115 @@ class _TaskDetailViewState extends State<TaskDetailView> {
     final theme = Theme.of(context);
     final muted = theme.colorScheme.onSurfaceVariant;
 
+    // On the AppBar-less desktop pane, prepend a fixed header strip carrying the top-right
+    // Edit (dropped when archived); the phone leaves it out and uses its real AppBar
+    // (Decision 49). The ListView is Expanded so it scrolls beneath the fixed strip.
+    final body = ListView(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+      children: [
+        Text(
+          _task.title,
+          style: theme.textTheme.headlineSmall?.copyWith(
+            color: (_task.isDone || _isArchived) ? muted : null,
+            decoration: _task.isDone ? TextDecoration.lineThrough : null,
+            decorationColor: muted,
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Status + importance marker on one line (marks render nothing at level 0).
+        Row(
+          children: [
+            _StatusPill(task: _task),
+            if (_task.importance > 0) ...[
+              const SizedBox(width: 12),
+              ImportanceMarks(level: _task.importance),
+            ],
+          ],
+        ),
+        if (_isArchived) ...[
+          const SizedBox(height: 12),
+          Text(
+            'Read-only history — restore to edit.',
+            style: theme.textTheme.bodyMedium,
+          ),
+        ],
+        // Notes — an optional freeform description. Shown (read-only) when present, for
+        // live AND archived tasks; hidden entirely when the task has no notes. Label +
+        // value mirror the ContactDetailView row style (labelMedium over bodyLarge).
+        if (_task.notes != null && _task.notes!.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          Text('Notes', style: theme.textTheme.labelMedium),
+          const SizedBox(height: 6),
+          Text(_task.notes!, style: theme.textTheme.bodyLarge),
+        ],
+        // Categories — the linked colour tags, read-only (edited via the form). Shown only
+        // when the task has any; between Notes and People. (Decision 40, Slice B.)
+        if (_task.categories.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          _CategoriesList(categories: _task.categories),
+        ],
+        // People — the linked contacts, read-only (edited via the form, like an event's).
+        // Shown only when the task has any; hidden entirely otherwise.
+        if (_task.contacts.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          _PeopleList(contacts: _task.contacts),
+        ],
+        const SizedBox(height: 22),
+        MetaLine(created: _task.createdAt, updated: _task.updatedAt),
+        const SizedBox(height: 30),
+        // Actions — subtle tonal buttons. Live: Complete/Reopen + Archive.
+        // Archived: Restore only.
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: _isArchived
+              ? [
+                  SubtleButton(
+                    onPressed: _busy ? null : _restore,
+                    icon: Icons.unarchive_outlined,
+                    label: 'Restore',
+                  ),
+                ]
+              : [
+                  SubtleButton(
+                    onPressed: _busy ? null : _toggleDone,
+                    icon: _task.isDone ? Icons.refresh : Icons.check,
+                    label: _task.isDone ? 'Reopen' : 'Complete',
+                  ),
+                  SubtleButton(
+                    onPressed: _busy ? null : _archive,
+                    icon: Icons.archive_outlined,
+                    label: 'Archive',
+                  ),
+                ],
+        ),
+        // Comments — an archivable log, below the actions. Live/completed tasks get the
+        // composer; an archived task shows it read-only (frozen history). This view remounts
+        // on the isArchived key (the host's ValueKey), so `readOnly` flips cleanly.
+        const SizedBox(height: 28),
+        Divider(height: 1, color: theme.colorScheme.outlineVariant),
+        const SizedBox(height: 20),
+        CommentsSection(
+          repository: widget.commentsRepository,
+          parentId: _task.id,
+          readOnly: _isArchived,
+        ),
+      ],
+    );
+
+    final content = widget.showPaneHeader
+        ? Column(
+            children: [
+              PaneHeader(
+                title: _isArchived ? 'Archived task' : 'Task',
+                showEdit: !_isArchived,
+                onEdit: _busy ? null : edit,
+              ),
+              Expanded(child: body),
+            ],
+          )
+        : body;
+
     return AbsorbPointer(
       absorbing: _busy,
       // Cap the measure and LEFT-align so the content hugs the list divider in the wide
@@ -202,116 +348,7 @@ class _TaskDetailViewState extends State<TaskDetailView> {
         alignment: Alignment.topLeft,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 560),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
-            children: [
-              // Title + top-right Edit (subtle). Edit sits in the body — not the AppBar —
-              // so the phone screen and the AppBar-less desktop pane share one control set.
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Text(
-                      _task.title,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        color: (_task.isDone || _isArchived) ? muted : null,
-                        decoration: _task.isDone
-                            ? TextDecoration.lineThrough
-                            : null,
-                        decorationColor: muted,
-                      ),
-                    ),
-                  ),
-                  if (!_isArchived) ...[
-                    const SizedBox(width: 12),
-                    SubtleButton(
-                      onPressed: _busy ? null : _edit,
-                      label: 'Edit',
-                    ),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 16),
-              // Status + importance marker on one line (marks render nothing at level 0).
-              Row(
-                children: [
-                  _StatusPill(task: _task),
-                  if (_task.importance > 0) ...[
-                    const SizedBox(width: 12),
-                    ImportanceMarks(level: _task.importance),
-                  ],
-                ],
-              ),
-              if (_isArchived) ...[
-                const SizedBox(height: 12),
-                Text(
-                  'Read-only history — restore to edit.',
-                  style: theme.textTheme.bodyMedium,
-                ),
-              ],
-              // Notes — an optional freeform description. Shown (read-only) when present, for
-              // live AND archived tasks; hidden entirely when the task has no notes. Label +
-              // value mirror the ContactDetailView row style (labelMedium over bodyLarge).
-              if (_task.notes != null && _task.notes!.isNotEmpty) ...[
-                const SizedBox(height: 24),
-                Text('Notes', style: theme.textTheme.labelMedium),
-                const SizedBox(height: 6),
-                Text(_task.notes!, style: theme.textTheme.bodyLarge),
-              ],
-              // Categories — the linked colour tags, read-only (edited via the form). Shown only
-              // when the task has any; between Notes and People. (Decision 40, Slice B.)
-              if (_task.categories.isNotEmpty) ...[
-                const SizedBox(height: 24),
-                _CategoriesList(categories: _task.categories),
-              ],
-              // People — the linked contacts, read-only (edited via the form, like an event's).
-              // Shown only when the task has any; hidden entirely otherwise.
-              if (_task.contacts.isNotEmpty) ...[
-                const SizedBox(height: 24),
-                _PeopleList(contacts: _task.contacts),
-              ],
-              const SizedBox(height: 22),
-              MetaLine(created: _task.createdAt, updated: _task.updatedAt),
-              const SizedBox(height: 30),
-              // Actions — subtle tonal buttons. Live: Complete/Reopen + Archive.
-              // Archived: Restore only.
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: _isArchived
-                    ? [
-                        SubtleButton(
-                          onPressed: _busy ? null : _restore,
-                          icon: Icons.unarchive_outlined,
-                          label: 'Restore',
-                        ),
-                      ]
-                    : [
-                        SubtleButton(
-                          onPressed: _busy ? null : _toggleDone,
-                          icon: _task.isDone ? Icons.refresh : Icons.check,
-                          label: _task.isDone ? 'Reopen' : 'Complete',
-                        ),
-                        SubtleButton(
-                          onPressed: _busy ? null : _archive,
-                          icon: Icons.archive_outlined,
-                          label: 'Archive',
-                        ),
-                      ],
-              ),
-              // Comments — an archivable log, below the actions. Live/completed tasks get the
-              // composer; an archived task shows it read-only (frozen history). This view remounts
-              // on the isArchived key (the host's ValueKey), so `readOnly` flips cleanly.
-              const SizedBox(height: 28),
-              Divider(height: 1, color: theme.colorScheme.outlineVariant),
-              const SizedBox(height: 20),
-              CommentsSection(
-                repository: widget.commentsRepository,
-                parentId: _task.id,
-                readOnly: _isArchived,
-              ),
-            ],
-          ),
+          child: content,
         ),
       ),
     );

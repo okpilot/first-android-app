@@ -18,6 +18,7 @@ Evidence + full history for every row: [duplication-tracker](topics/duplication-
 | `TypeSwatch` is a public atom living in `event_types_screen.dart`, imported cross-screen (2 → 4 importers) | 2026-07-15 | 2 | 2026-07-15 (d95f85b) | WATCHING — SUGGESTION. Promote to `lib/widgets/`; no screen should import a widget from another screen. |
 | Near-identical `CommentsRepository` impl per parent entity (~70 lines, 6 strings differ) | 2026-07-14 | 1 | 2026-07-14 (643bbeb) | WATCHING — SUGGESTION, not pushed (interface docstring commits to per-parent impls). 3rd → count 2. |
 | `backend/README.md` `## Verify:` intro names an RPC the block never exercises (`update_event`) | 2026-07-17 | 1 | 2026-07-17 (46a2cdc) | WATCHING — reported ISSUE. 2nd → count 2 → rule: an intro may only name RPCs the block calls. |
+| **`PaneHeader` header-strip wrapper duplicated per detail view** — the `Column([PaneHeader, Divider(height:1, outlineVariant), Expanded(child: body)])` compose (incl. a byte-identical Divider the atom's own docstring already claims as part of it) copied in `contact_detail_screen`:209 ⟷ `task_detail_screen`:332 | 2026-07-17 | 2 | 2026-07-17 (e5e1b29) | RULE CANDIDATE — both panes born with it (count 2 on landing). SUGGESTION: fold the Divider into `PaneHeader`; a 3rd pane → extract the whole `Column` wrapper (a `PaneScaffold`). |
 
 ## Durable knowledge (this project's conventions to check against)
 - **No hard line caps.** Judge structure by responsibility/nesting, not length. A long
